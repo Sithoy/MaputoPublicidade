@@ -1,0 +1,447 @@
+[
+  {
+    "model": "catalog.servicecategory",
+    "pk": 1,
+    "fields": {
+      "name": "Serigrafia e Bordado",
+      "slug": "serigrafia-e-bordado",
+      "icon_name": "Shirt",
+      "short_description": "Personalização têxtil com qualidade profissional.",
+      "description": "Camisetas, bonés, uniformes e outros têxteis personalizados através de serigrafia e bordado de alta qualidade.",
+      "image": "",
+      "display_order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "catalog.servicecategory",
+    "pk": 2,
+    "fields": {
+      "name": "Gráfica",
+      "slug": "grafica",
+      "icon_name": "Printer",
+      "short_description": "Impressão offset e acabamentos gráficos.",
+      "description": "Cartões de visita, folhetos, catálogos, pastas e todos os materiais de imagem corporativa.",
+      "image": "",
+      "display_order": 2,
+      "is_active": true
+    }
+  },
+  {
+    "model": "catalog.servicecategory",
+    "pk": 3,
+    "fields": {
+      "name": "Impressão Digital e Branding",
+      "slug": "impressao-digital-e-branding",
+      "icon_name": "Monitor",
+      "short_description": "Soluções digitais e identidade visual.",
+      "description": "Impressão digital grande formato, lonas, vinil e projetos completos de branding para empresas.",
+      "image": "",
+      "display_order": 3,
+      "is_active": true
+    }
+  },
+  {
+    "model": "catalog.servicecategory",
+    "pk": 4,
+    "fields": {
+      "name": "Impressão UV e Brindes",
+      "slug": "impressao-uv-e-brindes",
+      "icon_name": "Gift",
+      "short_description": "Brindes personalizados e impressão UV de alta resistência.",
+      "description": "Canecas, garrafas, chapas, brindes promocionais e impressão UV sobre diversos materiais.",
+      "image": "",
+      "display_order": 4,
+      "is_active": true
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 1,
+    "fields": {
+      "name": "Rollups",
+      "slug": "rollups",
+      "category": 3,
+      "description": "Rollup portátil ideal para feiras, eventos e receções. Inclui estrutura e bolsa de transporte.",
+      "image": "products/rollups.jpg",
+      "materials": [
+        "Lona frontlit",
+        "Vinil"
+      ],
+      "sizes": [
+        "85x200 cm",
+        "100x200 cm",
+        "120x200 cm"
+      ],
+      "min_quantity": 1,
+      "lead_time": "3 a 5 dias úteis",
+      "base_price": "6500.00",
+      "pricing_complexity": "simple",
+      "is_featured": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 2,
+    "fields": {
+      "name": "Camisetas Personalizadas",
+      "slug": "camisetas-personalizadas",
+      "category": 1,
+      "description": "Camisetas em algodão ou poliéster personalizadas por serigrafia ou sublimação.",
+      "image": "products/camisetas-personalizadas.jpg",
+      "materials": [
+        "Algodão",
+        "Poliéster",
+        "Misto"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "min_quantity": 10,
+      "lead_time": "5 a 7 dias úteis",
+      "base_price": "450.00",
+      "pricing_complexity": "simple",
+      "is_featured": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 3,
+    "fields": {
+      "name": "Cartões de Visita",
+      "slug": "cartoes-de-visita",
+      "category": 2,
+      "description": "Cartões de visita profissionais em papel couché ou cartolina, com acabamentos mate ou brilhante.",
+      "image": "products/cartoes-de-visita.jpg",
+      "materials": [
+        "Couché 300g",
+        "Cartolina",
+        "Papel reciclado"
+      ],
+      "sizes": [
+        "85x55 mm"
+      ],
+      "min_quantity": 100,
+      "lead_time": "2 a 4 dias úteis",
+      "base_price": "2500.00",
+      "pricing_complexity": "simple",
+      "is_featured": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 4,
+    "fields": {
+      "name": "Bonés Bordados",
+      "slug": "bones-bordados",
+      "category": 1,
+      "description": "Bonés personalizados com bordado de logotipo. Disponíveis em várias cores e modelos.",
+      "image": "products/bones-bordados.jpg",
+      "materials": [
+        "Algodão",
+        "Poliéster"
+      ],
+      "sizes": [
+        "Ajustável"
+      ],
+      "min_quantity": 12,
+      "lead_time": "7 a 10 dias úteis",
+      "base_price": "900.00",
+      "pricing_complexity": "simple",
+      "is_featured": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 5,
+    "fields": {
+      "name": "Placas de Identificação",
+      "slug": "placas-de-identificacao",
+      "category": 4,
+      "description": "Placas de identificação em PVC, acrílico ou metal para escritórios, lojas e eventos.",
+      "image": "products/placas-de-identificacao.jpg",
+      "materials": [
+        "PVC",
+        "Acrílico",
+        "Alumínio composto"
+      ],
+      "sizes": [
+        "A4",
+        "A3",
+        "Personalizado"
+      ],
+      "min_quantity": 1,
+      "lead_time": "3 a 5 dias úteis",
+      "base_price": "1200.00",
+      "pricing_complexity": "complex",
+      "is_featured": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 6,
+    "fields": {
+      "name": "Autocolantes",
+      "slug": "autocolantes",
+      "category": 3,
+      "description": "Autocolantes e vinil de corte para decoração, sinalização e branding de viaturas.",
+      "image": "products/autocolantes.jpg",
+      "materials": [
+        "Vinil branco",
+        "Vinil transparente",
+        "Vinil de recorte"
+      ],
+      "sizes": [
+        "A4",
+        "A3",
+        "Metro linear"
+      ],
+      "min_quantity": 10,
+      "lead_time": "2 a 4 dias úteis",
+      "base_price": "150.00",
+      "pricing_complexity": "simple",
+      "is_featured": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 7,
+    "fields": {
+      "name": "Branding de Viaturas",
+      "slug": "branding-de-viaturas",
+      "category": 3,
+      "description": "Decoração completa de viaturas com vinil de alta resistência e acabamento profissional.",
+      "image": "products/branding-de-viaturas.jpg",
+      "materials": [
+        "Vinil cast",
+        "Vinil monomérico"
+      ],
+      "sizes": [
+        "Parcial",
+        "Total"
+      ],
+      "min_quantity": 1,
+      "lead_time": "5 a 10 dias úteis",
+      "base_price": "15000.00",
+      "pricing_complexity": "complex",
+      "is_featured": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 8,
+    "fields": {
+      "name": "Gazebos e Stands",
+      "slug": "gazebos-e-stands",
+      "category": 3,
+      "description": "Gazebos desmontáveis e stands promocionais para eventos ao ar livre ou feiras.",
+      "image": "products/gazebos-e-stands.jpg",
+      "materials": [
+        "Alumínio",
+        "Aço",
+        "Lona impermeável"
+      ],
+      "sizes": [
+        "2x2 m",
+        "3x3 m",
+        "3x4,5 m"
+      ],
+      "min_quantity": 1,
+      "lead_time": "5 a 8 dias úteis",
+      "base_price": "18000.00",
+      "pricing_complexity": "complex",
+      "is_featured": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.package",
+    "pk": 1,
+    "fields": {
+      "name": "Start Empresa",
+      "slug": "start-empresa",
+      "description": "Pacote essencial para novos negócios que precisam de identidade visual básica.",
+      "price": "25000.00",
+      "items": [
+        "Design de logotipo",
+        "Cartões de visita (500 unid.)",
+        "Papel timbrado digital",
+        "Perfis sociais básicos"
+      ],
+      "image": "",
+      "target_audience": "Empreendedores e startups",
+      "is_recurring": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.package",
+    "pk": 2,
+    "fields": {
+      "name": "Evento",
+      "slug": "evento",
+      "description": "Tudo o que precisa para promover a sua marca em eventos e feiras.",
+      "price": "45000.00",
+      "items": [
+        "Rollup 85x200 cm",
+        "100 folhetos A5",
+        "50 cartões de visita",
+        "Brindes promocionais (50 unid.)"
+      ],
+      "image": "",
+      "target_audience": "Empresas em feiras e eventos",
+      "is_recurring": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.package",
+    "pk": 3,
+    "fields": {
+      "name": "Uniforme Corporativo",
+      "slug": "uniforme-corporativo",
+      "description": "Kit completo de vestuário personalizado para equipas.",
+      "price": "35000.00",
+      "items": [
+        "10 camisetas personalizadas",
+        "5 bonés bordados",
+        "Design do logotipo aplicado",
+        "Embalagem individual"
+      ],
+      "image": "",
+      "target_audience": "Empresas com equipas de campo",
+      "is_recurring": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.package",
+    "pk": 4,
+    "fields": {
+      "name": "Branding Completo",
+      "slug": "branding-completo",
+      "description": "Rebranding ou criação de identidade visual integral para empresas.",
+      "price": "120000.00",
+      "items": [
+        "Estudo de marca",
+        "Logotipo e manual de marca",
+        "Papelaria completa",
+        "Branding de viatura (parcial)",
+        "Perfis digitais e templates"
+      ],
+      "image": "",
+      "target_audience": "Empresas em crescimento",
+      "is_recurring": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.package",
+    "pk": 5,
+    "fields": {
+      "name": "Cliente Recorrente",
+      "slug": "cliente-recorrente",
+      "description": "Pacote mensal de produção gráfica e brindes para clientes com necessidade contínua.",
+      "price": "55000.00",
+      "items": [
+        "1000 folhetos A5",
+        "200 cartões de visita",
+        "Brindes promocionais (100 unid.)",
+        "Suporte prioritário",
+        "Reunião mensal de planeamento"
+      ],
+      "image": "",
+      "target_audience": "Empresas com campanhas regulares",
+      "is_recurring": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "portfolio.portfolioitem",
+    "pk": 1,
+    "fields": {
+      "title": "Branding de Frota Comercial",
+      "slug": "branding-de-frota-comercial",
+      "category": 3,
+      "image": "",
+      "description": "Aplicação de vinil em frota de viaturas comerciais para empresa de construção civil.",
+      "client_name": "Construtora Exemplo",
+      "completion_date": "2025-08-15",
+      "is_featured": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "portfolio.portfolioitem",
+    "pk": 2,
+    "fields": {
+      "title": "Uniformes Corporativos Bordados",
+      "slug": "uniformes-corporativos-bordados",
+      "category": 1,
+      "image": "",
+      "description": "Camisetas e bonés personalizados para equipa de uma empresa de serviços.",
+      "client_name": "Serviços Lda.",
+      "completion_date": "2025-10-20",
+      "is_featured": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "portfolio.portfolioitem",
+    "pk": 3,
+    "fields": {
+      "title": "Stand para Feira de Negócios",
+      "slug": "stand-para-feira-de-negocios",
+      "category": 3,
+      "image": "",
+      "description": "Gazebo 3x3 m com laterais impressas, rollup e mesa promocional.",
+      "client_name": "Startup Tech",
+      "completion_date": "2025-11-05",
+      "is_featured": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  }
+]
