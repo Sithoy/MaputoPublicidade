@@ -19,6 +19,12 @@ const products = [
   { slug: 'autocolantes', name: 'Autocolantes' },
   { slug: 'branding-de-viaturas', name: 'Branding de Viaturas' },
   { slug: 'gazebos-e-stands', name: 'Gazebos e Stands' },
+  { slug: 'corte-em-acrilico', name: 'Corte em Acrílico' },
+  { slug: 'corte-em-mdf', name: 'Corte em MDF' },
+  { slug: 'gravacao-personalizada', name: 'Gravação Personalizada' },
+  { slug: 'letras-caixa-3d', name: 'Letras Caixa 3D' },
+  { slug: 'painel-decorativo-3d', name: 'Painel Decorativo 3D' },
+  { slug: 'sinalizacao-interior-3d', name: 'Sinalização Interior 3D' },
 ];
 
 const WHATSAPP_NUMBER = '25882555736';

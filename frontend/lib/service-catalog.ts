@@ -19,6 +19,28 @@ export type MainService = {
   process: string[];
 };
 
+export type ServiceProductGroup = {
+  title: string;
+  description: string;
+  productSlugs: string[];
+  fallbackItems: string[];
+};
+
+export type ServiceCommercialDetails = {
+  promise: string;
+  idealFor: string[];
+  deliverables: string[];
+  quoteChecklist: string[];
+  recommendedPackage: {
+    label: string;
+    title: string;
+    description: string;
+    productSlug: string;
+    items: string[];
+  };
+  productGroups: ServiceProductGroup[];
+};
+
 export const mainServices: MainService[] = [
   {
     slug: 'serigrafia-e-bordado',
@@ -156,4 +178,185 @@ export const mainServices: MainService[] = [
 
 export function getMainService(slug: string) {
   return mainServices.find((service) => service.slug === slug);
+}
+
+export const serviceCommercialDetails: Record<string, ServiceCommercialDetails> = {
+  'serigrafia-e-bordado': {
+    promise:
+      'Transformamos peças têxteis em presença de marca: uniformes para equipa, merchandising para eventos e brindes que continuam úteis depois da campanha.',
+    idealFor: ['Equipas comerciais e operacionais', 'Eventos e ativações de marca', 'Restaurantes, escolas e empresas de serviços'],
+    deliverables: ['Arte posicionada por peça', 'Opções de tecido e cores', 'Produção por tamanhos', 'Controlo de acabamento'],
+    quoteChecklist: ['Tipo de peça e cor pretendida', 'Quantidade por tamanho', 'Logotipo em vetor ou imagem', 'Prazo e local de entrega'],
+    recommendedPackage: {
+      label: 'Pacote de entrada',
+      title: 'Kit Uniforme Corporativo',
+      description:
+        'Uma combinação prática para equipas que precisam aparecer de forma consistente sem complicar o briefing.',
+      productSlug: 'camisetas-personalizadas',
+      items: ['Camisetas ou polos personalizados', 'Bonés bordados opcionais', 'Aplicação do logotipo', 'Separação por tamanhos'],
+    },
+    productGroups: [
+      {
+        title: 'Vestuário de equipa',
+        description: 'Peças para uso diário, ações comerciais e equipas de atendimento.',
+        productSlugs: ['camisetas-personalizadas'],
+        fallbackItems: ['Polos', 'Camisetas', 'Coletes', 'Aventais'],
+      },
+      {
+        title: 'Acessórios personalizados',
+        description: 'Complementos úteis para campanhas, eventos e identificação de equipa.',
+        productSlugs: ['bones-bordados'],
+        fallbackItems: ['Bonés bordados', 'Sacos', 'Mochilas', 'Lenços'],
+      },
+    ],
+  },
+  grafica: {
+    promise:
+      'Organizamos a comunicação impressa da sua empresa com peças que têm boa leitura, acabamento profissional e coerência visual entre si.',
+    idealFor: ['Apresentações comerciais', 'Campanhas promocionais', 'Papelaria institucional e eventos'],
+    deliverables: ['Preparação para impressão', 'Sugestão de papel e acabamento', 'Prova para aprovação', 'Produção final organizada'],
+    quoteChecklist: ['Formato e quantidade', 'Tipo de papel ou acabamento', 'Arte final ou conteúdo', 'Data em que precisa receber'],
+    recommendedPackage: {
+      label: 'Pacote comercial',
+      title: 'Kit Apresentação de Empresa',
+      description:
+        'Base ideal para empresas que precisam entregar uma imagem mais cuidada em reuniões, propostas e contactos comerciais.',
+      productSlug: 'cartoes-de-visita',
+      items: ['Cartões de visita', 'Folhetos ou flyers', 'Pasta ou catálogo simples', 'Ajuste de arte final'],
+    },
+    productGroups: [
+      {
+        title: 'Papelaria e contacto',
+        description: 'Materiais essenciais para apresentação profissional no dia a dia.',
+        productSlugs: ['cartoes-de-visita'],
+        fallbackItems: ['Cartões de visita', 'Envelopes', 'Papel timbrado', 'Pastas'],
+      },
+      {
+        title: 'Campanhas impressas',
+        description: 'Peças para divulgar produtos, serviços, eventos e campanhas comerciais.',
+        productSlugs: [],
+        fallbackItems: ['Folhetos', 'Cartazes', 'Catálogos', 'Brochuras'],
+      },
+    ],
+  },
+  'impressao-digital-e-branding': {
+    promise:
+      'Levamos a marca para espaços, viaturas e eventos com materiais de grande formato pensados para visibilidade, resistência e montagem real.',
+    idealFor: ['Lojas e pontos de venda', 'Viaturas comerciais', 'Feiras, eventos e ativações'],
+    deliverables: ['Adaptação da arte ao formato', 'Impressão e acabamento', 'Orientação de aplicação', 'Instalação quando aplicável'],
+    quoteChecklist: ['Medidas do espaço ou viatura', 'Fotografias do local', 'Tipo de material pretendido', 'Prazo e condição de montagem'],
+    recommendedPackage: {
+      label: 'Pacote visibilidade',
+      title: 'Kit Presença em Evento',
+      description:
+        'Uma seleção equilibrada para marcas que precisam aparecer bem num evento, lançamento ou campanha temporária.',
+      productSlug: 'rollups',
+      items: ['Rollup ou banner principal', 'Autocolantes de apoio', 'Sinalização de mesa ou balcão', 'Preparação da arte'],
+    },
+    productGroups: [
+      {
+        title: 'Eventos e campanhas',
+        description: 'Estruturas e materiais de impacto para ambientes temporários.',
+        productSlugs: ['rollups', 'gazebos-e-stands'],
+        fallbackItems: ['Rollups', 'Teardrops', 'Gazebos', 'Bandeiras'],
+      },
+      {
+        title: 'Espaços e viaturas',
+        description: 'Soluções para transformar pontos físicos em pontos de marca.',
+        productSlugs: ['autocolantes', 'branding-de-viaturas'],
+        fallbackItems: ['Autocolantes', 'Placas', 'Branding de viaturas', 'Branding de lojas'],
+      },
+    ],
+  },
+  'impressao-uv-e-brindes': {
+    promise:
+      'Criamos objetos personalizados com acabamento cuidado para campanhas, ofertas corporativas e ações de relacionamento com clientes.',
+    idealFor: ['Brindes corporativos', 'Lançamentos de produto', 'Presentes para clientes e equipas'],
+    deliverables: ['Sugestão de objetos', 'Teste de posicionamento', 'Impressão direta UV', 'Separação para entrega'],
+    quoteChecklist: ['Tipo de objeto ou material', 'Quantidade por modelo', 'Dimensão da marca', 'Uso final do brinde'],
+    recommendedPackage: {
+      label: 'Pacote relacionamento',
+      title: 'Kit Brindes de Marca',
+      description:
+        'Boa opção para empresas que querem oferecer peças úteis e memoráveis sem perder consistência visual.',
+      productSlug: 'placas-de-identificacao',
+      items: ['Seleção de brindes úteis', 'Impressão UV direta', 'Caixas ou preparação simples', 'Controlo de qualidade visual'],
+    },
+    productGroups: [
+      {
+        title: 'Brindes úteis',
+        description: 'Objetos de uso frequente que mantêm a marca presente no dia a dia.',
+        productSlugs: [],
+        fallbackItems: ['Canecas', 'Garrafas', 'Cadernos', 'Chaveiros'],
+      },
+      {
+        title: 'Objetos e placas',
+        description: 'Peças rígidas com personalização direta e acabamento mais premium.',
+        productSlugs: ['placas-de-identificacao'],
+        fallbackItems: ['Placas', 'Acrílicos', 'Metal', 'PVC'],
+      },
+    ],
+  },
+  'cortes-a-laser': {
+    promise:
+      'Produzimos peças detalhadas com cortes limpos e gravação precisa para decoração, sinalização, brindes especiais e protótipos.',
+    idealFor: ['Peças decorativas e brindes', 'Sinalização personalizada', 'Protótipos e detalhes de acabamento'],
+    deliverables: ['Validação do ficheiro de corte', 'Sugestão de material', 'Corte ou gravação', 'Acabamento e separação das peças'],
+    quoteChecklist: ['Ficheiro vetorial ou desenho', 'Material e espessura', 'Medidas finais', 'Quantidade e acabamento desejado'],
+    recommendedPackage: {
+      label: 'Pacote sob medida',
+      title: 'Kit Peças Personalizadas',
+      description:
+        'Indicado para projetos que precisam de detalhe, pequeno volume e acabamento diferenciado em materiais rígidos.',
+      productSlug: 'corte-em-acrilico',
+      items: ['Corte em acrílico ou MDF', 'Gravação personalizada', 'Teste de encaixe quando necessário', 'Acabamento final'],
+    },
+    productGroups: [
+      {
+        title: 'Corte técnico',
+        description: 'Peças com forma precisa para sinalização, decoração e montagem.',
+        productSlugs: ['corte-em-acrilico', 'corte-em-mdf'],
+        fallbackItems: ['Acrílico', 'MDF', 'Madeira', 'Papel especial'],
+      },
+      {
+        title: 'Gravação e detalhe',
+        description: 'Personalização fina para brindes, placas e peças de apresentação.',
+        productSlugs: ['gravacao-personalizada'],
+        fallbackItems: ['Gravação em madeira', 'Gravação em couro', 'Placas acrílicas', 'Convites especiais'],
+      },
+    ],
+  },
+  'paineis-3d': {
+    promise:
+      'Desenhamos presença permanente para a marca com volume, materiais adequados e instalação pensada para receções, lojas, escritórios e fachadas.',
+    idealFor: ['Receções e escritórios', 'Fachadas e lojas', 'Paredes de destaque e sinalização interna'],
+    deliverables: ['Levantamento de medidas', 'Proposta visual ou desenho 3D', 'Produção das peças', 'Instalação e acabamento'],
+    quoteChecklist: ['Fotografias e medidas do espaço', 'Tipo de parede ou fachada', 'Preferência de material', 'Necessidade de iluminação'],
+    recommendedPackage: {
+      label: 'Pacote presença',
+      title: 'Kit Receção com Letras Caixa',
+      description:
+        'Solução forte para transformar a entrada da empresa num ponto de identidade visual permanente.',
+      productSlug: 'letras-caixa-3d',
+      items: ['Letras caixa com acabamento premium', 'Painel de fundo opcional', 'Iluminação opcional', 'Instalação especializada'],
+    },
+    productGroups: [
+      {
+        title: 'Identidade em volume',
+        description: 'Elementos principais para dar presença física à marca.',
+        productSlugs: ['letras-caixa-3d', 'sinalizacao-interior-3d'],
+        fallbackItems: ['Letras caixa', 'Logotipos 3D', 'Sinalização interior', 'Placas de orientação'],
+      },
+      {
+        title: 'Ambientes e paredes',
+        description: 'Acabamentos decorativos para criar impacto no espaço.',
+        productSlugs: ['painel-decorativo-3d'],
+        fallbackItems: ['Painel ripado', 'Painel decorativo 3D', 'ACM', 'PVC expandido'],
+      },
+    ],
+  },
+};
+
+export function getServiceCommercialDetails(slug: string) {
+  return serviceCommercialDetails[slug];
 }

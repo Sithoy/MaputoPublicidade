@@ -1,12 +1,24 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, ArrowRight, CheckCircle2, FileText } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  ClipboardCheck,
+  FileText,
+  PackageCheck,
+  Sparkles,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { get, type Category, type Product } from '@/lib/api';
-import { getMainService, mainServices } from '@/lib/service-catalog';
+import {
+  getMainService,
+  getServiceCommercialDetails,
+  mainServices,
+  type ServiceProductGroup,
+} from '@/lib/service-catalog';
 import { serviceIconMap } from '@/lib/service-icons';
 
 export const revalidate = 60;
@@ -58,16 +70,64 @@ async function getServiceCategory(categorySlug: string) {
   }
 }
 
+type ProductGroupView = ServiceProductGroup & {
+  products: Product[];
+};
+
+function getGroupedProducts(groups: ServiceProductGroup[], products: Product[]) {
+  const productsBySlug = new Map(products.map((product) => [product.slug, product]));
+  const usedSlugs = new Set<string>();
+
+  const productGroups = groups.map<ProductGroupView>((group) => {
+    const groupProducts = group.productSlugs
+      .map((slug) => productsBySlug.get(slug))
+      .filter((product): product is Product => Boolean(product));
+
+    groupProducts.forEach((product) => usedSlugs.add(product.slug));
+
+    return {
+      ...group,
+      products: groupProducts,
+    };
+  });
+
+  const extraProducts = products.filter((product) => !usedSlugs.has(product.slug));
+
+  if (extraProducts.length > 0) {
+    productGroups.push({
+      title: 'Outras opções do catálogo',
+      description: 'Produtos adicionais ligados a este serviço.',
+      productSlugs: extraProducts.map((product) => product.slug),
+      fallbackItems: [],
+      products: extraProducts,
+    });
+  }
+
+  return productGroups;
+}
+
+function formatPrice(value?: number) {
+  if (!value) return 'Sob orçamento';
+
+  return `${Number(value).toLocaleString('pt-MZ')} MZN`;
+}
+
 export default async function ServiceDetailPage({ params }: { params: { slug: string } }) {
   const service = getMainService(params.slug);
 
   if (!service) notFound();
+
+  const commercial = getServiceCommercialDetails(service.slug);
+
+  if (!commercial) notFound();
 
   const [category, products] = await Promise.all([
     getServiceCategory(service.categorySlug),
     getServiceProducts(service.categorySlug),
   ]);
   const ServiceIcon = serviceIconMap[service.iconName];
+  const quoteHref = `/orcamento?produto=${commercial.recommendedPackage.productSlug}&servico=${service.slug}`;
+  const productGroups = getGroupedProducts(commercial.productGroups, products);
 
   return (
     <div className="bg-white">
@@ -126,7 +186,8 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
         <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
           <div>
             <Badge className="mb-4">{category?.name || service.title}</Badge>
-            <h2 className="text-3xl font-bold text-dark md:text-4xl">O que fazemos nesta área</h2>
+            <h2 className="text-3xl font-bold text-dark md:text-4xl">Como este serviço ajuda a sua marca</h2>
+            <p className="mt-4 text-base leading-relaxed text-gray-600">{commercial.promise}</p>
             <p className="mt-4 text-base leading-relaxed text-gray-600">{service.description}</p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -136,6 +197,38 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
                   <p className="mt-2 text-sm leading-relaxed text-gray-600">{benefit.text}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-8 grid gap-5 md:grid-cols-2">
+              <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-brand">
+                  <Sparkles className="h-4 w-4" />
+                  Ideal para
+                </div>
+                <ul className="space-y-3 text-sm leading-relaxed text-gray-700">
+                  {commercial.idealFor.map((item) => (
+                    <li key={item} className="flex gap-2">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-brand">
+                  <PackageCheck className="h-4 w-4" />
+                  Entregamos
+                </div>
+                <ul className="space-y-3 text-sm leading-relaxed text-gray-700">
+                  {commercial.deliverables.map((item) => (
+                    <li key={item} className="flex gap-2">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
 
@@ -153,13 +246,62 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
                 </div>
               ))}
             </div>
+            <div className="mt-6 rounded-lg bg-white/5 p-4 ring-1 ring-white/10">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                <ClipboardCheck className="h-4 w-4 text-brand" />
+                Para orçar melhor
+              </div>
+              <ul className="space-y-2 text-sm leading-relaxed text-white/75">
+                {commercial.quoteChecklist.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
             <div className="mt-6 border-t border-white/10 pt-5">
-              <Link href={`/orcamento?servico=${service.slug}`}>
-                <Button size="lg" className="w-full gap-2">
-                  <FileText className="h-5 w-5" />
-                  Pedir orçamento
-                </Button>
+              <Link
+                href={quoteHref}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-6 py-3 text-lg font-medium text-white transition hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand/50"
+              >
+                <FileText className="h-5 w-5" />
+                Pedir orçamento
               </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-gray-100 bg-white py-14 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 lg:px-6">
+          <div className="grid gap-8 rounded-lg border border-brand/15 bg-brand/5 p-6 lg:grid-cols-[0.85fr_1.15fr] lg:p-8">
+            <div>
+              <Badge variant="outline" className="mb-4 bg-white">
+                {commercial.recommendedPackage.label}
+              </Badge>
+              <h2 className="text-3xl font-bold text-dark md:text-4xl">
+                {commercial.recommendedPackage.title}
+              </h2>
+              <p className="mt-4 text-base leading-relaxed text-gray-700">
+                {commercial.recommendedPackage.description}
+              </p>
+              <Link
+                href={quoteHref}
+                className="mt-6 inline-flex items-center gap-2 rounded-md bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600"
+              >
+                Pedir este ponto de partida
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {commercial.recommendedPackage.items.map((item) => (
+                <div key={item} className="flex gap-3 rounded-lg bg-white p-4 shadow-sm ring-1 ring-gray-100">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+                  <span className="text-sm font-medium leading-relaxed text-gray-700">{item}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -172,57 +314,99 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
                 Produtos relacionados
               </p>
-              <h2 className="mt-2 text-3xl font-bold text-dark md:text-4xl">Escolha por produto</h2>
+              <h2 className="mt-2 text-3xl font-bold text-dark md:text-4xl">Escolha por categoria de produto</h2>
               <p className="mt-3 max-w-2xl text-gray-600">{service.productsIntro}</p>
             </div>
 
-            <Link href={`/catalogo?categoria=${encodeURIComponent(service.title)}`}>
-              <Button variant="outline" className="gap-2">
-                Ver no catálogo
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+            <Link
+              href={`/catalogo?categoria=${encodeURIComponent(service.title)}`}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-brand px-4 py-2 text-base font-medium text-brand transition hover:bg-brand hover:text-white focus:outline-none focus:ring-2 focus:ring-brand/50"
+            >
+              Ver no catálogo
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
+          <div className="grid gap-6 lg:grid-cols-2">
+            {productGroups.map((group) => (
+              <Card key={group.title} className="transition-shadow hover:shadow-md">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-semibold text-dark">{group.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-600">{group.description}</p>
+
+                  {group.products.length > 0 ? (
+                    <div className="mt-5 space-y-4">
+                      {group.products.map((product) => (
+                        <div
+                          key={product.id}
+                          className="grid gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4 sm:grid-cols-[88px_1fr_auto] sm:items-center"
+                        >
+                          <div className="relative h-[88px] overflow-hidden rounded-md bg-white">
+                            <Image
+                              src={product.image || service.image}
+                              alt={product.name}
+                              fill
+                              sizes="88px"
+                              className={product.image ? 'object-contain p-2' : 'object-cover'}
+                            />
+                          </div>
+                          <div>
+                            <Badge className="mb-2">{product.category || service.title}</Badge>
+                            <h4 className="font-semibold text-dark">{product.name}</h4>
+                            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-gray-600">
+                              {product.description}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-600">
+                              {product.min_quantity ? (
+                                <span className="rounded-full bg-white px-2.5 py-1">
+                                  Mín. {product.min_quantity}
+                                </span>
+                              ) : null}
+                              {product.lead_time ? (
+                                <span className="rounded-full bg-white px-2.5 py-1">{product.lead_time}</span>
+                              ) : null}
+                              <span className="rounded-full bg-white px-2.5 py-1">
+                                {formatPrice(product.base_price)}
+                              </span>
+                            </div>
+                          </div>
+                          <Link
+                            href={`/catalogo/${product.slug}`}
+                            className="inline-flex items-center justify-center gap-2 rounded-md border border-brand px-3 py-2 text-sm font-semibold text-brand transition hover:bg-brand hover:text-white"
+                          >
+                            Detalhes
+                            <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {group.fallbackItems.map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-full bg-brand/10 px-3 py-1.5 text-sm font-medium text-brand"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
           {products.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
-              <CheckCircle2 className="mx-auto h-10 w-10 text-brand" />
-              <h3 className="mt-4 text-lg font-semibold text-dark">Produtos em preparação</h3>
-              <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-gray-600">
-                Esta área já está pronta para receber produtos associados no catálogo. Enquanto isso,
-                envie o seu briefing e preparamos uma proposta personalizada.
+            <div className="mt-6 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center">
+              <CheckCircle2 className="mx-auto h-9 w-9 text-brand" />
+              <h3 className="mt-3 text-lg font-semibold text-dark">Catálogo dinâmico em sincronização</h3>
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
+                As categorias acima já ajudam a estruturar o briefing. Assim que o backend estiver disponível,
+                esta área mostra os produtos reais associados a este serviço.
               </p>
             </div>
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {products.map((product) => (
-                <Card key={product.id} className="transition-shadow hover:shadow-md">
-                  <div className="relative aspect-square bg-white">
-                    <Image
-                      src={product.image || service.image}
-                      alt={product.name}
-                      fill
-                      sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                      className={product.image ? 'object-contain p-6' : 'object-cover'}
-                    />
-                  </div>
-                  <CardContent>
-                    <Badge className="mb-2">{product.category || service.title}</Badge>
-                    <h3 className="mb-2 text-lg font-semibold text-dark">{product.name}</h3>
-                    <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-gray-600">
-                      {product.description}
-                    </p>
-                    <Link href={`/catalogo/${product.slug}`}>
-                      <Button variant="outline" className="w-full gap-2">
-                        Ver detalhes
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          ) : null}
         </div>
       </section>
     </div>
