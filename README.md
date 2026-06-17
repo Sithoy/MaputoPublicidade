@@ -17,7 +17,7 @@ Plataforma digital comercial inicial para a **Maputo Publicidade e Serviços Lda
 - Workflow simples de aprovação de arte.
 - Painel administrativo Django para gerir produtos, pedidos, clientes e orçamentos.
 - Integração WhatsApp (`wa.me`) e notificações por e-mail (console em dev).
-- Dados de demonstração (seed) com 4 categorias, 8 produtos, 5 pacotes e portfólio.
+- Dados de demonstração (seed) com 6 categorias, 14 produtos, 5 pacotes e portfólio.
 
 ## Requisitos
 
@@ -42,7 +42,7 @@ Plataforma digital comercial inicial para a **Maputo Publicidade e Serviços Lda
 
    O backend irá automaticamente:
    - aplicar as migrações;
-   - carregar os dados de demonstração (`fixtures/seed.json`);
+   - garantir os dados iniciais com `seed_initial_data`;
    - iniciar o servidor de desenvolvimento.
 
 3. **Aceda à aplicação:**
@@ -118,8 +118,8 @@ docker compose exec backend bash
 # Shell no frontend
 docker compose exec frontend sh
 
-# Carregar seed manualmente
-docker compose exec backend python manage.py loaddata fixtures/seed.json
+# Garantir seed inicial manualmente
+docker compose exec backend python manage.py seed_initial_data
 ```
 
 ## Variáveis de ambiente
@@ -163,11 +163,9 @@ Fluxo recomendado para producao:
 2. Importar o repositorio no Render usando o Blueprint `render.yaml`.
 3. No Render, preencher:
    - `DATABASE_URL`: connection string do Neon.
-   - `CORS_ALLOWED_ORIGINS`: URL final do frontend na Vercel.
-   - `CSRF_TRUSTED_ORIGINS`: URL final do frontend na Vercel.
 4. Importar o mesmo repositorio na Vercel com Root Directory `frontend`.
 5. Na Vercel, configurar:
    - `INTERNAL_API_URL`: URL do backend no Render, por exemplo `https://maputo-publicidade-backend.onrender.com`.
-6. Depois dos dois deploys, atualizar `CORS_ALLOWED_ORIGINS` e `CSRF_TRUSTED_ORIGINS` no Render com a URL final da Vercel e redeployar o backend.
+6. O backend executa automaticamente `migrate` e `seed_initial_data` no arranque do Render.
 
 O backend tambem aceita as variaveis `POSTGRES_*` para Docker local, mas em producao deve usar `DATABASE_URL` do Neon.
