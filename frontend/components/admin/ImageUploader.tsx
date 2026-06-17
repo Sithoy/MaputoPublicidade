@@ -14,29 +14,57 @@ export function ImageUploader({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<File | null>(null);
+  const [removed, setRemoved] = useState(false);
   const [localPreview, setLocalPreview] = useState<string | null>(preview || null);
 
   useEffect(() => {
-    if (!selected) {
+    setRemoved(false);
+  }, [preview]);
+
+  useEffect(() => {
+    if (!selected && !removed) {
       setLocalPreview(preview || null);
     }
-  }, [preview, selected]);
+  }, [preview, selected, removed]);
+
+  const objectUrlRef = useRef<string | null>(null);
 
   const handleFile = (file: File | null) => {
     setSelected(file);
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
     if (file) {
+      setRemoved(false);
       const url = URL.createObjectURL(file);
+      objectUrlRef.current = url;
       setLocalPreview(url);
     } else {
-      setLocalPreview(preview || null);
+      setLocalPreview(removed ? null : preview || null);
     }
     onChange?.(file);
   };
 
   const handleRemove = () => {
-    handleFile(null);
+    setRemoved(true);
+    setSelected(null);
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    setLocalPreview(null);
     if (inputRef.current) inputRef.current.value = '';
+    onChange?.(null);
   };
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="space-y-2">
@@ -59,6 +87,7 @@ export function ImageUploader({
           <button
             type="button"
             onClick={handleRemove}
+            aria-label="Remover imagem"
             className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600"
           >
             <X className="h-3 w-3" />
@@ -69,6 +98,7 @@ export function ImageUploader({
           type="button"
           variant="outline"
           onClick={() => inputRef.current?.click()}
+          aria-label="Carregar imagem"
           className="gap-2"
         >
           <Upload className="h-4 w-4" />

@@ -43,7 +43,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    command: npm run dev
+    command: >
+      sh -c "find /app/.next -mindepth 1 -delete 2>/dev/null || true; npm run dev"
     volumes:
       - ./frontend:/app
       - /app/node_modules
