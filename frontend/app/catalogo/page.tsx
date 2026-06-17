@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { get, type Product } from '@/lib/api';
+import { mainServices } from '@/lib/service-catalog';
 
-const categories = ['Todos', 'Serigrafia e Bordado', 'Gráfica', 'Impressão Digital e Branding', 'Impressão UV e Brindes'];
+const categories = ['Todos', ...mainServices.map((service) => service.title)];
 
 export const metadata = {
   title: 'Catálogo | Maputo Publicidade',

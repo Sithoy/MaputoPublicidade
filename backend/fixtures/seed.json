@@ -56,6 +56,34 @@
     }
   },
   {
+    "model": "catalog.servicecategory",
+    "pk": 5,
+    "fields": {
+      "name": "Cortes a Laser",
+      "slug": "cortes-a-laser",
+      "icon_name": "Crosshair",
+      "short_description": "Corte e gravação de alta precisão.",
+      "description": "Peças em acrílico, MDF, madeira, couro, papel e plástico produzidas com corte ou gravação a laser.",
+      "image": "",
+      "display_order": 5,
+      "is_active": true
+    }
+  },
+  {
+    "model": "catalog.servicecategory",
+    "pk": 6,
+    "fields": {
+      "name": "Painéis em 3D",
+      "slug": "paineis-3d",
+      "icon_name": "Box",
+      "short_description": "Painéis, letras caixa e sinalização tridimensional.",
+      "description": "Soluções em painéis 3D, letras caixa, sinalização de interiores e fachadas com acabamento profissional.",
+      "image": "",
+      "display_order": 6,
+      "is_active": true
+    }
+  },
+  {
     "model": "catalog.product",
     "pk": 1,
     "fields": {
@@ -274,6 +302,171 @@
       "min_quantity": 1,
       "lead_time": "5 a 8 dias úteis",
       "base_price": "18000.00",
+      "pricing_complexity": "complex",
+      "is_featured": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 9,
+    "fields": {
+      "name": "Corte em Acrílico",
+      "slug": "corte-em-acrilico",
+      "category": 5,
+      "description": "Peças em acrílico cortadas com precisão para placas, displays, brindes e elementos decorativos.",
+      "image": "",
+      "materials": [
+        "Acrílico transparente",
+        "Acrílico colorido",
+        "Acrílico espelhado"
+      ],
+      "sizes": [
+        "Personalizado"
+      ],
+      "min_quantity": 1,
+      "lead_time": "3 a 5 dias úteis",
+      "base_price": "2500.00",
+      "pricing_complexity": "complex",
+      "is_featured": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 10,
+    "fields": {
+      "name": "Corte em MDF",
+      "slug": "corte-em-mdf",
+      "category": 5,
+      "description": "Cortes em MDF para maquetes, decoração, embalagens especiais, convites e peças promocionais.",
+      "image": "",
+      "materials": [
+        "MDF cru",
+        "MDF laminado",
+        "Madeira fina"
+      ],
+      "sizes": [
+        "Personalizado"
+      ],
+      "min_quantity": 1,
+      "lead_time": "4 a 7 dias úteis",
+      "base_price": "1800.00",
+      "pricing_complexity": "complex",
+      "is_featured": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 11,
+    "fields": {
+      "name": "Gravação Personalizada",
+      "slug": "gravacao-personalizada",
+      "category": 5,
+      "description": "Gravação a laser em brindes, placas, couro, madeira e peças especiais com acabamento fino.",
+      "image": "",
+      "materials": [
+        "Madeira",
+        "Couro",
+        "Acrílico",
+        "Cartão"
+      ],
+      "sizes": [
+        "Personalizado"
+      ],
+      "min_quantity": 1,
+      "lead_time": "2 a 5 dias úteis",
+      "base_price": "900.00",
+      "pricing_complexity": "complex",
+      "is_featured": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 12,
+    "fields": {
+      "name": "Letras Caixa 3D",
+      "slug": "letras-caixa-3d",
+      "category": 6,
+      "description": "Letras caixa para receções, fachadas e interiores, com acabamento em acrílico, PVC, MDF ou inox.",
+      "image": "",
+      "materials": [
+        "Acrílico",
+        "PVC expandido",
+        "MDF",
+        "Inox"
+      ],
+      "sizes": [
+        "Personalizado"
+      ],
+      "min_quantity": 1,
+      "lead_time": "7 a 12 dias úteis",
+      "base_price": "12000.00",
+      "pricing_complexity": "complex",
+      "is_featured": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 13,
+    "fields": {
+      "name": "Painel Decorativo 3D",
+      "slug": "painel-decorativo-3d",
+      "category": 6,
+      "description": "Painéis decorativos tridimensionais para paredes de destaque, receções, lojas e escritórios.",
+      "image": "",
+      "materials": [
+        "PVC",
+        "MDF",
+        "ACM",
+        "Acrílico"
+      ],
+      "sizes": [
+        "Personalizado"
+      ],
+      "min_quantity": 1,
+      "lead_time": "7 a 15 dias úteis",
+      "base_price": "18000.00",
+      "pricing_complexity": "complex",
+      "is_featured": false,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.product",
+    "pk": 14,
+    "fields": {
+      "name": "Sinalização Interior 3D",
+      "slug": "sinalizacao-interior-3d",
+      "category": 6,
+      "description": "Sinalização tridimensional para orientação, identidade de salas, receções e ambientes comerciais.",
+      "image": "",
+      "materials": [
+        "Acrílico",
+        "PVC",
+        "ACM"
+      ],
+      "sizes": [
+        "Personalizado"
+      ],
+      "min_quantity": 1,
+      "lead_time": "5 a 10 dias úteis",
+      "base_price": "7500.00",
       "pricing_complexity": "complex",
       "is_featured": false,
       "is_active": true,
