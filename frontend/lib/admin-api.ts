@@ -163,7 +163,7 @@ export async function createProduct(formData: FormData): Promise<Product> {
 }
 
 export async function updateProduct(slug: string, formData: FormData): Promise<Product> {
-  return put<Product>(`/api/products/${slug}/`, formData, getToken());
+  return patch<Product>(`/api/products/${slug}/`, formData, getToken());
 }
 
 export async function deleteProduct(slug: string) {
@@ -179,7 +179,7 @@ export async function createCategory(formData: FormData): Promise<Category> {
 }
 
 export async function updateCategory(slug: string, formData: FormData): Promise<Category> {
-  return put<Category>(`/api/categories/${slug}/`, formData, getToken());
+  return patch<Category>(`/api/categories/${slug}/`, formData, getToken());
 }
 
 export async function deleteCategory(slug: string) {
@@ -195,7 +195,7 @@ export async function createPackage(formData: FormData): Promise<Package> {
 }
 
 export async function updatePackage(slug: string, formData: FormData): Promise<Package> {
-  return put<Package>(`/api/packages/${slug}/`, formData, getToken());
+  return patch<Package>(`/api/packages/${slug}/`, formData, getToken());
 }
 
 export async function deletePackage(slug: string) {
