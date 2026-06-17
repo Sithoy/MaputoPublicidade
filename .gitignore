@@ -3,6 +3,9 @@
 
 # Local source assets already copied into frontend/public
 /*.png
+/test-*.mjs
+/test-image*.jpg
+/backend/media/products/test-image*.jpg
 
 # Accidental nested placeholder repo
 /MaputoPublicidade/
