@@ -174,6 +174,22 @@ export type Quote = {
   final_price?: number;
 };
 
+export type PortfolioItem = {
+  id: number;
+  title: string;
+  slug: string;
+  category?: number | null;
+  category_name?: string;
+  description?: string;
+  image?: string;
+  client_name?: string;
+  completion_date?: string;
+  is_featured?: boolean;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type UserProfile = {
   company?: string;
   phone?: string;

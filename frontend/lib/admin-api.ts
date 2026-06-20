@@ -1,6 +1,6 @@
 import { getToken } from './auth';
 import { del, get, patch, post, put } from './api';
-import type { Category, Package, Product, Quote, User } from './api';
+import type { Category, Package, PortfolioItem, Product, Quote, User } from './api';
 
 export type DashboardStats = {
   quotes: {
@@ -200,6 +200,26 @@ export async function updatePackage(slug: string, formData: FormData): Promise<P
 
 export async function deletePackage(slug: string) {
   return del(`/api/packages/${slug}/`, getToken());
+}
+
+export async function getPortfolioItems(): Promise<PortfolioItem[]> {
+  return get<PortfolioItem[]>('/api/portfolio/', { headers: authHeaders() });
+}
+
+export async function getPortfolioItem(slug: string): Promise<PortfolioItem> {
+  return get<PortfolioItem>(`/api/portfolio/${slug}/`, { headers: authHeaders() });
+}
+
+export async function createPortfolioItem(formData: FormData): Promise<PortfolioItem> {
+  return post<PortfolioItem>('/api/portfolio/', formData, getToken());
+}
+
+export async function updatePortfolioItem(slug: string, formData: FormData): Promise<PortfolioItem> {
+  return patch<PortfolioItem>(`/api/portfolio/${slug}/`, formData, getToken());
+}
+
+export async function deletePortfolioItem(slug: string) {
+  return del(`/api/portfolio/${slug}/`, getToken());
 }
 
 export async function getUsers(params: string = ''): Promise<User[]> {

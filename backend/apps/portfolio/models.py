@@ -35,5 +35,10 @@ class PortfolioItem(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             base = slugify(self.title)
-            self.slug = base
+            slug = base
+            counter = 1
+            while PortfolioItem.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base}-{counter}"
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
