@@ -1,21 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, Mail, Wand2 } from 'lucide-react';
+import { Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { getToken, login } from '@/lib/auth';
 
-const DEMO_EMAIL = 'admin@maputopublicidade.co.mz';
-const DEMO_PASSWORD = 'admin12345';
-
 export default function AdminLoginPage() {
   const router = useRouter();
-  const emailRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,11 +27,6 @@ export default function AdminLoginPage() {
       // ignore, stay on login
     }
   }, [router]);
-
-  function fillDemoCredentials() {
-    if (emailRef.current) emailRef.current.value = DEMO_EMAIL;
-    if (passwordRef.current) passwordRef.current.value = DEMO_PASSWORD;
-  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -89,7 +79,6 @@ export default function AdminLoginPage() {
                   name="email"
                   type="email"
                   required
-                  ref={emailRef}
                   className="pl-10"
                   placeholder="admin@maputopublicidade.co.mz"
                 />
@@ -104,7 +93,6 @@ export default function AdminLoginPage() {
                   name="password"
                   type="password"
                   required
-                  ref={passwordRef}
                   className="pl-10"
                   placeholder="••••••••"
                 />
@@ -113,20 +101,7 @@ export default function AdminLoginPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'A entrar...' : 'Entrar'}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-2"
-              onClick={fillDemoCredentials}
-            >
-              <Wand2 className="h-4 w-4" />
-              Preencher dados de teste
-            </Button>
           </form>
-
-          <p className="mt-4 text-center text-xs text-gray-400">
-            Botão de teste — remover antes de colocar em produção.
-          </p>
         </CardContent>
       </Card>
     </div>

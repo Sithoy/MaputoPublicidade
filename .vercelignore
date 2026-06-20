@@ -1,0 +1,10 @@
+.git
+.agents
+.vscode
+.tmp*
+backend
+MaputoPublicidade
+frontend/node_modules
+frontend/.next
+frontend/.vercel
+*.png
