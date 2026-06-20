@@ -7,4 +7,6 @@ MaputoPublicidade
 frontend/node_modules
 frontend/.next
 frontend/.vercel
-*.png
+/*.png
+!frontend/public/*.png
+!frontend/public/images/**/*.png
