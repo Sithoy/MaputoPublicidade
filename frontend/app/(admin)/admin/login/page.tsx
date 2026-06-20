@@ -1,16 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { TestCredentialsButton } from '@/components/TestCredentialsButton';
 import { getToken, login } from '@/lib/auth';
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -27,6 +31,13 @@ export default function AdminLoginPage() {
       // ignore, stay on login
     }
   }, [router]);
+
+  useEffect(() => {
+    const email = searchParams.get('email');
+    const password = searchParams.get('password');
+    if (emailRef.current && email) emailRef.current.value = email;
+    if (passwordRef.current && password) passwordRef.current.value = password;
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -78,6 +89,7 @@ export default function AdminLoginPage() {
                   id="email"
                   name="email"
                   type="email"
+                  ref={emailRef}
                   required
                   className="pl-10"
                   placeholder="admin@maputopublicidade.co.mz"
@@ -92,6 +104,7 @@ export default function AdminLoginPage() {
                   id="password"
                   name="password"
                   type="password"
+                  ref={passwordRef}
                   required
                   className="pl-10"
                   placeholder="••••••••"
@@ -102,6 +115,13 @@ export default function AdminLoginPage() {
               {loading ? 'A entrar...' : 'Entrar'}
             </Button>
           </form>
+
+          <div className="mt-4 space-y-2">
+            <TestCredentialsButton currentPage="admin" />
+            <p className="text-center text-xs text-gray-400">
+              Dados de teste — remover antes de colocar em produção.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

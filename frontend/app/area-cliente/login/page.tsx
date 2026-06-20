@@ -1,18 +1,29 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { TestCredentialsButton } from '@/components/TestCredentialsButton';
 import { fetchWithAuth, login } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const email = searchParams.get('email');
+    const password = searchParams.get('password');
+    if (emailRef.current && email) emailRef.current.value = email;
+    if (passwordRef.current && password) passwordRef.current.value = password;
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,7 +65,14 @@ export default function LoginPage() {
             <Label htmlFor="email">E-mail</Label>
             <div className="relative mt-1">
               <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input id="email" name="email" type="email" className="pl-9" required />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                ref={emailRef}
+                className="pl-9"
+                required
+              />
             </div>
           </div>
 
@@ -66,6 +84,7 @@ export default function LoginPage() {
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
+                ref={passwordRef}
                 className="pl-9 pr-10"
                 required
               />
@@ -83,6 +102,13 @@ export default function LoginPage() {
             {loading ? 'A entrar...' : 'Entrar'}
           </Button>
         </form>
+
+        <div className="mt-4 space-y-2">
+          <TestCredentialsButton currentPage="client" />
+          <p className="text-center text-xs text-gray-400">
+            Dados de teste — remover antes de colocar em produção.
+          </p>
+        </div>
 
         <p className="mt-4 text-center text-xs text-gray-500">
           Ainda não tem conta? Contacte-nos pelo WhatsApp para ativar a sua área de cliente.
