@@ -31,6 +31,10 @@ const nextConfig = {
         destination: `${internalApiUrl}/api/:path*/`,
       },
       {
+        source: '/_allauth/:path*',
+        destination: `${internalApiUrl}/_allauth/:path*`,
+      },
+      {
         source: '/media/:path*',
         destination: `${internalApiUrl}/media/:path*`,
       },
