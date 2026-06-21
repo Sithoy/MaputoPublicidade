@@ -1,15 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { TestCredentialsButton } from '@/components/TestCredentialsButton';
 import { fetchWithAuth, login } from '@/lib/auth';
 
-export default function LoginPage() {
+function ClientLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const emailRef = useRef<HTMLInputElement>(null);
@@ -103,17 +102,18 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-4 space-y-2">
-          <TestCredentialsButton currentPage="client" />
-          <p className="text-center text-xs text-gray-400">
-            Dados de teste — remover antes de colocar em produção.
-          </p>
-        </div>
-
         <p className="mt-4 text-center text-xs text-gray-500">
           Ainda não tem conta? Contacte-nos pelo WhatsApp para ativar a sua área de cliente.
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[calc(100vh-200px)] items-center justify-center" />}>
+      <ClientLoginForm />
+    </Suspense>
   );
 }

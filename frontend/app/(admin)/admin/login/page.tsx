@@ -1,16 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { TestCredentialsButton } from '@/components/TestCredentialsButton';
 import { getToken, login } from '@/lib/auth';
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const emailRef = useRef<HTMLInputElement>(null);
@@ -115,15 +114,16 @@ export default function AdminLoginPage() {
               {loading ? 'A entrar...' : 'Entrar'}
             </Button>
           </form>
-
-          <div className="mt-4 space-y-2">
-            <TestCredentialsButton currentPage="admin" />
-            <p className="text-center text-xs text-gray-400">
-              Dados de teste — remover antes de colocar em produção.
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gray-100" />}>
+      <AdminLoginForm />
+    </Suspense>
   );
 }

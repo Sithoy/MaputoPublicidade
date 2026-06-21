@@ -1,26 +1,11 @@
-# Generated manually — test client user for development/testing only.
+# Test-only client migration — kept empty to preserve migration history.
 
-from django.contrib.auth.hashers import make_password
 from django.db import migrations
 
 
-def create_test_client(apps, schema_editor):
-    User = apps.get_model("auth", "User")
-    if not User.objects.filter(email="cliente@maputopublicidade.co.mz").exists():
-        User.objects.create(
-            username="cliente",
-            email="cliente@maputopublicidade.co.mz",
-            first_name="Cliente",
-            last_name="Teste",
-            password=make_password("cliente12345"),
-            is_staff=False,
-            is_superuser=False,
-        )
-
-
-def delete_test_client(apps, schema_editor):
-    User = apps.get_model("auth", "User")
-    User.objects.filter(email="cliente@maputopublicidade.co.mz").delete()
+def noop(apps, schema_editor):
+    # Test-only client creation removed before launch.
+    pass
 
 
 class Migration(migrations.Migration):
@@ -29,5 +14,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(create_test_client, delete_test_client),
+        migrations.RunPython(noop, noop),
     ]
