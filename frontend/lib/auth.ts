@@ -47,6 +47,8 @@ interface AuthResponse {
       is_staff?: boolean;
       is_superuser?: boolean;
     };
+    access_token?: string;
+    refresh_token?: string;
   };
   meta?: {
     is_authenticated?: boolean;
@@ -59,18 +61,40 @@ function authUrl(path: string): string {
   return apiUrl(`${AUTH_BASE}${path}`);
 }
 
+async function readJson<T>(res: Response): Promise<T | null> {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) return null;
+
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+function authUnavailableMessage(status: number) {
+  if (status === 404) {
+    return 'Servidor de autenticacao indisponivel. Verifique a ligacao ao backend.';
+  }
+  return 'Credenciais invalidas';
+}
+
 export async function login(email: string, password: string) {
   const res = await fetch(authUrl('/auth/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  const data: AuthResponse = await res.json();
-  if (!res.ok || !data.meta?.access_token) {
-    throw new Error('Credenciais inválidas');
+  const data = await readJson<AuthResponse>(res);
+  const accessTokenValue = data?.meta?.access_token || data?.data?.access_token;
+  const refreshToken = data?.meta?.refresh_token || data?.data?.refresh_token;
+
+  if (!res.ok || !accessTokenValue) {
+    throw new Error(authUnavailableMessage(res.status));
   }
-  setToken(data.meta.access_token);
-  if (data.meta.refresh_token) setRefreshToken(data.meta.refresh_token);
+
+  setToken(accessTokenValue);
+  if (refreshToken) setRefreshToken(refreshToken);
   return data;
 }
 
@@ -82,12 +106,16 @@ export async function register(email: string, password: string, name: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, first_name, last_name }),
   });
-  const data: AuthResponse = await res.json();
-  if (!res.ok || !data.meta?.access_token) {
+  const data = await readJson<AuthResponse>(res);
+  const accessTokenValue = data?.meta?.access_token || data?.data?.access_token;
+  const refreshToken = data?.meta?.refresh_token || data?.data?.refresh_token;
+
+  if (!res.ok || !accessTokenValue) {
     throw new Error('Erro ao criar conta');
   }
-  setToken(data.meta.access_token);
-  if (data.meta.refresh_token) setRefreshToken(data.meta.refresh_token);
+
+  setToken(accessTokenValue);
+  if (refreshToken) setRefreshToken(refreshToken);
   return data;
 }
 
@@ -115,17 +143,16 @@ export async function refreshAccessToken(): Promise<string | null> {
     removeToken();
     return null;
   }
-  const data: { status: number; data?: { access_token?: string; refresh_token?: string } } =
-    await res.json();
-  const access = data.data?.access_token;
-  const nextRefresh = data.data?.refresh_token;
+  const data = await readJson<AuthResponse>(res);
+  const access = data?.data?.access_token || data?.meta?.access_token;
+  const nextRefresh = data?.data?.refresh_token || data?.meta?.refresh_token;
   if (access) setToken(access);
   if (nextRefresh) setRefreshToken(nextRefresh);
   return access || null;
 }
 
 export async function fetchWithAuth(path: string, options: RequestInit = {}) {
-  let token = getToken();
+  const token = getToken();
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...(options.headers as Record<string, string>),
@@ -152,9 +179,10 @@ export async function fetchSession() {
   const res = await fetch(authUrl('/auth/session'), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-  if (!res.ok) {
+  const data = await readJson<AuthResponse>(res);
+  if (!res.ok || !data) {
     removeToken();
-    throw new Error('Sessão inválida');
+    throw new Error('Sessao invalida');
   }
-  return res.json() as Promise<AuthResponse>;
+  return data;
 }
