@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { TestCredentialsButton } from '@/components/TestCredentialsButton';
-import { fetchWithAuth, login } from '@/lib/auth';
+import { login } from '@/lib/auth';
 
 function ClientLoginForm() {
   const router = useRouter();
@@ -32,9 +32,9 @@ function ClientLoginForm() {
 
     const formData = new FormData(e.currentTarget);
     try {
-      await login(formData.get('email') as string, formData.get('password') as string);
-      const me = await fetchWithAuth('/api/auth/me/');
-      if (me.is_staff) {
+      const data = await login(formData.get('email') as string, formData.get('password') as string);
+      const user = data.data?.user;
+      if (user?.is_staff) {
         router.push('/admin');
       } else {
         router.push('/area-cliente');

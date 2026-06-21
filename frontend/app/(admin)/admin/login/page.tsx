@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { TestCredentialsButton } from '@/components/TestCredentialsButton';
-import { getToken, login } from '@/lib/auth';
+import { login } from '@/lib/auth';
 
 function AdminLoginForm() {
   const router = useRouter();
@@ -18,19 +18,6 @@ function AdminLoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    const payload = token.split('.')[1];
-    if (!payload) return;
-    try {
-      const claims = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-      if (claims.is_staff) router.replace('/admin');
-      else router.replace('/area-cliente');
-    } catch {
-      // ignore, stay on login
-    }
-  }, [router]);
 
   useEffect(() => {
     const email = searchParams.get('email');
@@ -49,13 +36,9 @@ function AdminLoginForm() {
     const password = formData.get('password') as string;
 
     try {
-      await login(email, password);
-      const token = getToken();
-      if (!token) throw new Error('Token não recebido');
-      const payload = token.split('.')[1];
-      if (!payload) throw new Error('Token inválido');
-      const claims = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-      if (!claims.is_staff) {
+      const data = await login(email, password);
+      const user = data.data?.user;
+      if (!user?.is_staff) {
         setError('Esta conta não tem permissões de administrador.');
         setLoading(false);
         return;

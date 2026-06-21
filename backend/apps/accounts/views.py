@@ -1,52 +1,12 @@
 from django.contrib.auth.models import User
-from rest_framework import generics, permissions, status, viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
 
 from apps.core.permissions import IsStaffUser
 
-from .serializers import (
-    EmailTokenObtainPairSerializer,
-    RegisterSerializer,
-    UserAdminSerializer,
-    UserSerializer,
-)
-
-
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = RegisterSerializer
-    permission_classes = [permissions.AllowAny]
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "user": UserSerializer(user).data,
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            },
-            status=status.HTTP_201_CREATED,
-        )
-
-
-class LoginView(TokenObtainPairView):
-    serializer_class = EmailTokenObtainPairSerializer
-    permission_classes = [permissions.AllowAny]
-
-
-class MeView(generics.RetrieveUpdateAPIView):
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
+from .serializers import UserAdminSerializer
 
 
 class UserManagementViewSet(viewsets.ModelViewSet):
@@ -56,7 +16,13 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     serializer_class = UserAdminSerializer
     permission_classes = [IsStaffUser]
     filter_backends = [SearchFilter]
-    search_fields = ["email", "first_name", "last_name", "profile__company", "profile__phone"]
+    search_fields = [
+        "email",
+        "first_name",
+        "last_name",
+        "profile__company",
+        "profile__phone",
+    ]
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -1,15 +1,18 @@
 import os
 
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
+
+from allauth.account.models import EmailAddress
+
+
+User = get_user_model()
 
 
 class Command(BaseCommand):
     help = "Ensure the configured admin user exists with the configured password."
 
     def handle(self, *args, **options):
-        from django.contrib.auth.models import User
-
         email = os.getenv("ADMIN_EMAIL", "admin@maputopublicidade.co.mz")
         password = os.getenv("ADMIN_PASSWORD")
         reset_password = (
@@ -36,10 +39,15 @@ class Command(BaseCommand):
         )
 
         if created or reset_password:
-            user.password = make_password(password)
+            user.set_password(password)
             user.is_staff = True
             user.is_superuser = True
             user.save()
+            EmailAddress.objects.update_or_create(
+                user=user,
+                email=email,
+                defaults={"primary": True, "verified": True},
+            )
             action = "Created" if created else "Updated password for"
             self.stdout.write(self.style.SUCCESS(f"{action} admin user {email}."))
         else:

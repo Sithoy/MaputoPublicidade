@@ -1,4 +1,4 @@
-"""URL configuration for Maputo Publicidade backend."""
+"""URL configuration for Maputo Publicidade."""
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -10,6 +10,7 @@ from apps.core.views import AdminStatsView, HealthCheckView
 urlpatterns = [
     path("health/", HealthCheckView.as_view(), name="health-check"),
     path("admin/", admin.site.urls),
+    path("_allauth/", include("allauth.headless.urls")),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/admin/stats/", AdminStatsView.as_view(), name="admin-stats"),
     path("api/", include("apps.catalog.urls")),

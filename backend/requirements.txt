@@ -1,7 +1,7 @@
 Django==5.2.13
 dj-database-url==2.3.0
+django-allauth[headless]>=65.13.0
 djangorestframework==3.16.1
-djangorestframework-simplejwt==5.5.0
 django-cors-headers==4.7.0
 gunicorn==23.0.0
 Pillow==11.2.1
