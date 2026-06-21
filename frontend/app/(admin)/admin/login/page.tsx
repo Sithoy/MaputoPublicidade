@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -12,19 +12,8 @@ import { login } from '@/lib/auth';
 
 function AdminLoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const emailRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-
-  useEffect(() => {
-    const email = searchParams.get('email');
-    const password = searchParams.get('password');
-    if (emailRef.current && email) emailRef.current.value = email;
-    if (passwordRef.current && password) passwordRef.current.value = password;
-  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -72,7 +61,6 @@ function AdminLoginForm() {
                   id="email"
                   name="email"
                   type="email"
-                  ref={emailRef}
                   required
                   className="pl-10"
                   placeholder="admin@maputopublicidade.co.mz"
@@ -87,7 +75,6 @@ function AdminLoginForm() {
                   id="password"
                   name="password"
                   type="password"
-                  ref={passwordRef}
                   required
                   className="pl-10"
                   placeholder="••••••••"
@@ -112,9 +99,5 @@ function AdminLoginForm() {
 }
 
 export default function AdminLoginPage() {
-  return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gray-100" />}>
-      <AdminLoginForm />
-    </Suspense>
-  );
+  return <AdminLoginForm />;
 }

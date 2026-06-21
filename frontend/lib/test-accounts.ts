@@ -1,9 +1,11 @@
 export const TEST_ACCOUNTS = {
   admin: {
+    label: 'Administrador',
     email: 'testadmin@maputopublicidade.co.mz',
     password: 'admin12345',
   },
   client: {
+    label: 'Cliente',
     email: 'cliente@maputopublicidade.co.mz',
     password: 'cliente12345',
   },

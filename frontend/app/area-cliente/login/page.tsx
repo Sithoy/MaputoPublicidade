@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,19 +11,9 @@ import { login } from '@/lib/auth';
 
 function ClientLoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const emailRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    const email = searchParams.get('email');
-    const password = searchParams.get('password');
-    if (emailRef.current && email) emailRef.current.value = email;
-    if (passwordRef.current && password) passwordRef.current.value = password;
-  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -69,7 +59,6 @@ function ClientLoginForm() {
                 id="email"
                 name="email"
                 type="email"
-                ref={emailRef}
                 className="pl-9"
                 required
               />
@@ -84,7 +73,6 @@ function ClientLoginForm() {
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                ref={passwordRef}
                 className="pl-9 pr-10"
                 required
               />
@@ -119,9 +107,5 @@ function ClientLoginForm() {
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className="flex min-h-[calc(100vh-200px)] items-center justify-center" />}>
-      <ClientLoginForm />
-    </Suspense>
-  );
+  return <ClientLoginForm />;
 }
