@@ -1,6 +1,6 @@
 import { getToken } from './auth';
 import { del, get, patch, post, put } from './api';
-import type { Category, Package, PortfolioItem, Product, Quote, User } from './api';
+import type { Category, Package, Partner, PortfolioItem, Product, Quote, User } from './api';
 
 export type DashboardStats = {
   quotes: {
@@ -220,6 +220,26 @@ export async function updatePortfolioItem(slug: string, formData: FormData): Pro
 
 export async function deletePortfolioItem(slug: string) {
   return del(`/api/portfolio/${slug}/`, getToken());
+}
+
+export async function getPartners(): Promise<Partner[]> {
+  return get<Partner[]>('/api/partners/', { headers: authHeaders() });
+}
+
+export async function getPartner(slug: string): Promise<Partner> {
+  return get<Partner>(`/api/partners/${slug}/`, { headers: authHeaders() });
+}
+
+export async function createPartner(formData: FormData): Promise<Partner> {
+  return post<Partner>('/api/partners/', formData, getToken());
+}
+
+export async function updatePartner(slug: string, formData: FormData): Promise<Partner> {
+  return patch<Partner>(`/api/partners/${slug}/`, formData, getToken());
+}
+
+export async function deletePartner(slug: string) {
+  return del(`/api/partners/${slug}/`, getToken());
 }
 
 export async function getUsers(params: string = ''): Promise<User[]> {

@@ -1,14 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Handshake } from 'lucide-react';
 import { partners } from '@/lib/partners';
+import type { Partner } from '@/lib/api';
 
 const AUTO_ADVANCE_MS = 5000;
 const LOOP_COPIES = 3;
 const LOOP_ORIGIN_INDEX = 1;
-
-const partnerLoop = Array.from({ length: LOOP_COPIES }, () => partners).flat();
 
 function getCarouselStep(carousel: HTMLDivElement) {
   const activeCard = carousel.querySelector<HTMLElement>('[data-partner-card]');
@@ -22,13 +21,13 @@ function getCarouselStep(carousel: HTMLDivElement) {
   return activeCard.offsetWidth + (Number.isFinite(gap) ? gap : 0);
 }
 
-function getLoopStart(carousel: HTMLDivElement) {
-  return getCarouselStep(carousel) * partners.length * LOOP_ORIGIN_INDEX;
+function getLoopStart(carousel: HTMLDivElement, itemCount: number) {
+  return getCarouselStep(carousel) * itemCount * LOOP_ORIGIN_INDEX;
 }
 
-function normalizeCarouselLoop(carousel: HTMLDivElement) {
+function normalizeCarouselLoop(carousel: HTMLDivElement, itemCount: number) {
   const step = getCarouselStep(carousel);
-  const setWidth = step * partners.length;
+  const setWidth = step * itemCount;
   const loopStart = setWidth * LOOP_ORIGIN_INDEX;
   const loopEnd = loopStart + setWidth;
 
@@ -41,14 +40,40 @@ function normalizeCarouselLoop(carousel: HTMLDivElement) {
   }
 }
 
+function getInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const initials = words.slice(0, 2).map((word) => word[0]).join('');
+  return (initials || name.slice(0, 2)).toUpperCase();
+}
+
+function PartnerLogo({ partner }: { partner: Partner }) {
+  if (partner.logo) {
+    return (
+      <div className="flex h-20 w-full items-center justify-center rounded-md border border-gray-100 bg-white p-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={partner.logo} alt={partner.name} className="max-h-full max-w-full object-contain" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-20 w-full items-center justify-center rounded-md bg-dark text-2xl font-bold text-white">
+      {getInitials(partner.name)}
+    </div>
+  );
+}
+
 export function PartnersSection() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const isPausedRef = useRef(false);
   const normalizeTimerRef = useRef<number | null>(null);
+  const [managedPartners, setManagedPartners] = useState<Partner[]>([]);
+  const visiblePartners = managedPartners.length ? managedPartners : partners;
+  const partnerLoop = Array.from({ length: LOOP_COPIES }, () => visiblePartners).flat();
 
   const scrollPartners = useCallback((direction: -1 | 1) => {
     const carousel = carouselRef.current;
-    if (!carousel) return;
+    if (!carousel || visiblePartners.length === 0) return;
 
     carousel.scrollTo({
       left: carousel.scrollLeft + getCarouselStep(carousel) * direction,
@@ -60,16 +85,35 @@ export function PartnersSection() {
     }
 
     normalizeTimerRef.current = window.setTimeout(() => {
-      normalizeCarouselLoop(carousel);
+      normalizeCarouselLoop(carousel, visiblePartners.length);
     }, 650);
+  }, [visiblePartners.length]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetch('/api/partners/')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: Partner[]) => {
+        if (mounted && Array.isArray(data) && data.length > 0) {
+          setManagedPartners(data);
+        }
+      })
+      .catch(() => {
+        if (mounted) setManagedPartners([]);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
     const carousel = carouselRef.current;
-    if (!carousel) return;
+    if (!carousel || visiblePartners.length === 0) return;
 
     const resetToLoopStart = () => {
-      carousel.scrollLeft = getLoopStart(carousel);
+      carousel.scrollLeft = getLoopStart(carousel, visiblePartners.length);
     };
 
     const frame = window.requestAnimationFrame(resetToLoopStart);
@@ -82,7 +126,7 @@ export function PartnersSection() {
         window.clearTimeout(normalizeTimerRef.current);
       }
     };
-  }, []);
+  }, [visiblePartners.length]);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -154,19 +198,27 @@ export function PartnersSection() {
             <article
               key={`${partner.name}-${index}`}
               data-partner-card
-              className="flex min-h-[142px] shrink-0 basis-[74%] snap-start flex-col justify-between rounded-lg border border-gray-100 bg-gray-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/25 hover:bg-white hover:shadow-md sm:basis-[42%] md:basis-[calc((100%_-_40px)/3)] lg:basis-[calc((100%_-_80px)/5)]"
+              className="flex min-h-[188px] shrink-0 basis-[74%] snap-start flex-col justify-between rounded-lg border border-gray-100 bg-gray-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/25 hover:bg-white hover:shadow-md sm:basis-[42%] md:basis-[calc((100%_-_40px)/3)] lg:basis-[calc((100%_-_60px)/4)]"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-dark text-lg font-bold text-white">
-                  {partner.initials}
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-dark">{partner.name}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{partner.sector}</p>
-                </div>
+              <div>
+                <PartnerLogo partner={partner} />
+                <h3 className="mt-4 text-base font-semibold text-dark">{partner.name}</h3>
+                <p className="mt-1 text-sm text-gray-500">{partner.sector}</p>
               </div>
 
-              <div className="mt-5 h-1.5 rounded-full bg-gradient-to-r from-brand via-secondary to-brand/20" />
+              <div className="mt-5 flex items-center justify-between gap-3">
+                <div className="h-1.5 flex-1 rounded-full bg-gradient-to-r from-brand via-secondary to-brand/20" />
+                {partner.website && (
+                  <a
+                    href={partner.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold uppercase tracking-[0.14em] text-brand hover:text-secondary"
+                  >
+                    Site
+                  </a>
+                )}
+              </div>
             </article>
           ))}
         </div>

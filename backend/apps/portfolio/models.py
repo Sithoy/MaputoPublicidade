@@ -42,3 +42,36 @@ class PortfolioItem(models.Model):
                 counter += 1
             self.slug = slug
         super().save(*args, **kwargs)
+
+
+class Partner(models.Model):
+    name = models.CharField("nome", max_length=255)
+    slug = models.SlugField(max_length=280, unique=True, blank=True)
+    sector = models.CharField("sector", max_length=160, blank=True)
+    description = models.TextField("descrição", blank=True)
+    logo = models.ImageField("logotipo", upload_to="partners/", blank=True, null=True)
+    website = models.URLField("website", blank=True)
+    display_order = models.PositiveIntegerField("ordem", default=0)
+    is_featured = models.BooleanField("em destaque", default=False)
+    is_active = models.BooleanField("ativo", default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "parceiro"
+        verbose_name_plural = "parceiros"
+        ordering = ["display_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.name)
+            slug = base
+            counter = 1
+            while Partner.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base}-{counter}"
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)

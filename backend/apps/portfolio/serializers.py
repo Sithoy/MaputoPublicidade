@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.catalog.models import ServiceCategory
 from apps.core.fields import RelativeImageField
 
-from .models import PortfolioItem
+from .models import Partner, PortfolioItem
 
 
 class PortfolioItemSerializer(serializers.ModelSerializer):
@@ -30,4 +30,25 @@ class PortfolioItemSerializer(serializers.ModelSerializer):
             "is_featured",
             "is_active",
             "created_at",
+        ]
+
+
+class PartnerSerializer(serializers.ModelSerializer):
+    logo = RelativeImageField(required=False)
+
+    class Meta:
+        model = Partner
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "sector",
+            "description",
+            "logo",
+            "website",
+            "display_order",
+            "is_featured",
+            "is_active",
+            "created_at",
+            "updated_at",
         ]

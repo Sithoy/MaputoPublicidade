@@ -203,6 +203,21 @@ export type PortfolioItem = {
   updated_at?: string;
 };
 
+export type Partner = {
+  id: number;
+  name: string;
+  slug: string;
+  sector?: string;
+  description?: string;
+  logo?: string;
+  website?: string;
+  display_order?: number;
+  is_featured?: boolean;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type UserProfile = {
   company?: string;
   phone?: string;

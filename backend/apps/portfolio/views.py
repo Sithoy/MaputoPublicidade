@@ -3,8 +3,8 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
 from apps.core.permissions import IsStaffUser
 
-from .models import PortfolioItem
-from .serializers import PortfolioItemSerializer
+from .models import Partner, PortfolioItem
+from .serializers import PartnerSerializer, PortfolioItemSerializer
 
 
 class PortfolioItemViewSet(viewsets.ModelViewSet):
@@ -31,4 +31,29 @@ class PortfolioItemViewSet(viewsets.ModelViewSet):
         category = self.request.query_params.get("category")
         if category:
             queryset = queryset.filter(category__slug=category)
+        return queryset
+
+
+class PartnerViewSet(viewsets.ModelViewSet):
+    queryset = Partner.objects.all().order_by("display_order", "name")
+    serializer_class = PartnerSerializer
+    lookup_field = "slug"
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [IsStaffUser()]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        if self.action in ["list", "retrieve"] and not (
+            user.is_authenticated and user.is_staff
+        ):
+            queryset = queryset.filter(is_active=True)
+
+        featured = self.request.query_params.get("featured")
+        if featured is not None:
+            queryset = queryset.filter(is_featured=featured.lower() in ("1", "true", "yes"))
         return queryset
