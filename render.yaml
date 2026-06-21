@@ -1,3 +1,11 @@
+databases:
+  - name: maputo-publicidade-db
+    databaseName: maputopublicidade
+    user: maputopublicidade
+    plan: free
+    region: frankfurt
+    ipAllowList: []
+
 services:
   - type: web
     name: maputo-publicidade-backend
@@ -17,7 +25,9 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: maputo-publicidade-db
+          property: connectionString
       - key: DATABASE_SSL_REQUIRE
         value: "True"
       - key: ADMIN_EMAIL
