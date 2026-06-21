@@ -7,13 +7,26 @@ export function apiUrl(path: string): string {
   return path.startsWith('/') ? path : `/${path}`;
 }
 
+const DEFAULT_FETCH_TIMEOUT_MS = 10000;
+
 export async function get<T = unknown>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(apiUrl(path), {
-    headers: { Accept: 'application/json' },
-    ...options,
-  });
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
-  return res.json() as Promise<T>;
+  const controller = new AbortController();
+  const hasExternalSignal = options?.signal != null;
+  const timeoutId = hasExternalSignal
+    ? undefined
+    : setTimeout(() => controller.abort(), DEFAULT_FETCH_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(apiUrl(path), {
+      ...options,
+      headers: { Accept: 'application/json', ...(options?.headers || {}) },
+      signal: hasExternalSignal ? options.signal : controller.signal,
+    });
+    if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+    return res.json() as Promise<T>;
+  } finally {
+    if (!hasExternalSignal) clearTimeout(timeoutId);
+  }
 }
 
 export async function post<T = unknown>(
