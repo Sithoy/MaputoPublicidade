@@ -1,17 +1,11 @@
-# Generated manually — remove test-only accounts before production launch.
+# Generated manually — remove the old hard-coded test admin before production launch.
 
 from django.db import migrations
 
 
-TEST_EMAILS = [
-    "admin@maputopublicidade.co.mz",
-    "cliente@maputopublicidade.co.mz",
-]
-
-
-def remove_test_accounts(apps, schema_editor):
+def remove_old_test_admin(apps, schema_editor):
     User = apps.get_model("auth", "User")
-    User.objects.filter(email__in=TEST_EMAILS).delete()
+    User.objects.filter(email="admin@maputopublicidade.co.mz").delete()
 
 
 def noop(apps, schema_editor):
@@ -24,5 +18,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(remove_test_accounts, noop),
+        migrations.RunPython(remove_old_test_admin, noop),
     ]

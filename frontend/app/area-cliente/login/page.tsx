@@ -6,6 +6,7 @@ import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { TestCredentialsButton } from '@/components/TestCredentialsButton';
 import { fetchWithAuth, login } from '@/lib/auth';
 
 function ClientLoginForm() {
@@ -101,6 +102,13 @@ function ClientLoginForm() {
             {loading ? 'A entrar...' : 'Entrar'}
           </Button>
         </form>
+
+        <div className="mt-4 space-y-2">
+          <TestCredentialsButton currentPage="client" />
+          <p className="text-center text-xs text-gray-400">
+            Dados de teste — desativar em produção.
+          </p>
+        </div>
 
         <p className="mt-4 text-center text-xs text-gray-500">
           Ainda não tem conta? Contacte-nos pelo WhatsApp para ativar a sua área de cliente.

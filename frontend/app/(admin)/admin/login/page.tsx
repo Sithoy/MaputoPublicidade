@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { TestCredentialsButton } from '@/components/TestCredentialsButton';
 import { getToken, login } from '@/lib/auth';
 
 function AdminLoginForm() {
@@ -114,6 +115,13 @@ function AdminLoginForm() {
               {loading ? 'A entrar...' : 'Entrar'}
             </Button>
           </form>
+
+          <div className="mt-4 space-y-2">
+            <TestCredentialsButton currentPage="admin" />
+            <p className="text-center text-xs text-gray-400">
+              Dados de teste — desativar em produção.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
