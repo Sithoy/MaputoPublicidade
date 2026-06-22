@@ -32,13 +32,13 @@ export function FeaturedProducts() {
               href={`/catalogo/${product.slug}`}
               className="group overflow-hidden rounded-lg border border-gray-100 bg-white text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="relative aspect-[4/3] bg-gray-50">
+              <div className="relative aspect-[3/4] bg-gray-50">
                 <Image
                   src={product.image}
                   alt={product.name}
                   fill
                   sizes="(min-width: 1024px) 12vw, (min-width: 768px) 25vw, 50vw"
-                  className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                  className="object-contain p-3 transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
               <div className="flex min-h-14 items-center justify-center px-2 py-3 text-sm font-semibold leading-tight text-dark">

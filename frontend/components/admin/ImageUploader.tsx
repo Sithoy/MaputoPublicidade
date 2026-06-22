@@ -6,10 +6,12 @@ import { cn } from '@/lib/utils';
 export function ImageUploader({
   name,
   preview,
+  frame = 'square',
   onChange,
 }: {
   name: string;
   preview?: string | null;
+  frame?: 'square' | 'portrait';
   onChange?: (file: File | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -28,6 +30,10 @@ export function ImageUploader({
   }, [preview, selected, removed]);
 
   const objectUrlRef = useRef<string | null>(null);
+  const previewClassName =
+    frame === 'portrait'
+      ? 'h-56 w-[168px] rounded-lg border border-gray-200 bg-white object-contain p-3'
+      : 'h-40 w-40 rounded-lg border border-gray-200 bg-white object-contain p-3';
 
   const handleFile = (file: File | null) => {
     setSelected(file);
@@ -82,7 +88,7 @@ export function ImageUploader({
           <img
             src={localPreview}
             alt="Preview"
-            className={cn('h-40 w-40 rounded-lg border border-gray-200 bg-white object-contain p-3')}
+            className={cn(previewClassName)}
             onError={() => setLocalPreview(null)}
           />
           <button
