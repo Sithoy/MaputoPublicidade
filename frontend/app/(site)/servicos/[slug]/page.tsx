@@ -339,14 +339,14 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
                       {group.products.map((product) => (
                         <div
                           key={product.id}
-                          className="grid gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4 sm:grid-cols-[72px_1fr_auto] sm:items-center"
+                          className="grid gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4 sm:grid-cols-[96px_1fr_auto] sm:items-center"
                         >
-                          <div className="relative aspect-[3/4] w-[72px] overflow-hidden rounded-md bg-white">
+                          <div className="relative aspect-[4/3] w-24 overflow-hidden rounded-md bg-white">
                             <Image
                               src={product.image || service.image}
                               alt={product.name}
                               fill
-                              sizes="72px"
+                              sizes="96px"
                               className={product.image ? 'object-contain p-2' : 'object-cover'}
                             />
                           </div>

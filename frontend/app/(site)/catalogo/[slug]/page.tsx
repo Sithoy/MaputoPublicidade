@@ -45,7 +45,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
       </Link>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <div className="relative aspect-[3/4] overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
+        <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
           <Image
             src={product.image || '/images/screen-printing.jpg'}
             alt={product.name}

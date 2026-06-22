@@ -192,7 +192,7 @@ export function ProductForm({
               <ImageUploader
                 name="image"
                 preview={product?.image || null}
-                frame="portrait"
+                frame="landscape"
                 onChange={setImageFile}
               />
             </div>

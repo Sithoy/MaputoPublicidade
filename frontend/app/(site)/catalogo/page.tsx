@@ -62,7 +62,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: { ca
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {filtered.map((product) => (
             <Card key={product.id} className="overflow-hidden transition-shadow hover:shadow-md">
-              <div className="relative aspect-[3/4] bg-gray-50">
+              <div className="relative aspect-[4/3] bg-gray-50">
                 <Image
                   src={product.image || '/images/screen-printing.jpg'}
                   alt={product.name}

@@ -11,7 +11,7 @@ export function ImageUploader({
 }: {
   name: string;
   preview?: string | null;
-  frame?: 'square' | 'portrait';
+  frame?: 'square' | 'landscape';
   onChange?: (file: File | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -31,8 +31,8 @@ export function ImageUploader({
 
   const objectUrlRef = useRef<string | null>(null);
   const previewClassName =
-    frame === 'portrait'
-      ? 'h-56 w-[168px] rounded-lg border border-gray-200 bg-white object-contain p-3'
+    frame === 'landscape'
+      ? 'h-[168px] w-56 rounded-lg border border-gray-200 bg-white object-contain p-3'
       : 'h-40 w-40 rounded-lg border border-gray-200 bg-white object-contain p-3';
 
   const handleFile = (file: File | null) => {
