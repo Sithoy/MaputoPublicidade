@@ -43,6 +43,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     urgency_display = serializers.CharField(source="get_urgency_display", read_only=True)
     artwork = serializers.SerializerMethodField()
+    order_reference = serializers.SerializerMethodField()
     file = RelativeFileField(required=False)
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
@@ -80,12 +81,18 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "artwork",
+            "order_reference",
         ]
         read_only_fields = ["reference", "user", "status", "estimated_price", "final_price"]
 
     def get_artwork(self, obj):
         if hasattr(obj, "artwork"):
             return ArtworkApprovalSerializer(obj.artwork).data
+        return None
+
+    def get_order_reference(self, obj):
+        if hasattr(obj, "order") and obj.order:
+            return obj.order.reference
         return None
 
 

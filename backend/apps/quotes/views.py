@@ -6,7 +6,8 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.core.permissions import IsStaffUser
+from apps.core.permissions import IsOwnerOrStaff, IsStaffUser
+from apps.orders.models import Order
 
 from .models import ArtworkApproval, QuoteRequest
 from .serializers import (
@@ -47,9 +48,9 @@ class QuoteRequestViewSet(
     def get_permissions(self):
         if self.action == "create":
             return [AllowAny()]
-        if self.action in ["set_status", "set_price", "upload_proof", "update", "partial_update", "destroy"]:
+        if self.action in ["set_status", "set_price", "upload_proof", "convert_to_order", "update", "partial_update", "destroy"]:
             return [IsStaffUser()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), IsOwnerOrStaff(owner_field="user")]
 
     def get_queryset(self):
         user = self.request.user
@@ -100,6 +101,10 @@ class QuoteRequestViewSet(
             quote.final_price = serializer.validated_data["final_price"]
         quote.save(update_fields=["estimated_price", "final_price", "updated_at"])
 
+        if quote.final_price and quote.status in (QuoteRequest.STATUS_RECEIVED, QuoteRequest.STATUS_REVIEWING):
+            quote.status = QuoteRequest.STATUS_QUOTED
+            quote.save(update_fields=["status", "updated_at"])
+
         return Response(
             {
                 "detail": "Preços actualizados.",
@@ -118,7 +123,7 @@ class QuoteRequestViewSet(
         serializer.is_valid(raise_exception=True)
         serializer.save(status=ArtworkApproval.STATUS_PENDING)
 
-        quote.status = QuoteRequest.STATUS_AWAITING_APPROVAL
+        quote.status = QuoteRequest.STATUS_QUOTED
         quote.save(update_fields=["status", "updated_at"])
 
         return Response(
@@ -172,4 +177,63 @@ class QuoteRequestViewSet(
                 "artwork": ArtworkApprovalSerializer(artwork).data,
             },
             status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"], url_path="approve-price")
+    def approve_price(self, request, reference=None):
+        quote = self.get_object()
+        if quote.status != QuoteRequest.STATUS_QUOTED:
+            return Response(
+                {"detail": "Apenas orçamentos no estado 'Orçamentado' podem ser aprovados."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        quote.status = QuoteRequest.STATUS_APPROVED
+        quote.save(update_fields=["status", "updated_at"])
+        return Response(
+            {
+                "detail": "Preço aprovado.",
+                "status": quote.status,
+                "status_display": quote.get_status_display(),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"], url_path="convert-to-order")
+    def convert_to_order(self, request, reference=None):
+        quote = self.get_object()
+        if hasattr(quote, "order"):
+            return Response(
+                {"detail": "Este orçamento já foi convertido numa encomenda.", "order_reference": quote.order.reference},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order = Order.objects.create(
+            user=quote.user,
+            quote=quote,
+            product_name=quote.product.name if quote.product else "",
+            quantity=quote.quantity,
+            size=quote.size,
+            material=quote.material,
+            colors=quote.colors,
+            needs_design=quote.needs_design,
+            final_price=quote.final_price,
+            status=Order.STATUS_APPROVED,
+            delivery_address=getattr(getattr(quote.user, "profile", None), "address", ""),
+        )
+
+        if quote.file:
+            order.client_file.save(quote.file.name, quote.file, save=True)
+
+        quote.status = QuoteRequest.STATUS_APPROVED
+        quote.save(update_fields=["status", "updated_at"])
+
+        from .serializers import QuoteRequestDetailSerializer
+
+        return Response(
+            {
+                "detail": "Orçamento convertido em encomenda.",
+                "order_reference": order.reference,
+                "quote": QuoteRequestDetailSerializer(quote, context={"request": request}).data,
+            },
+            status=status.HTTP_201_CREATED,
         )

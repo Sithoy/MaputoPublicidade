@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
+  convertQuoteToOrder,
   getQuote,
   updateQuoteInternalNotes,
   updateQuotePrice,
@@ -23,13 +24,14 @@ import {
 import type { AdminQuote } from '@/lib/admin-api';
 
 const statusOptions = [
-  { value: 'received', label: 'Recebido' },
-  { value: 'reviewing', label: 'Em revisão' },
-  { value: 'awaiting_approval', label: 'Aguardando aprovação' },
-  { value: 'approved', label: 'Aprovada' },
+  { value: 'received', label: 'Pedido recebido' },
+  { value: 'reviewing', label: 'Em análise' },
+  { value: 'quoted', label: 'Orçamentado' },
+  { value: 'approved', label: 'Aprovado' },
   { value: 'in_production', label: 'Em produção' },
-  { value: 'ready', label: 'Pronto' },
+  { value: 'ready', label: 'Pronto para entrega' },
   { value: 'delivered', label: 'Entregue' },
+  { value: 'cancelled', label: 'Cancelado' },
 ];
 
 export default function AdminOrderDetailPage() {
@@ -124,6 +126,22 @@ export default function AdminOrderDetailPage() {
       getQuote(reference).then(setQuote);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao enviar prova');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleConvertToOrder() {
+    if (!reference) return;
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const result = await convertQuoteToOrder(reference);
+      setMessage(`Encomenda ${result.order_reference} criada com sucesso.`);
+      getQuote(reference).then(setQuote);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao converter orçamento');
     } finally {
       setLoading(false);
     }
@@ -298,6 +316,40 @@ export default function AdminOrderDetailPage() {
               </Button>
             </CardContent>
           </Card>
+
+          {quote.order_reference ? (
+            <Card>
+              <CardContent className="space-y-3 p-6">
+                <h2 className="text-lg font-semibold text-dark">Encomenda</h2>
+                <p className="text-sm text-gray-600">
+                  Este orçamento já foi convertido na encomenda{' '}
+                  <Link href={`/admin/encomendas/${quote.order_reference}`} className="text-brand hover:underline">
+                    {quote.order_reference}
+                  </Link>
+                  .
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="space-y-3 p-6">
+                <h2 className="text-lg font-semibold text-dark">Converter em encomenda</h2>
+                <p className="text-sm text-gray-600">
+                  Crie uma encomenda a partir deste orçamento. Recomenda-se definir o preço final antes.
+                </p>
+                <Button
+                  onClick={handleConvertToOrder}
+                  disabled={loading || !quote.final_price}
+                  className="w-full gap-2"
+                >
+                  Converter em encomenda
+                </Button>
+                {!quote.final_price && (
+                  <p className="text-xs text-red-600">Defina o preço final primeiro.</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

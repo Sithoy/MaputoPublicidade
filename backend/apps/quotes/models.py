@@ -7,19 +7,21 @@ from apps.catalog.models import Product
 class QuoteRequest(models.Model):
     STATUS_RECEIVED = "received"
     STATUS_REVIEWING = "reviewing"
-    STATUS_AWAITING_APPROVAL = "awaiting_approval"
+    STATUS_QUOTED = "quoted"
     STATUS_APPROVED = "approved"
     STATUS_IN_PRODUCTION = "in_production"
     STATUS_READY = "ready"
     STATUS_DELIVERED = "delivered"
+    STATUS_CANCELLED = "cancelled"
     STATUS_CHOICES = [
-        (STATUS_RECEIVED, "Recebido"),
-        (STATUS_REVIEWING, "Em revisão"),
-        (STATUS_AWAITING_APPROVAL, "Aguardando aprovação"),
-        (STATUS_APPROVED, "Aprovada para produção"),
+        (STATUS_RECEIVED, "Pedido recebido"),
+        (STATUS_REVIEWING, "Em análise"),
+        (STATUS_QUOTED, "Orçamentado"),
+        (STATUS_APPROVED, "Aprovado"),
         (STATUS_IN_PRODUCTION, "Em produção"),
-        (STATUS_READY, "Pronto para levantamento"),
+        (STATUS_READY, "Pronto para entrega"),
         (STATUS_DELIVERED, "Entregue"),
+        (STATUS_CANCELLED, "Cancelado"),
     ]
 
     URGENCY_NORMAL = "normal"

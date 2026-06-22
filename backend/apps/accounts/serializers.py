@@ -7,7 +7,7 @@ from .models import ClientProfile
 class ClientProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientProfile
-        fields = ["company", "phone", "nuit", "address"]
+        fields = ["company", "phone", "nuit", "address", "billing_address"]
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -42,7 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
 class ClientProfileAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientProfile
-        fields = ["company", "phone", "nuit", "address"]
+        fields = ["company", "phone", "nuit", "address", "billing_address"]
 
 
 class UserAdminSerializer(serializers.ModelSerializer):

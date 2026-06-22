@@ -19,7 +19,8 @@ import { removeToken } from '@/lib/auth';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: BarChart3 },
-  { href: '/admin/orcamentos', label: 'Encomendas', icon: ShoppingCart },
+  { href: '/admin/encomendas', label: 'Encomendas', icon: Package },
+  { href: '/admin/orcamentos', label: 'Orçamentos', icon: ShoppingCart },
   { href: '/admin/produtos', label: 'Produtos', icon: Boxes },
   { href: '/admin/portfolio', label: 'Portfólio', icon: ImageIcon },
   { href: '/admin/parceiros', label: 'Parceiros', icon: Handshake },

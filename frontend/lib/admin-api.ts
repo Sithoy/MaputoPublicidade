@@ -1,6 +1,6 @@
 import { getToken } from './auth';
 import { del, get, patch, post, put } from './api';
-import type { Category, Package, Partner, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
+import type { Category, Order, Package, Partner, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
 
 export type DashboardStats = {
   quotes: {
@@ -49,6 +49,7 @@ export type AdminQuote = Quote & {
   file?: string;
   updated_at?: string;
   artwork?: ArtworkApproval | null;
+  order_reference?: string | null;
 };
 
 export type ArtworkApproval = {
@@ -272,4 +273,27 @@ export async function toggleUserStaff(id: number) {
 
 export async function toggleUserActive(id: number) {
   return post(`/api/auth/users/${id}/toggle-active/`, {}, getToken());
+}
+
+export async function getOrders(params: string = ''): Promise<Order[]> {
+  return get<Order[]>(`/api/orders/${params}`, { headers: authHeaders() });
+}
+
+export async function getOrder(reference: string): Promise<Order> {
+  return get<Order>(`/api/orders/${reference}/`, { headers: authHeaders() });
+}
+
+export async function updateOrderStatus(reference: string, status: string) {
+  return post(`/api/orders/${reference}/set-status/`, { status }, getToken());
+}
+
+export async function updateOrderPayment(
+  reference: string,
+  data: { payment_status: string; amount_paid?: number | null }
+) {
+  return post(`/api/orders/${reference}/set-payment/`, data, getToken());
+}
+
+export async function convertQuoteToOrder(reference: string) {
+  return post<{ order_reference: string }>(`/api/quotes/${reference}/convert-to-order/`, {}, getToken());
 }

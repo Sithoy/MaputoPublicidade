@@ -2,11 +2,13 @@ from django.contrib.auth.models import User
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.core.permissions import IsStaffUser
 
-from .serializers import UserAdminSerializer
+from .serializers import UserAdminSerializer, UserSerializer
 
 
 class UserManagementViewSet(viewsets.ModelViewSet):
@@ -53,3 +55,19 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             {"detail": "Estado de activação actualizado.", "is_active": user.is_active},
             status=status.HTTP_200_OK,
         )
+
+
+class MeView(APIView):
+    """Return/update the authenticated user's profile."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

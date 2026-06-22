@@ -236,6 +236,60 @@ export type UserProfile = {
   phone?: string;
   nuit?: string;
   address?: string;
+  billing_address?: string;
+};
+
+export type OrderStatus =
+  | 'received'
+  | 'reviewing'
+  | 'quoted'
+  | 'approved'
+  | 'in_production'
+  | 'ready'
+  | 'delivered'
+  | 'cancelled';
+
+export type PaymentStatus = 'pending' | 'partial' | 'paid';
+
+export type Order = {
+  id: number;
+  reference: string;
+  quote?: number | null;
+  quote_reference?: string;
+  user?: number;
+  user_email?: string;
+  user_name?: string;
+  profile?: UserProfile;
+  product_name: string;
+  quantity: number;
+  size?: string;
+  material?: string;
+  colors?: string;
+  needs_design?: boolean;
+  client_file?: string;
+  final_price?: number;
+  payment_status: PaymentStatus;
+  payment_status_display?: string;
+  amount_paid?: number;
+  amount_due?: number;
+  status: OrderStatus;
+  status_display?: string;
+  delivery_method?: 'pickup' | 'delivery';
+  delivery_method_display?: string;
+  delivery_address?: string;
+  internal_notes?: string;
+  artwork?: {
+    id: number;
+    status: 'pending' | 'approved' | 'changes_requested';
+    status_display?: string;
+    proof_file?: string;
+    designer_comment?: string;
+    client_comment?: string;
+    requested_changes?: string;
+    approved_at?: string;
+  } | null;
+  created_at: string;
+  updated_at?: string;
 };
 
 export type User = {

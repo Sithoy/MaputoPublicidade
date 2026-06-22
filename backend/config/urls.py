@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/", include("apps.catalog.urls")),
     path("api/", include("apps.portfolio.urls")),
     path("api/", include("apps.quotes.urls")),
+    path("api/", include("apps.orders.urls")),
 ]
 
 if settings.DEBUG or settings.SERVE_MEDIA:
