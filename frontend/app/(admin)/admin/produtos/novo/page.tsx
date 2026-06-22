@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { ProductForm } from '@/components/admin/ProductForm';
 import { createProduct, getCategories } from '@/lib/admin-api';
-import type { Category } from '@/lib/api';
+import type { Category, Product } from '@/lib/api';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -19,14 +19,17 @@ export default function NewProductPage() {
     getCategories().then(setCategories).catch(() => setError('Erro ao carregar categorias'));
   }, [authLoading]);
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(formData: FormData): Promise<Product> {
     setLoading(true);
     setError('');
     try {
-      await createProduct(formData);
-      router.push('/admin/produtos');
+      const product = await createProduct(formData);
+      return product;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar produto');
+      const message = err instanceof Error ? err.message : 'Erro ao criar produto';
+      setError(message);
+      throw new Error(message);
+    } finally {
       setLoading(false);
     }
   }

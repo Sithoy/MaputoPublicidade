@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save } from 'lucide-react';
+import { Plus, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -10,7 +10,46 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { ImageUploader } from '@/components/admin/ImageUploader';
-import type { Category, Product } from '@/lib/api';
+import { createVariant, deleteVariant, updateVariant } from '@/lib/admin-api';
+import type { Category, Product, ProductVariant } from '@/lib/api';
+
+type VariantDraft = {
+  id?: number;
+  name: string;
+  sku: string;
+  price: string;
+  image?: string;
+  imageFile: File | null;
+  imageRemoved: boolean;
+  is_active: boolean;
+  position: number;
+};
+
+function variantToDraft(v: ProductVariant, position: number): VariantDraft {
+  return {
+    id: v.id,
+    name: v.name,
+    sku: v.sku || '',
+    price: v.price?.toString() || '',
+    image: v.image,
+    imageFile: null,
+    imageRemoved: false,
+    is_active: v.is_active ?? true,
+    position: v.position ?? position,
+  };
+}
+
+function emptyVariant(position: number): VariantDraft {
+  return {
+    name: '',
+    sku: '',
+    price: '',
+    imageFile: null,
+    imageRemoved: false,
+    is_active: true,
+    position,
+  };
+}
 
 export function ProductForm({
   product,
@@ -21,19 +60,79 @@ export function ProductForm({
 }: {
   product?: Product | null;
   categories: Category[];
-  onSubmit: (formData: FormData) => Promise<void>;
+  onSubmit: (formData: FormData) => Promise<Product>;
   loading: boolean;
   error: string;
 }) {
   const router = useRouter();
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [variantError, setVariantError] = useState('');
+  const [isSavingVariants, setIsSavingVariants] = useState(false);
+  const [variants, setVariants] = useState<VariantDraft[]>(() => {
+    const existing = product?.variants ?? [];
+    if (existing.length > 0) {
+      return existing.map((v, i) => variantToDraft(v, i));
+    }
+    return [];
+  });
+
+  const initialVariantIds = useMemo(
+    () => new Set((product?.variants ?? []).map((v) => v.id)),
+    [product]
+  );
 
   useEffect(() => {
     if (product?.image) setImageFile(null);
   }, [product]);
 
+  function updateVariantField(index: number, field: keyof VariantDraft, value: unknown) {
+    setVariants((prev) => prev.map((v, i) => (i === index ? { ...v, [field]: value } : v)));
+  }
+
+  function addVariant() {
+    setVariants((prev) => [...prev, emptyVariant(prev.length)]);
+  }
+
+  function removeVariant(index: number) {
+    setVariants((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function syncVariants(productId: number) {
+    const currentIds = new Set<number>();
+    for (const v of variants) {
+      if (v.id) currentIds.add(v.id);
+    }
+
+    const removedIds = Array.from(initialVariantIds).filter((id) => !currentIds.has(id));
+
+    for (const id of removedIds) {
+      await deleteVariant(id);
+    }
+
+    for (let i = 0; i < variants.length; i++) {
+      const v = variants[i];
+      const formData = new FormData();
+      formData.append('product', productId.toString());
+      formData.append('name', v.name.trim());
+      formData.append('sku', v.sku.trim());
+      formData.append('price', v.price);
+      formData.append('is_active', v.is_active ? 'true' : 'false');
+      formData.append('position', String(i));
+      if (v.imageFile) {
+        formData.append('image', v.imageFile);
+      }
+
+      if (v.id) {
+        await updateVariant(v.id, formData);
+      } else {
+        await createVariant(formData);
+      }
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setVariantError('');
     const form = e.currentTarget;
     const formData = new FormData(form);
 
@@ -58,35 +157,39 @@ export function ProductForm({
     } else if (!product?.image) {
       formData.delete('image');
     }
-    await onSubmit(formData);
+
+    try {
+      const saved = await onSubmit(formData);
+      if (saved.id && (variants.length > 0 || initialVariantIds.size > 0)) {
+        setIsSavingVariants(true);
+        await syncVariants(saved.id);
+      }
+      router.push('/admin/produtos');
+    } catch (err) {
+      setVariantError(err instanceof Error ? err.message : 'Erro ao guardar variantes');
+    } finally {
+      setIsSavingVariants(false);
+    }
   }
+
+  const isBusy = loading || isSavingVariants;
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
-      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {(error || variantError) && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error || variantError}</div>
+      )}
 
       <Card>
         <CardContent className="grid gap-4 p-6 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Label htmlFor="name">Nome do produto</Label>
-            <Input
-              id="name"
-              name="name"
-              defaultValue={product?.name}
-              required
-              className="mt-1"
-            />
+            <Input id="name" name="name" defaultValue={product?.name} required className="mt-1" />
           </div>
 
           <div>
             <Label htmlFor="slug">Slug</Label>
-            <Input
-              id="slug"
-              name="slug"
-              defaultValue={product?.slug}
-              required
-              className="mt-1"
-            />
+            <Input id="slug" name="slug" defaultValue={product?.slug} required className="mt-1" />
           </div>
 
           <div>
@@ -221,10 +324,116 @@ export function ProductForm({
         </CardContent>
       </Card>
 
+      <Card>
+        <CardContent className="p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-dark">Variantes</h3>
+              <p className="text-sm text-gray-500">
+                Cada variante pode ter um preço e imagem próprios.
+              </p>
+            </div>
+            <Button type="button" variant="outline" onClick={addVariant} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Adicionar variante
+            </Button>
+          </div>
+
+          {variants.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+              Sem variantes. O produto usará o preço base e a imagem acima.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {variants.map((variant, index) => (
+                <div
+                  key={variant.id ?? `new-${index}`}
+                  className="rounded-lg border border-gray-200 p-4"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-600">Variante {index + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeVariant(index)}
+                      className="text-red-600 hover:text-red-700"
+                      aria-label="Remover variante"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor={`variant-name-${index}`}>Nome</Label>
+                      <Input
+                        id={`variant-name-${index}`}
+                        value={variant.name}
+                        onChange={(e) => updateVariantField(index, 'name', e.target.value)}
+                        placeholder="Ex: 2x1 m"
+                        required
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor={`variant-sku-${index}`}>SKU</Label>
+                      <Input
+                        id={`variant-sku-${index}`}
+                        value={variant.sku}
+                        onChange={(e) => updateVariantField(index, 'sku', e.target.value)}
+                        placeholder="Opcional"
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor={`variant-price-${index}`}>Preço (MZN)</Label>
+                      <Input
+                        id={`variant-price-${index}`}
+                        type="number"
+                        step="0.01"
+                        value={variant.price}
+                        onChange={(e) => updateVariantField(index, 'price', e.target.value)}
+                        required
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div className="flex items-end gap-4">
+                      <label className="flex items-center gap-2 pb-2 text-sm text-dark">
+                        <input
+                          type="checkbox"
+                          checked={variant.is_active}
+                          onChange={(e) => updateVariantField(index, 'is_active', e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-brand"
+                        />
+                        Activo
+                      </label>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <Label>Imagem da variante</Label>
+                      <div className="mt-1">
+                        <ImageUploader
+                          name=""
+                          preview={variant.imageRemoved ? null : variant.image || null}
+                          frame="landscape"
+                          onChange={(file) => updateVariantField(index, 'imageFile', file)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="flex gap-3">
-        <Button type="submit" disabled={loading} className="gap-2">
+        <Button type="submit" disabled={isBusy} className="gap-2">
           <Save className="h-4 w-4" />
-          {loading ? 'A guardar...' : 'Guardar produto'}
+          {isBusy ? 'A guardar...' : 'Guardar produto'}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.push('/admin/produtos')}>
           Cancelar

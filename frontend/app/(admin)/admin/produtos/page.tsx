@@ -115,9 +115,17 @@ export default function AdminProductsPage() {
           { key: 'category', header: 'Categoria' },
           {
             key: 'base_price',
-            header: 'Preço base',
-            render: (item) =>
-              item.base_price ? `${item.base_price.toLocaleString()} MZN` : '-',
+            header: 'Preço',
+            render: (item) => {
+              const price = item.starting_price || item.base_price;
+              const label = item.has_variants ? 'Desde ' : '';
+              return price ? `${label}${price.toLocaleString()} MZN` : '-';
+            },
+          },
+          {
+            key: 'variants',
+            header: 'Variantes',
+            render: (item) => <span className="text-sm text-gray-600">{item.variants?.length || 0}</span>,
           },
           {
             key: 'is_active',

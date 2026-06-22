@@ -60,26 +60,38 @@ export default async function CatalogPage({ searchParams }: { searchParams: { ca
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {filtered.map((product) => (
-            <Card key={product.id} className="overflow-hidden transition-shadow hover:shadow-md">
-              <div className="relative aspect-[4/3] bg-gray-50">
-                <Image
-                  src={product.image || '/images/screen-printing.jpg'}
-                  alt={product.name}
-                  fill
-                  className="object-contain p-6"
-                />
-              </div>
-              <CardContent>
-                <Badge className="mb-2">{product.category}</Badge>
-                <h2 className="mb-1 text-lg font-semibold text-dark">{product.name}</h2>
-                <p className="mb-4 line-clamp-2 text-sm text-gray-600">{product.description}</p>
-                <Link href={`/catalogo/${product.slug}`}>
-                  <Button variant="outline" className="w-full">Ver detalhes</Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
+          {filtered.map((product) => {
+            const firstVariant = product.variants?.find((v) => v.is_active !== false);
+            const displayImage = firstVariant?.image || product.image || '/images/screen-printing.jpg';
+            const displayPrice = product.starting_price || product.base_price;
+
+            return (
+              <Card key={product.id} className="overflow-hidden transition-shadow hover:shadow-md">
+                <div className="relative aspect-[4/3] bg-gray-50">
+                  <Image
+                    src={displayImage}
+                    alt={product.name}
+                    fill
+                    className="object-contain p-6"
+                  />
+                </div>
+                <CardContent>
+                  <Badge className="mb-2">{product.category}</Badge>
+                  <h2 className="mb-1 text-lg font-semibold text-dark">{product.name}</h2>
+                  <p className="mb-2 line-clamp-2 text-sm text-gray-600">{product.description}</p>
+                  {displayPrice ? (
+                    <p className="mb-4 text-sm font-semibold text-dark">
+                      {product.has_variants ? 'Desde ' : ''}
+                      {displayPrice.toLocaleString()} MZN
+                    </p>
+                  ) : null}
+                  <Link href={`/catalogo/${product.slug}`}>
+                    <Button variant="outline" className="w-full">Ver detalhes</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

@@ -129,6 +129,16 @@ export async function del<T = unknown>(path: string, token?: string | null): Pro
   return res.json() as Promise<T>;
 }
 
+export type ProductVariant = {
+  id: number;
+  name: string;
+  sku?: string;
+  price: number;
+  image?: string;
+  position?: number;
+  is_active?: boolean;
+};
+
 export type Product = {
   id: number;
   slug: string;
@@ -142,6 +152,9 @@ export type Product = {
   min_quantity?: number;
   lead_time?: string;
   base_price?: number;
+  starting_price?: number;
+  has_variants?: boolean;
+  variants?: ProductVariant[];
   pricing_complexity?: 'simple' | 'complex';
   is_featured?: boolean;
   is_active?: boolean;

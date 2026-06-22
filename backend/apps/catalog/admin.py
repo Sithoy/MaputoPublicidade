@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Package, Product, ServiceCategory
+from .models import Package, Product, ProductVariant, ServiceCategory
 
 
 @admin.register(ServiceCategory)
@@ -9,6 +9,12 @@ class ServiceCategoryAdmin(admin.ModelAdmin):
     list_filter = ["is_active"]
     search_fields = ["name", "slug", "short_description"]
     prepopulated_fields = {"slug": ("name",)}
+
+
+class ProductVariantInline(admin.TabularInline):
+    model = ProductVariant
+    extra = 1
+    fields = ["name", "sku", "price", "image", "position", "is_active"]
 
 
 @admin.register(Product)
@@ -25,6 +31,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ["category", "pricing_complexity", "is_featured", "is_active"]
     search_fields = ["name", "slug", "description"]
     prepopulated_fields = {"slug": ("name",)}
+    inlines = [ProductVariantInline]
 
 
 @admin.register(Package)

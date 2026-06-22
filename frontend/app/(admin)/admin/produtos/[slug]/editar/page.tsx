@@ -26,15 +26,18 @@ export default function EditProductPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar dados'));
   }, [authLoading, slug]);
 
-  async function handleSubmit(formData: FormData) {
-    if (!slug) return;
+  async function handleSubmit(formData: FormData): Promise<Product> {
+    if (!slug) throw new Error('Slug inválido');
     setLoading(true);
     setError('');
     try {
-      await updateProduct(slug, formData);
-      router.push('/admin/produtos');
+      const product = await updateProduct(slug, formData);
+      return product;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao actualizar produto');
+      const message = err instanceof Error ? err.message : 'Erro ao actualizar produto';
+      setError(message);
+      throw new Error(message);
+    } finally {
       setLoading(false);
     }
   }

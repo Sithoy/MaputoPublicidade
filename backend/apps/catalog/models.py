@@ -87,10 +87,46 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def starting_price(self):
+        active_variants = self.variants.filter(is_active=True)
+        if active_variants.exists():
+            return min(v.price for v in active_variants)
+        return self.base_price
+
+    @property
+    def has_variants(self):
+        return self.variants.filter(is_active=True).exists()
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
+
+class ProductVariant(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="variants",
+        verbose_name="produto",
+    )
+    name = models.CharField("nome da variante", max_length=255)
+    sku = models.CharField("SKU", max_length=100, blank=True)
+    price = models.DecimalField("preço", max_digits=12, decimal_places=2)
+    image = models.ImageField("imagem", upload_to="variants/", blank=True, null=True)
+    position = models.PositiveIntegerField("ordem", default=0)
+    is_active = models.BooleanField("ativo", default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "variante de produto"
+        verbose_name_plural = "variantes de produtos"
+        ordering = ["position", "name"]
+
+    def __str__(self):
+        return f"{self.product.name} — {self.name}"
 
 
 class Package(models.Model):

@@ -1,6 +1,6 @@
 import { getToken } from './auth';
 import { del, get, patch, post, put } from './api';
-import type { Category, Package, Partner, PortfolioItem, Product, Quote, User } from './api';
+import type { Category, Package, Partner, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
 
 export type DashboardStats = {
   quotes: {
@@ -168,6 +168,18 @@ export async function updateProduct(slug: string, formData: FormData): Promise<P
 
 export async function deleteProduct(slug: string) {
   return del(`/api/products/${slug}/`, getToken());
+}
+
+export async function createVariant(formData: FormData): Promise<ProductVariant> {
+  return post<ProductVariant>('/api/variants/', formData, getToken());
+}
+
+export async function updateVariant(id: number, formData: FormData): Promise<ProductVariant> {
+  return patch<ProductVariant>(`/api/variants/${id}/`, formData, getToken());
+}
+
+export async function deleteVariant(id: number) {
+  return del(`/api/variants/${id}/`, getToken());
 }
 
 export async function getCategories(): Promise<Category[]> {
