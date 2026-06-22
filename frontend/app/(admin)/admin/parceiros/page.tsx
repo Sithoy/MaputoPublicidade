@@ -13,17 +13,28 @@ import { deletePartner, getPartners, updatePartner } from '@/lib/admin-api';
 import type { Partner } from '@/lib/api';
 
 function LogoCell({ partner }: { partner: Partner }) {
-  if (partner.logo) {
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [partner.logo]);
+
+  if (partner.logo && !hasImageError) {
     return (
-      <div className="flex h-12 w-20 items-center justify-center rounded-md border border-gray-100 bg-white p-2">
+      <div className="flex h-14 w-14 items-center justify-center rounded-md border border-gray-100 bg-white p-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={partner.logo} alt={partner.name} className="max-h-full max-w-full object-contain" />
+        <img
+          src={partner.logo}
+          alt={partner.name}
+          className="max-h-full max-w-full object-contain"
+          onError={() => setHasImageError(true)}
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex h-12 w-20 items-center justify-center rounded-md bg-brand/10 text-sm font-bold text-brand">
+    <div className="flex h-14 w-14 items-center justify-center rounded-md bg-brand/10 text-sm font-bold text-brand">
       {partner.name.slice(0, 2).toUpperCase()}
     </div>
   );

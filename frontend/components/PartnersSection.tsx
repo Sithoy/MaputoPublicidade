@@ -47,17 +47,28 @@ function getInitials(name: string) {
 }
 
 function PartnerLogo({ partner }: { partner: Partner }) {
-  if (partner.logo) {
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [partner.logo]);
+
+  if (partner.logo && !hasImageError) {
     return (
-      <div className="flex h-20 w-full items-center justify-center rounded-md border border-gray-100 bg-white p-4">
+      <div className="flex aspect-square w-full items-center justify-center rounded-md border border-gray-100 bg-white p-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={partner.logo} alt={partner.name} className="max-h-full max-w-full object-contain" />
+        <img
+          src={partner.logo}
+          alt={partner.name}
+          className="max-h-full max-w-full object-contain"
+          onError={() => setHasImageError(true)}
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex h-20 w-full items-center justify-center rounded-md bg-dark text-2xl font-bold text-white">
+    <div className="flex aspect-square w-full items-center justify-center rounded-md bg-dark text-3xl font-bold text-white">
       {getInitials(partner.name)}
     </div>
   );
@@ -198,7 +209,7 @@ export function PartnersSection() {
             <article
               key={`${partner.name}-${index}`}
               data-partner-card
-              className="flex min-h-[188px] shrink-0 basis-[74%] snap-start flex-col justify-between rounded-lg border border-gray-100 bg-gray-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/25 hover:bg-white hover:shadow-md sm:basis-[42%] md:basis-[calc((100%_-_40px)/3)] lg:basis-[calc((100%_-_60px)/4)]"
+              className="flex min-h-[260px] shrink-0 basis-[74%] snap-start flex-col justify-between rounded-lg border border-gray-100 bg-gray-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/25 hover:bg-white hover:shadow-md sm:basis-[42%] md:basis-[calc((100%_-_40px)/3)] lg:basis-[calc((100%_-_60px)/4)]"
             >
               <div>
                 <PartnerLogo partner={partner} />

@@ -50,6 +50,7 @@ class Partner(models.Model):
     sector = models.CharField("sector", max_length=160, blank=True)
     description = models.TextField("descrição", blank=True)
     logo = models.ImageField("logotipo", upload_to="partners/", blank=True, null=True)
+    logo_data_url = models.TextField("logotipo embutido", blank=True)
     website = models.URLField("website", blank=True)
     display_order = models.PositiveIntegerField("ordem", default=0)
     is_featured = models.BooleanField("em destaque", default=False)

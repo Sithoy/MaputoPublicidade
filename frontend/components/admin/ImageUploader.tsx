@@ -82,7 +82,8 @@ export function ImageUploader({
           <img
             src={localPreview}
             alt="Preview"
-            className={cn('h-40 w-auto rounded-lg border border-gray-200 object-cover')}
+            className={cn('h-40 w-40 rounded-lg border border-gray-200 bg-white object-contain p-3')}
+            onError={() => setLocalPreview(null)}
           />
           <button
             type="button"
