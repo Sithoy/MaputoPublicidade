@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import ArtworkApproval, QuoteRequest
+from .models import ArtworkApproval, QuoteItem, QuoteRequest
+
+
+class QuoteItemInline(admin.TabularInline):
+    model = QuoteItem
+    extra = 0
+    fields = ["product", "product_variant", "description", "quantity", "size", "material", "colors", "unit_price", "position", "needs_design"]
 
 
 class ArtworkApprovalInline(admin.StackedInline):
@@ -15,16 +21,14 @@ class QuoteRequestAdmin(admin.ModelAdmin):
         "reference",
         "client_name",
         "client_company",
-        "product",
-        "quantity",
         "status",
         "urgency",
         "created_at",
     ]
-    list_filter = ["status", "urgency", "created_at", "product__category"]
+    list_filter = ["status", "urgency", "created_at"]
     search_fields = ["reference", "client_name", "client_email", "client_company", "notes", "internal_notes"]
     readonly_fields = ["reference", "created_at", "updated_at"]
-    inlines = [ArtworkApprovalInline]
+    inlines = [QuoteItemInline, ArtworkApprovalInline]
     fieldsets = [
         (
             "Identificação",
@@ -45,16 +49,9 @@ class QuoteRequestAdmin(admin.ModelAdmin):
             "Pedido",
             {
                 "fields": [
-                    "product",
-                    "quantity",
-                    "size",
-                    "material",
-                    "colors",
-                    "needs_design",
                     "urgency",
                     "notes",
                     "internal_notes",
-                    "file",
                 ]
             },
         ),

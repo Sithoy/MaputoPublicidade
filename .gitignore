@@ -21,7 +21,7 @@ venv/
 .venv/
 
 # Django
-backend/media/uploads/*
+backend/media/
 backend/staticfiles/
 backend/db.sqlite3
 

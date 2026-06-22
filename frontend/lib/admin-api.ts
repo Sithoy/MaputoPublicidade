@@ -37,16 +37,10 @@ export type AdminQuote = Quote & {
   client_email: string;
   client_phone?: string;
   client_company?: string;
-  product?: number;
-  size?: string;
-  material?: string;
-  colors?: string;
-  needs_design?: boolean;
   urgency?: string;
   urgency_display?: string;
   notes?: string;
   internal_notes?: string;
-  file?: string;
   updated_at?: string;
   artwork?: ArtworkApproval | null;
   order_reference?: string | null;

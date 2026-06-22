@@ -1,4 +1,5 @@
-from django.shortcuts import get_object_or_404
+import os
+
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -6,10 +7,8 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-import os
-
 from apps.core.permissions import IsOwnerOrStaff, IsStaffUser
-from apps.orders.models import Order
+from apps.orders.models import Order, OrderItem
 
 from .models import ArtworkApproval, QuoteRequest
 from .serializers import (
@@ -34,7 +33,11 @@ class QuoteRequestViewSet(
     mixins.ListModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = QuoteRequest.objects.all().select_related("product", "artwork")
+    queryset = (
+        QuoteRequest.objects.all()
+        .select_related("artwork", "user")
+        .prefetch_related("items", "items__product", "items__product_variant")
+    )
     lookup_field = "reference"
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
@@ -50,7 +53,15 @@ class QuoteRequestViewSet(
     def get_permissions(self):
         if self.action == "create":
             return [AllowAny()]
-        if self.action in ["set_status", "set_price", "upload_proof", "convert_to_order", "update", "partial_update", "destroy"]:
+        if self.action in [
+            "set_status",
+            "set_price",
+            "upload_proof",
+            "convert_to_order",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
             return [IsStaffUser()]
         return [IsAuthenticated(), IsOwnerOrStaff(owner_field="user")]
 
@@ -103,7 +114,10 @@ class QuoteRequestViewSet(
             quote.final_price = serializer.validated_data["final_price"]
         quote.save(update_fields=["estimated_price", "final_price", "updated_at"])
 
-        if quote.final_price and quote.status in (QuoteRequest.STATUS_RECEIVED, QuoteRequest.STATUS_REVIEWING):
+        if quote.final_price and quote.status in (
+            QuoteRequest.STATUS_RECEIVED,
+            QuoteRequest.STATUS_REVIEWING,
+        ):
             quote.status = QuoteRequest.STATUS_QUOTED
             quote.save(update_fields=["status", "updated_at"])
 
@@ -205,27 +219,40 @@ class QuoteRequestViewSet(
         quote = self.get_object()
         if hasattr(quote, "order"):
             return Response(
-                {"detail": "Este orçamento já foi convertido numa encomenda.", "order_reference": quote.order.reference},
+                {
+                    "detail": "Este orçamento já foi convertido numa encomenda.",
+                    "order_reference": quote.order.reference,
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         order = Order.objects.create(
             user=quote.user,
             quote=quote,
-            product_name=quote.product.name if quote.product else "",
-            quantity=quote.quantity,
-            size=quote.size,
-            material=quote.material,
-            colors=quote.colors,
-            needs_design=quote.needs_design,
+            estimated_price=quote.estimated_price,
             final_price=quote.final_price,
             status=Order.STATUS_APPROVED,
             delivery_address=getattr(getattr(quote.user, "profile", None), "address", ""),
         )
 
-        if quote.file:
-            filename = os.path.basename(quote.file.name)
-            order.client_file.save(filename, quote.file, save=True)
+        for idx, quote_item in enumerate(quote.items.all()):
+            order_item = OrderItem.objects.create(
+                order=order,
+                product=quote_item.product,
+                product_variant=quote_item.product_variant,
+                description=quote_item.description,
+                quantity=quote_item.quantity,
+                size=quote_item.size,
+                material=quote_item.material,
+                colors=quote_item.colors,
+                needs_design=quote_item.needs_design,
+                notes=quote_item.notes,
+                unit_price=quote_item.unit_price,
+                position=idx,
+            )
+            if quote_item.artwork_file:
+                filename = os.path.basename(quote_item.artwork_file.name)
+                order_item.artwork_file.save(filename, quote_item.artwork_file, save=True)
 
         quote.status = QuoteRequest.STATUS_APPROVED
         quote.save(update_fields=["status", "updated_at"])

@@ -7,7 +7,6 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { DataTable } from '@/components/admin/DataTable';
-import { StatusBadge } from '@/components/admin/StatusBadge';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { getQuotes } from '@/lib/admin-api';
@@ -17,14 +16,21 @@ const statusOptions = [
   { value: '', label: 'Todos os estados' },
   { value: 'received', label: 'Recebido' },
   { value: 'reviewing', label: 'Em revisão' },
-  { value: 'awaiting_approval', label: 'Aguardando aprovação' },
-  { value: 'approved', label: 'Aprovada' },
+  { value: 'quoted', label: 'Orçamentado' },
+  { value: 'approved', label: 'Aprovado' },
   { value: 'in_production', label: 'Em produção' },
   { value: 'ready', label: 'Pronto' },
   { value: 'delivered', label: 'Entregue' },
+  { value: 'cancelled', label: 'Cancelado' },
 ];
 
-export default function AdminOrdersPage() {
+function quoteLabel(quote: Quote) {
+  if (quote.items.length === 0) return 'Orçamento';
+  if (quote.items.length === 1) return quote.items[0].description;
+  return `${quote.items[0].description} +${quote.items.length - 1}`;
+}
+
+export default function AdminQuotesPage() {
   const { loading: authLoading } = useAdminAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [filtered, setFiltered] = useState<Quote[]>([]);
@@ -39,7 +45,7 @@ export default function AdminOrdersPage() {
         setQuotes(data);
         setFiltered(data);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar encomendas'));
+      .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar orçamentos'));
   }, [authLoading]);
 
   useEffect(() => {
@@ -50,7 +56,7 @@ export default function AdminOrdersPage() {
       data = data.filter(
         (q) =>
           q.reference.toLowerCase().includes(term) ||
-          q.product_name.toLowerCase().includes(term)
+          quoteLabel(q).toLowerCase().includes(term)
       );
     }
     setFiltered(data);
@@ -68,7 +74,7 @@ export default function AdminOrdersPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-dark">Encomendas</h1>
+          <h1 className="text-2xl font-bold text-dark">Orçamentos</h1>
           <p className="text-sm text-gray-500">Gestão de orçamentos e pedidos</p>
         </div>
       </div>
@@ -99,16 +105,20 @@ export default function AdminOrdersPage() {
       <DataTable
         columns={[
           { key: 'reference', header: 'Referência' },
-          { key: 'product_name', header: 'Produto' },
           {
-            key: 'quantity',
-            header: 'Qtd.',
-            render: (item) => item.quantity,
+            key: 'description',
+            header: 'Produto / Serviço',
+            render: (item) => quoteLabel(item),
+          },
+          {
+            key: 'item_count',
+            header: 'Itens',
+            render: (item) => item.item_count,
           },
           {
             key: 'status',
             header: 'Estado',
-            render: (item) => <StatusBadge status={item.status} />,
+            render: (item) => item.status_display || item.status,
           },
           {
             key: 'estimated_price',

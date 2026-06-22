@@ -20,6 +20,12 @@ const statusLabels: Record<string, string> = {
   cancelled: 'Cancelado',
 };
 
+function orderLabel(order: Order) {
+  if (order.items.length === 0) return 'Encomenda';
+  if (order.items.length === 1) return order.items[0].description;
+  return `${order.items[0].description} +${order.items.length - 1}`;
+}
+
 export default function ClientOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +50,7 @@ export default function ClientOrdersPage() {
       data = data.filter(
         (o) =>
           o.reference.toLowerCase().includes(term) ||
-          o.product_name.toLowerCase().includes(term)
+          orderLabel(o).toLowerCase().includes(term)
       );
     }
     return data;
@@ -113,9 +119,9 @@ export default function ClientOrdersPage() {
                     </span>
                     <Badge variant="outline">{statusLabels[order.status] || order.status}</Badge>
                   </div>
-                  <p className="font-medium text-dark">{order.product_name}</p>
+                  <p className="font-medium text-dark">{orderLabel(order)}</p>
                   <p className="text-xs text-gray-500">
-                    Quantidade: {order.quantity} • {new Date(order.created_at).toLocaleDateString('pt-MZ')}
+                    {order.item_count} item(s) • {new Date(order.created_at).toLocaleDateString('pt-MZ')}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

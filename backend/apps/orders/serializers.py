@@ -1,10 +1,50 @@
 from rest_framework import serializers
 
 from apps.accounts.serializers import ClientProfileSerializer
+from apps.catalog.models import Product, ProductVariant
 from apps.core.fields import RelativeFileField
 from apps.quotes.serializers import ArtworkApprovalSerializer
 
-from .models import Order
+from .models import Order, OrderItem
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_slug = serializers.SlugRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+        source="product",
+        slug_field="slug",
+        required=False,
+        allow_null=True,
+    )
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    variant_name = serializers.CharField(source="product_variant.name", read_only=True)
+    artwork_file = RelativeFileField(required=False)
+
+    class Meta:
+        model = OrderItem
+        fields = [
+            "id",
+            "product",
+            "product_slug",
+            "product_name",
+            "product_variant",
+            "variant_name",
+            "description",
+            "quantity",
+            "size",
+            "material",
+            "colors",
+            "needs_design",
+            "artwork_file",
+            "notes",
+            "unit_price",
+            "position",
+            "created_at",
+        ]
+        extra_kwargs = {
+            "product": {"required": False},
+            "product_variant": {"required": False},
+        }
 
 
 class OrderListSerializer(serializers.ModelSerializer):
@@ -12,17 +52,22 @@ class OrderListSerializer(serializers.ModelSerializer):
     payment_status_display = serializers.CharField(
         source="get_payment_status_display", read_only=True
     )
+    final_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, coerce_to_string=False
+    )
+    amount_paid = serializers.DecimalField(
+        max_digits=12, decimal_places=2, coerce_to_string=False
+    )
     amount_due = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False, read_only=True
     )
+    item_count = serializers.IntegerField(source="items.count", read_only=True)
 
     class Meta:
         model = Order
         fields = [
             "id",
             "reference",
-            "product_name",
-            "quantity",
             "status",
             "status_display",
             "final_price",
@@ -30,6 +75,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "payment_status_display",
             "amount_paid",
             "amount_due",
+            "item_count",
             "created_at",
         ]
 
@@ -45,7 +91,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     amount_due = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False, read_only=True
     )
-    client_file = RelativeFileField(required=False)
+    items = OrderItemSerializer(many=True, read_only=True)
     artwork = serializers.SerializerMethodField()
     quote_reference = serializers.CharField(source="quote.reference", read_only=True)
     user_email = serializers.CharField(source="user.email", read_only=True)
@@ -63,13 +109,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "user_email",
             "user_name",
             "profile",
-            "product_name",
-            "quantity",
-            "size",
-            "material",
-            "colors",
-            "needs_design",
-            "client_file",
+            "estimated_price",
             "final_price",
             "payment_status",
             "payment_status_display",
@@ -81,6 +121,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "delivery_method_display",
             "delivery_address",
             "internal_notes",
+            "items",
             "artwork",
             "created_at",
             "updated_at",
@@ -109,38 +150,86 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         return None
 
 
+class OrderItemCreateSerializer(serializers.ModelSerializer):
+    product_slug = serializers.SlugRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+        source="product",
+        slug_field="slug",
+        required=False,
+        allow_null=True,
+    )
+    product_variant_id = serializers.PrimaryKeyRelatedField(
+        queryset=ProductVariant.objects.all(),
+        source="product_variant",
+        required=False,
+        allow_null=True,
+    )
+    artwork_file = serializers.FileField(required=False, allow_null=True)
+
+    class Meta:
+        model = OrderItem
+        fields = [
+            "product_slug",
+            "product_variant_id",
+            "description",
+            "quantity",
+            "size",
+            "material",
+            "colors",
+            "needs_design",
+            "artwork_file",
+            "notes",
+            "unit_price",
+            "position",
+        ]
+
+
 class OrderCreateSerializer(serializers.ModelSerializer):
+    items = OrderItemCreateSerializer(many=True, required=False)
+
     class Meta:
         model = Order
         fields = [
             "quote",
             "user",
-            "product_name",
-            "quantity",
-            "size",
-            "material",
-            "colors",
-            "needs_design",
-            "client_file",
+            "estimated_price",
             "final_price",
             "status",
             "delivery_method",
             "delivery_address",
             "internal_notes",
+            "items",
         ]
+
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+        order = Order.objects.create(**validated_data)
+        for idx, item_data in enumerate(items_data):
+            OrderItem.objects.create(
+                order=order,
+                product=item_data.get("product"),
+                product_variant=item_data.get("product_variant"),
+                description=item_data.get("description", ""),
+                quantity=item_data.get("quantity", 1),
+                size=item_data.get("size", ""),
+                material=item_data.get("material", ""),
+                colors=item_data.get("colors", ""),
+                needs_design=item_data.get("needs_design", False),
+                artwork_file=item_data.get("artwork_file"),
+                notes=item_data.get("notes", ""),
+                unit_price=item_data.get("unit_price"),
+                position=item_data.get("position", idx),
+            )
+        return order
 
 
 class OrderUpdateSerializer(serializers.ModelSerializer):
+    items = OrderItemCreateSerializer(many=True, required=False)
+
     class Meta:
         model = Order
         fields = [
-            "product_name",
-            "quantity",
-            "size",
-            "material",
-            "colors",
-            "needs_design",
-            "client_file",
+            "estimated_price",
             "final_price",
             "payment_status",
             "amount_paid",
@@ -148,7 +237,34 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
             "delivery_method",
             "delivery_address",
             "internal_notes",
+            "items",
         ]
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop("items", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if items_data is not None:
+            instance.items.all().delete()
+            for idx, item_data in enumerate(items_data):
+                OrderItem.objects.create(
+                    order=instance,
+                    product=item_data.get("product"),
+                    product_variant=item_data.get("product_variant"),
+                    description=item_data.get("description", ""),
+                    quantity=item_data.get("quantity", 1),
+                    size=item_data.get("size", ""),
+                    material=item_data.get("material", ""),
+                    colors=item_data.get("colors", ""),
+                    needs_design=item_data.get("needs_design", False),
+                    artwork_file=item_data.get("artwork_file"),
+                    notes=item_data.get("notes", ""),
+                    unit_price=item_data.get("unit_price"),
+                    position=item_data.get("position", idx),
+                )
+        return instance
 
 
 class OrderStatusSerializer(serializers.Serializer):

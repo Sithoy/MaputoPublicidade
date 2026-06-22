@@ -22,6 +22,12 @@ const statusLabels: Record<string, string> = {
   cancelled: 'Cancelado',
 };
 
+function orderLabel(order: Order) {
+  if (order.items.length === 0) return 'Encomenda';
+  if (order.items.length === 1) return order.items[0].description;
+  return `${order.items[0].description} +${order.items.length - 1}`;
+}
+
 export default function AdminOrdersPage() {
   const { loading: authLoading } = useAdminAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -41,7 +47,7 @@ export default function AdminOrdersPage() {
       data = data.filter(
         (o) =>
           o.reference.toLowerCase().includes(term) ||
-          o.product_name.toLowerCase().includes(term) ||
+          orderLabel(o).toLowerCase().includes(term) ||
           o.user_email?.toLowerCase().includes(term)
       );
     }
@@ -94,7 +100,11 @@ export default function AdminOrdersPage() {
       <DataTable
         columns={[
           { key: 'reference', header: 'Referência' },
-          { key: 'product_name', header: 'Produto' },
+          {
+            key: 'description',
+            header: 'Produto / Serviço',
+            render: (item) => orderLabel(item),
+          },
           { key: 'user_email', header: 'Cliente' },
           {
             key: 'status',

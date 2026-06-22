@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { QuoteForm } from '@/components/QuoteForm';
+import { OrcamentoContent } from '@/components/OrcamentoContent';
 
 export const metadata = {
   title: 'Pedir Orçamento | Maputo Publicidade',
@@ -9,7 +9,7 @@ export const metadata = {
 export default function QuotePage() {
   return (
     <Suspense fallback={<div className="py-24 text-center text-gray-500">A carregar formulário...</div>}>
-      <QuoteForm />
+      <OrcamentoContent />
     </Suspense>
   );
 }

@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 
-from apps.catalog.models import Product
+from apps.catalog.models import Product, ProductVariant
 
 
 class QuoteRequest(models.Model):
@@ -48,26 +48,10 @@ class QuoteRequest(models.Model):
     client_phone = models.CharField("telefone do cliente", max_length=50, blank=True)
     client_company = models.CharField("empresa", max_length=255, blank=True)
 
-    product = models.ForeignKey(
-        Product,
-        on_delete=models.SET_NULL,
-        related_name="quotes",
-        null=True,
-        blank=True,
-        verbose_name="produto",
-    )
-    quantity = models.PositiveIntegerField("quantidade", default=1)
-    size = models.CharField("tamanho", max_length=100, blank=True)
-    material = models.CharField("material", max_length=100, blank=True)
-    colors = models.CharField("cores", max_length=100, blank=True)
-    needs_design = models.BooleanField("necessita de design", default=False)
     urgency = models.CharField(
         "urgência", max_length=20, choices=URGENCY_CHOICES, default=URGENCY_NORMAL
     )
-    notes = models.TextField("observações", blank=True)
-    file = models.FileField(
-        "ficheiro anexo", upload_to="uploads/quote_files/", blank=True, null=True
-    )
+    notes = models.TextField("observações gerais", blank=True)
 
     status = models.CharField(
         "estado", max_length=30, choices=STATUS_CHOICES, default=STATUS_RECEIVED
@@ -119,6 +103,55 @@ class QuoteRequest(models.Model):
         from django.utils import timezone
 
         return timezone.now()
+
+
+class QuoteItem(models.Model):
+    quote = models.ForeignKey(
+        QuoteRequest,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="orçamento",
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        related_name="quote_items",
+        null=True,
+        blank=True,
+        verbose_name="produto",
+    )
+    product_variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.SET_NULL,
+        related_name="quote_items",
+        null=True,
+        blank=True,
+        verbose_name="variante",
+    )
+    description = models.CharField("descrição", max_length=255, blank=True)
+    quantity = models.PositiveIntegerField("quantidade", default=1)
+    size = models.CharField("tamanho", max_length=100, blank=True)
+    material = models.CharField("material", max_length=100, blank=True)
+    colors = models.CharField("cores", max_length=100, blank=True)
+    needs_design = models.BooleanField("necessita de design", default=False)
+    artwork_file = models.FileField(
+        "ficheiro de arte", upload_to="uploads/quote_item_files/", blank=True, null=True
+    )
+    notes = models.TextField("observações", blank=True)
+    unit_price = models.DecimalField(
+        "preço unitário", max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    position = models.PositiveSmallIntegerField("ordem", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "item do orçamento"
+        verbose_name_plural = "itens do orçamento"
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return f"{self.description or 'Item'} × {self.quantity}"
 
 
 class ArtworkApproval(models.Model):

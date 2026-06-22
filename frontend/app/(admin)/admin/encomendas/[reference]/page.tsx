@@ -153,13 +153,34 @@ export default function AdminOrderDetailPage() {
         <Card>
           <CardContent className="space-y-3 p-5">
             <h2 className="text-lg font-semibold text-dark">Detalhes da encomenda</h2>
-            <p><span className="font-medium text-dark">Produto:</span> {order.product_name}</p>
-            <p><span className="font-medium text-dark">Quantidade:</span> {order.quantity}</p>
-            {order.size && <p><span className="font-medium text-dark">Tamanho:</span> {order.size}</p>}
-            {order.material && <p><span className="font-medium text-dark">Material:</span> {order.material}</p>}
-            {order.colors && <p><span className="font-medium text-dark">Cores:</span> {order.colors}</p>}
-            <p><span className="font-medium text-dark">Preço final:</span> {order.final_price ? `${order.final_price.toLocaleString()} MZN` : '—'}</p>
-            <p><span className="font-medium text-dark">Em dívida:</span> {order.amount_due ? `${order.amount_due.toLocaleString()} MZN` : '—'}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b text-left text-gray-500">
+                  <tr>
+                    <th className="pb-2 font-medium">Descrição</th>
+                    <th className="pb-2 font-medium">Qtd</th>
+                    <th className="pb-2 font-medium">Tamanho</th>
+                    <th className="pb-2 font-medium">Material</th>
+                    <th className="pb-2 font-medium">Cores</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((item) => (
+                    <tr key={item.id} className="border-b border-gray-50 last:border-0">
+                      <td className="py-3 font-medium text-dark">{item.description}</td>
+                      <td className="py-3">{item.quantity}</td>
+                      <td className="py-3">{item.size || '—'}</td>
+                      <td className="py-3">{item.material || '—'}</td>
+                      <td className="py-3">{item.colors || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="pt-2 text-sm">
+              <p><span className="font-medium text-dark">Preço final:</span> {order.final_price ? `${order.final_price.toLocaleString()} MZN` : '—'}</p>
+              <p><span className="font-medium text-dark">Em dívida:</span> {order.amount_due ? `${order.amount_due.toLocaleString()} MZN` : '—'}</p>
+            </div>
           </CardContent>
         </Card>
       </div>

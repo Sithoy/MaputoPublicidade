@@ -187,17 +187,57 @@ export type Package = {
   is_active?: boolean;
 };
 
+export type QuoteItem = {
+  id: number;
+  product?: number;
+  product_slug?: string;
+  product_name?: string;
+  product_variant?: number;
+  variant_name?: string;
+  description: string;
+  quantity: number;
+  size?: string;
+  material?: string;
+  colors?: string;
+  needs_design?: boolean;
+  artwork_file?: string;
+  notes?: string;
+  unit_price?: number;
+  position?: number;
+  created_at?: string;
+};
+
 export type Quote = {
   id: number;
   reference: string;
-  product_name: string;
-  product_slug?: string;
-  quantity: number;
+  user?: number;
+  client_name: string;
+  client_email: string;
+  client_phone?: string;
+  client_company?: string;
   status: string;
   status_display?: string;
-  created_at: string;
+  urgency?: string;
+  urgency_display?: string;
+  notes?: string;
+  internal_notes?: string;
   estimated_price?: number;
   final_price?: number;
+  items: QuoteItem[];
+  item_count?: number;
+  order_reference?: string | null;
+  artwork?: {
+    id: number;
+    status: 'pending' | 'approved' | 'changes_requested';
+    status_display?: string;
+    proof_file?: string;
+    designer_comment?: string;
+    client_comment?: string;
+    requested_changes?: string;
+    approved_at?: string;
+  } | null;
+  created_at: string;
+  updated_at?: string;
 };
 
 export type PortfolioItem = {
@@ -251,6 +291,26 @@ export type OrderStatus =
 
 export type PaymentStatus = 'pending' | 'partial' | 'paid';
 
+export type OrderItem = {
+  id: number;
+  product?: number;
+  product_slug?: string;
+  product_name?: string;
+  product_variant?: number;
+  variant_name?: string;
+  description: string;
+  quantity: number;
+  size?: string;
+  material?: string;
+  colors?: string;
+  needs_design?: boolean;
+  artwork_file?: string;
+  notes?: string;
+  unit_price?: number;
+  position?: number;
+  created_at?: string;
+};
+
 export type Order = {
   id: number;
   reference: string;
@@ -260,13 +320,7 @@ export type Order = {
   user_email?: string;
   user_name?: string;
   profile?: UserProfile;
-  product_name: string;
-  quantity: number;
-  size?: string;
-  material?: string;
-  colors?: string;
-  needs_design?: boolean;
-  client_file?: string;
+  estimated_price?: number;
   final_price?: number;
   payment_status: PaymentStatus;
   payment_status_display?: string;
@@ -278,6 +332,8 @@ export type Order = {
   delivery_method_display?: string;
   delivery_address?: string;
   internal_notes?: string;
+  items: OrderItem[];
+  item_count?: number;
   artwork?: {
     id: number;
     status: 'pending' | 'approved' | 'changes_requested';
@@ -289,6 +345,35 @@ export type Order = {
     approved_at?: string;
   } | null;
   created_at: string;
+  updated_at?: string;
+};
+
+export type CartItem = {
+  id: number;
+  product: number;
+  product_slug?: string;
+  product_name?: string;
+  product_image?: string;
+  product_variant?: number;
+  variant_name?: string;
+  description: string;
+  quantity: number;
+  size?: string;
+  material?: string;
+  colors?: string;
+  needs_design?: boolean;
+  artwork_file?: string;
+  notes?: string;
+  position?: number;
+  created_at?: string;
+};
+
+export type Cart = {
+  id: number;
+  user: number;
+  items: CartItem[];
+  item_count?: number;
+  created_at?: string;
   updated_at?: string;
 };
 

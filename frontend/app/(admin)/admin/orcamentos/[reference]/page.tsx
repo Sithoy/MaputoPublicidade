@@ -165,7 +165,7 @@ export default function AdminOrderDetailPage() {
         <div>
           <h1 className="text-2xl font-bold text-dark">{quote.reference}</h1>
           <p className="text-sm text-gray-500">
-            {quote.product_name} • {quote.quantity} unidades
+            {quote.items.length} item(s) • {quote.items[0]?.description || 'Sem descrição'}
           </p>
         </div>
       </div>
@@ -199,31 +199,31 @@ export default function AdminOrderDetailPage() {
             <hr className="border-gray-100" />
 
             <h2 className="text-lg font-semibold text-dark">Detalhes do pedido</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label className="text-gray-500">Produto</Label>
-                <p className="font-medium text-dark">{quote.product_name}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Quantidade</Label>
-                <p className="font-medium text-dark">{quote.quantity}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Tamanho</Label>
-                <p className="font-medium text-dark">{quote.size || '-'}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Material</Label>
-                <p className="font-medium text-dark">{quote.material || '-'}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Cores</Label>
-                <p className="font-medium text-dark">{quote.colors || '-'}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Urgência</Label>
-                <p className="font-medium text-dark">{quote.urgency_display || quote.urgency}</p>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b text-left text-gray-500">
+                  <tr>
+                    <th className="pb-2 font-medium">Descrição</th>
+                    <th className="pb-2 font-medium">Qtd</th>
+                    <th className="pb-2 font-medium">Tamanho</th>
+                    <th className="pb-2 font-medium">Material</th>
+                    <th className="pb-2 font-medium">Cores</th>
+                    <th className="pb-2 font-medium">Design</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quote.items.map((item) => (
+                    <tr key={item.id} className="border-b border-gray-50 last:border-0">
+                      <td className="py-3 font-medium text-dark">{item.description}</td>
+                      <td className="py-3">{item.quantity}</td>
+                      <td className="py-3">{item.size || '—'}</td>
+                      <td className="py-3">{item.material || '—'}</td>
+                      <td className="py-3">{item.colors || '—'}</td>
+                      <td className="py-3">{item.needs_design ? 'Sim' : 'Não'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             {quote.notes && (
@@ -236,17 +236,23 @@ export default function AdminOrderDetailPage() {
               </>
             )}
 
-            {quote.file && (
+            {quote.items.some((i) => i.artwork_file) && (
               <>
                 <hr className="border-gray-100" />
                 <div>
-                  <Label className="text-gray-500">Ficheiro anexo</Label>
-                  <Link href={quote.file} target="_blank" download>
-                    <Button variant="outline" size="sm" className="mt-2 gap-2">
-                      <Download className="h-4 w-4" />
-                      Download
-                    </Button>
-                  </Link>
+                  <Label className="text-gray-500">Ficheiros de arte</Label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {quote.items
+                      .filter((i) => i.artwork_file)
+                      .map((item) => (
+                        <Link key={item.id} href={item.artwork_file as string} target="_blank" download>
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Download className="h-4 w-4" />
+                            {item.description}
+                          </Button>
+                        </Link>
+                      ))}
+                  </div>
                 </div>
               </>
             )}

@@ -2,6 +2,8 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
+from apps.catalog.models import Product, ProductVariant
+
 
 class Order(models.Model):
     STATUS_RECEIVED = "received"
@@ -57,16 +59,9 @@ class Order(models.Model):
         "referência", max_length=20, unique=True, blank=True, db_index=True
     )
 
-    product_name = models.CharField("produto/serviço", max_length=255, blank=True)
-    quantity = models.PositiveIntegerField("quantidade", default=1)
-    size = models.CharField("tamanho", max_length=100, blank=True)
-    material = models.CharField("material", max_length=100, blank=True)
-    colors = models.CharField("cores", max_length=100, blank=True)
-    needs_design = models.BooleanField("necessita de design", default=False)
-    client_file = models.FileField(
-        "ficheiro do cliente", upload_to="orders/files/", blank=True, null=True
+    estimated_price = models.DecimalField(
+        "preço estimado", max_digits=12, decimal_places=2, null=True, blank=True
     )
-
     final_price = models.DecimalField(
         "preço final", max_digits=12, decimal_places=2, null=True, blank=True
     )
@@ -102,7 +97,7 @@ class Order(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.reference or 'Sem referência'} — {self.product_name or 'Encomenda'}"
+        return f"{self.reference or 'Sem referência'} — Encomenda"
 
     def save(self, *args, **kwargs):
         if not self.reference:
@@ -134,3 +129,52 @@ class Order(models.Model):
             return None
         paid = self.amount_paid or 0
         return max(self.final_price - paid, 0)
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="encomenda",
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        related_name="order_items",
+        null=True,
+        blank=True,
+        verbose_name="produto",
+    )
+    product_variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.SET_NULL,
+        related_name="order_items",
+        null=True,
+        blank=True,
+        verbose_name="variante",
+    )
+    description = models.CharField("descrição", max_length=255, blank=True)
+    quantity = models.PositiveIntegerField("quantidade", default=1)
+    size = models.CharField("tamanho", max_length=100, blank=True)
+    material = models.CharField("material", max_length=100, blank=True)
+    colors = models.CharField("cores", max_length=100, blank=True)
+    needs_design = models.BooleanField("necessita de design", default=False)
+    artwork_file = models.FileField(
+        "ficheiro de arte", upload_to="orders/item_files/", blank=True, null=True
+    )
+    notes = models.TextField("observações", blank=True)
+    unit_price = models.DecimalField(
+        "preço unitário", max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    position = models.PositiveSmallIntegerField("ordem", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "item da encomenda"
+        verbose_name_plural = "itens da encomenda"
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return f"{self.description or 'Item'} × {self.quantity}"

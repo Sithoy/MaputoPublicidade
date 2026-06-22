@@ -2,12 +2,18 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, Clock, FileText, Package, RefreshCw } from 'lucide-react';
+import { AlertCircle, Clock, FileText, Package } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { getClientOrders } from '@/lib/client-api';
 import type { Order } from '@/lib/api';
+
+function orderLabel(order: Order) {
+  if (order.items.length === 0) return 'Encomenda';
+  if (order.items.length === 1) return order.items[0].description;
+  return `${order.items[0].description} +${order.items.length - 1}`;
+}
 
 export default function ClientDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -122,8 +128,8 @@ export default function ClientDashboardPage() {
             <div className="py-8 text-center text-gray-500">
               <FileText className="mx-auto mb-3 h-10 w-10 text-gray-300" />
               <p>Ainda não tem encomendas.</p>
-              <Link href="/orcamento">
-                <Button className="mt-4">Pedir orçamento</Button>
+              <Link href="/catalogo">
+                <Button className="mt-4">Ver catálogo</Button>
               </Link>
             </div>
           ) : (
@@ -140,9 +146,9 @@ export default function ClientDashboardPage() {
                       </span>
                       <Badge variant="outline">{order.status_display || order.status}</Badge>
                     </div>
-                    <p className="font-medium text-dark">{order.product_name}</p>
+                    <p className="font-medium text-dark">{orderLabel(order)}</p>
                     <p className="text-xs text-gray-500">
-                      Quantidade: {order.quantity} • {new Date(order.created_at).toLocaleDateString('pt-MZ')}
+                      {order.item_count} item(s) • {new Date(order.created_at).toLocaleDateString('pt-MZ')}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

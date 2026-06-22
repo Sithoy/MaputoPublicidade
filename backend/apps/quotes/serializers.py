@@ -5,16 +5,54 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.accounts.serializers import ClientProfileSerializer
-from apps.catalog.models import Product
+from apps.catalog.models import Product, ProductVariant
 from apps.core.fields import RelativeFileField
 
-from .models import ArtworkApproval, QuoteRequest
+from .models import ArtworkApproval, QuoteItem, QuoteRequest
+
+
+class QuoteItemSerializer(serializers.ModelSerializer):
+    product_slug = serializers.SlugRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+        source="product",
+        slug_field="slug",
+        required=False,
+        allow_null=True,
+    )
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    variant_name = serializers.CharField(source="product_variant.name", read_only=True)
+    artwork_file = RelativeFileField(required=False)
+
+    class Meta:
+        model = QuoteItem
+        fields = [
+            "id",
+            "product",
+            "product_slug",
+            "product_name",
+            "product_variant",
+            "variant_name",
+            "description",
+            "quantity",
+            "size",
+            "material",
+            "colors",
+            "needs_design",
+            "artwork_file",
+            "notes",
+            "unit_price",
+            "position",
+            "created_at",
+        ]
+        extra_kwargs = {
+            "product": {"required": False},
+            "product_variant": {"required": False},
+        }
 
 
 class QuoteRequestListSerializer(serializers.ModelSerializer):
-    product_name = serializers.CharField(source="product.name", read_only=True)
-    product_slug = serializers.CharField(source="product.slug", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    item_count = serializers.IntegerField(source="items.count", read_only=True)
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
@@ -27,11 +65,12 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "reference",
-            "product_name",
-            "product_slug",
-            "quantity",
+            "client_name",
+            "client_company",
             "status",
             "status_display",
+            "urgency",
+            "item_count",
             "estimated_price",
             "final_price",
             "created_at",
@@ -39,12 +78,11 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
 
 
 class QuoteRequestDetailSerializer(serializers.ModelSerializer):
-    product_name = serializers.CharField(source="product.name", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     urgency_display = serializers.CharField(source="get_urgency_display", read_only=True)
+    items = QuoteItemSerializer(many=True, read_only=True)
     artwork = serializers.SerializerMethodField()
     order_reference = serializers.SerializerMethodField()
-    file = RelativeFileField(required=False)
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
@@ -62,26 +100,19 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "client_email",
             "client_phone",
             "client_company",
-            "product",
-            "product_name",
-            "quantity",
-            "size",
-            "material",
-            "colors",
-            "needs_design",
             "urgency",
             "urgency_display",
             "notes",
             "internal_notes",
-            "file",
             "status",
             "status_display",
             "estimated_price",
             "final_price",
-            "created_at",
-            "updated_at",
+            "items",
             "artwork",
             "order_reference",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = ["reference", "user", "status", "estimated_price", "final_price"]
 
@@ -96,7 +127,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
         return None
 
 
-class QuoteRequestCreateSerializer(serializers.ModelSerializer):
+class QuoteItemCreateSerializer(serializers.ModelSerializer):
     product_slug = serializers.SlugRelatedField(
         queryset=Product.objects.filter(is_active=True),
         source="product",
@@ -104,6 +135,33 @@ class QuoteRequestCreateSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    product_variant_id = serializers.PrimaryKeyRelatedField(
+        queryset=ProductVariant.objects.all(),
+        source="product_variant",
+        required=False,
+        allow_null=True,
+    )
+    artwork_file = serializers.FileField(required=False, allow_null=True)
+
+    class Meta:
+        model = QuoteItem
+        fields = [
+            "product_slug",
+            "product_variant_id",
+            "description",
+            "quantity",
+            "size",
+            "material",
+            "colors",
+            "needs_design",
+            "artwork_file",
+            "notes",
+            "position",
+        ]
+
+
+class QuoteRequestCreateSerializer(serializers.ModelSerializer):
+    items = QuoteItemCreateSerializer(many=True)
 
     class Meta:
         model = QuoteRequest
@@ -112,34 +170,54 @@ class QuoteRequestCreateSerializer(serializers.ModelSerializer):
             "client_email",
             "client_phone",
             "client_company",
-            "product_slug",
-            "quantity",
-            "size",
-            "material",
-            "colors",
-            "needs_design",
             "urgency",
             "notes",
-            "file",
+            "items",
         ]
 
     def create(self, validated_data):
         request = self.context.get("request")
         user = request.user if request and request.user.is_authenticated else None
+        items_data = validated_data.pop("items", [])
         quote = QuoteRequest.objects.create(user=user, **validated_data)
 
-        if (
-            quote.product
-            and quote.product.pricing_complexity == Product.PRICING_SIMPLE
-            and quote.product.base_price
-        ):
-            total = quote.product.base_price * Decimal(quote.quantity)
+        for idx, item_data in enumerate(items_data):
+            product = item_data.get("product")
+            variant = item_data.get("product_variant")
+            description = item_data.get("description") or (product.name if product else "")
+            QuoteItem.objects.create(
+                quote=quote,
+                product=product,
+                product_variant=variant,
+                description=description,
+                quantity=item_data.get("quantity", 1),
+                size=item_data.get("size", ""),
+                material=item_data.get("material", ""),
+                colors=item_data.get("colors", ""),
+                needs_design=item_data.get("needs_design", False),
+                artwork_file=item_data.get("artwork_file"),
+                notes=item_data.get("notes", ""),
+                position=item_data.get("position", idx),
+            )
+
+        self._auto_estimate(quote)
+        return quote
+
+    def _auto_estimate(self, quote):
+        total = Decimal("0")
+        for item in quote.items.all():
+            price = None
+            if item.product_variant and item.product_variant.price:
+                price = item.product_variant.price
+            elif item.product and item.product.base_price:
+                price = item.product.base_price
+            if price:
+                total += price * Decimal(item.quantity)
+        if total > 0:
             if quote.urgency == QuoteRequest.URGENCY_URGENT:
                 total = total * Decimal("1.25")
             quote.estimated_price = total
             quote.save(update_fields=["estimated_price"])
-
-        return quote
 
 
 class QuoteRequestUpdateSerializer(serializers.ModelSerializer):

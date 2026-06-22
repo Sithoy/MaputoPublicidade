@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Check, Clock, FileText, MessageSquare, X } from 'lucide-react';
+import { Check, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -160,54 +160,64 @@ export default function ClientOrderDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardContent className="space-y-3 p-5">
-            <h2 className="text-lg font-semibold text-dark">Detalhes do pedido</h2>
-            <p><span className="font-medium text-dark">Produto:</span> {order.product_name}</p>
-            <p><span className="font-medium text-dark">Quantidade:</span> {order.quantity}</p>
-            {order.size && <p><span className="font-medium text-dark">Tamanho:</span> {order.size}</p>}
-            {order.material && <p><span className="font-medium text-dark">Material:</span> {order.material}</p>}
-            {order.colors && <p><span className="font-medium text-dark">Cores:</span> {order.colors}</p>}
-            <p>
-              <span className="font-medium text-dark">Entrega:</span>{' '}
-              {order.delivery_method_display || order.delivery_method}
-            </p>
-            {order.delivery_address && (
-              <p><span className="font-medium text-dark">Morada:</span> {order.delivery_address}</p>
-            )}
-          </CardContent>
-        </Card>
+      <Card>
+        <CardContent className="p-5">
+          <h2 className="mb-4 text-lg font-semibold text-dark">Itens do pedido</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b text-left text-gray-500">
+                <tr>
+                  <th className="pb-2 font-medium">Descrição</th>
+                  <th className="pb-2 font-medium">Qtd</th>
+                  <th className="pb-2 font-medium">Tamanho</th>
+                  <th className="pb-2 font-medium">Material</th>
+                  <th className="pb-2 font-medium">Cores</th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.items.map((item) => (
+                  <tr key={item.id} className="border-b border-gray-50 last:border-0">
+                    <td className="py-3 font-medium text-dark">{item.description}</td>
+                    <td className="py-3">{item.quantity}</td>
+                    <td className="py-3">{item.size || '—'}</td>
+                    <td className="py-3">{item.material || '—'}</td>
+                    <td className="py-3">{item.colors || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardContent className="space-y-3 p-5">
-            <h2 className="text-lg font-semibold text-dark">Pagamento</h2>
-            <p>
-              <span className="font-medium text-dark">Preço final:</span>{' '}
-              {order.final_price ? `${order.final_price.toLocaleString()} MZN` : 'Ainda não definido'}
-            </p>
-            <p>
-              <span className="font-medium text-dark">Valor pago:</span>{' '}
-              {(order.amount_paid || 0).toLocaleString()} MZN
-            </p>
-            <p>
-              <span className="font-medium text-dark">Em dívida:</span>{' '}
-              <span className="font-bold text-brand">
-                {(order.amount_due || 0).toLocaleString()} MZN
-              </span>
-            </p>
-            <p>
-              <span className="font-medium text-dark">Estado:</span>{' '}
-              {order.payment_status_display || order.payment_status}
-            </p>
-            {order.payment_status !== 'paid' && order.amount_due ? (
-              <Button disabled className="w-full">
-                Pagar (disponível em breve)
-              </Button>
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="space-y-3 p-5">
+          <h2 className="text-lg font-semibold text-dark">Pagamento</h2>
+          <p>
+            <span className="font-medium text-dark">Preço final:</span>{' '}
+            {order.final_price ? `${order.final_price.toLocaleString()} MZN` : 'Ainda não definido'}
+          </p>
+          <p>
+            <span className="font-medium text-dark">Valor pago:</span>{' '}
+            {(order.amount_paid || 0).toLocaleString()} MZN
+          </p>
+          <p>
+            <span className="font-medium text-dark">Em dívida:</span>{' '}
+            <span className="font-bold text-brand">
+              {(order.amount_due || 0).toLocaleString()} MZN
+            </span>
+          </p>
+          <p>
+            <span className="font-medium text-dark">Estado:</span>{' '}
+            {order.payment_status_display || order.payment_status}
+          </p>
+          {order.payment_status !== 'paid' && order.amount_due ? (
+            <Button disabled className="w-full">
+              Pagar (disponível em breve)
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {order.status === 'quoted' && (
         <Card>

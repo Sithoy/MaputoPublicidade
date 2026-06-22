@@ -55,10 +55,29 @@ export function QuoteForm() {
 
     const form = e.currentTarget;
     const formData = new FormData(form);
-    if (packageParam) formData.append('package', packageParam);
+
+    const payload = {
+      client_name: formData.get('name') as string,
+      client_email: formData.get('email') as string,
+      client_phone: formData.get('phone') as string,
+      client_company: (formData.get('company') as string) || '',
+      urgency: formData.get('urgency') as string,
+      notes: (formData.get('notes') as string) || '',
+      items: [
+        {
+          product_slug: formData.get('product_slug') as string,
+          description: products.find((p) => p.slug === (formData.get('product_slug') as string))?.name || '',
+          quantity: Number(formData.get('quantity') || 1),
+          size: (formData.get('size') as string) || '',
+          material: (formData.get('material') as string) || '',
+          colors: (formData.get('colors') as string) || '',
+          needs_design: formData.get('needs_design') === 'true',
+        },
+      ],
+    };
 
     try {
-      const data = await post('/api/quotes/', formData);
+      const data = await post('/api/quotes/', payload);
       setResult(data as { reference: string; estimated_price?: number });
       form.reset();
     } catch (err) {
@@ -130,7 +149,7 @@ export function QuoteForm() {
             </div>
             <div>
               <Label htmlFor="quantity">Quantidade</Label>
-              <Input id="quantity" name="quantity" type="number" min={1} />
+              <Input id="quantity" name="quantity" type="number" min={1} defaultValue={1} />
             </div>
             <div>
               <Label htmlFor="size">Tamanho / Dimensões</Label>
@@ -145,7 +164,7 @@ export function QuoteForm() {
           <div className="grid gap-5 md:grid-cols-2">
             <div>
               <Label htmlFor="colors">Número de cores</Label>
-              <Input id="colors" name="colors" type="number" min={1} />
+              <Input id="colors" name="colors" placeholder="Ex: 4 cores" />
             </div>
             <div>
               <Label htmlFor="urgency">Urgência</Label>
@@ -172,11 +191,6 @@ export function QuoteForm() {
           <div>
             <Label htmlFor="notes">Observações</Label>
             <Textarea id="notes" name="notes" rows={4} placeholder="Descreva o projeto, referências ou dúvidas..." />
-          </div>
-
-          <div>
-            <Label htmlFor="file">Anexar ficheiro (logótipo, imagem ou briefing)</Label>
-            <Input id="file" name="file" type="file" accept="image/*,.pdf,.ai,.eps,.cdr" />
           </div>
 
           <div className="flex flex-col gap-3 pt-2 sm:flex-row">

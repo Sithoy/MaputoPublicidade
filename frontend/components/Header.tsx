@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Facebook, Instagram, Mail, MapPin, Menu, MessageCircle, Phone, X } from 'lucide-react';
+import { Facebook, Instagram, Mail, MapPin, Menu, MessageCircle, Phone, ShoppingCart, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { getToken } from '@/lib/auth';
+import { getCart } from '@/lib/client-api';
 
 const navLinks = [
   { href: '/', label: 'Início' },
@@ -18,6 +20,36 @@ const navLinks = [
 
 const WHATSAPP_NUMBER = '25882555736';
 const WHATSAPP_MESSAGE = 'Olá! Vi o site da Maputo Publicidade e gostaria de falar sobre um projeto.';
+
+function CartCount() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    async function load() {
+      try {
+        const cart = await getCart();
+        setCount(cart.item_count || 0);
+      } catch {
+        // ignore
+      }
+    }
+    load();
+    window.addEventListener('cart-updated', load);
+    return () => window.removeEventListener('cart-updated', load);
+  }, []);
+
+  return (
+    <Link href="/carrinho" className="relative inline-flex items-center justify-center rounded-md p-2 text-dark hover:bg-gray-100">
+      <ShoppingCart className="h-5 w-5" />
+      {count > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">
+          {count}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -80,7 +112,11 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-2 lg:flex">
+          <CartCount />
+          <Link href="/area-cliente" className="rounded-md p-2 text-dark hover:bg-gray-100" aria-label="Área do cliente">
+            <User className="h-5 w-5" />
+          </Link>
           <a href="tel:+25882555736" className="flex items-center gap-1.5 text-sm font-medium text-dark hover:text-brand">
             <Phone className="h-4 w-4" />
             82 555 736
@@ -93,13 +129,19 @@ export function Header() {
           </a>
         </div>
 
-        <button
-          className="inline-flex items-center justify-center rounded-md p-2 text-dark hover:bg-gray-100 lg:hidden"
-          onClick={() => setMobileOpen((s) => !s)}
-          aria-label="Menu"
-        >
-          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-1 lg:hidden">
+          <CartCount />
+          <Link href="/area-cliente" className="rounded-md p-2 text-dark hover:bg-gray-100" aria-label="Área do cliente">
+            <User className="h-5 w-5" />
+          </Link>
+          <button
+            className="inline-flex items-center justify-center rounded-md p-2 text-dark hover:bg-gray-100"
+            onClick={() => setMobileOpen((s) => !s)}
+            aria-label="Menu"
+          >
+            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
 
       <div

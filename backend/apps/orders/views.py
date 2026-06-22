@@ -26,6 +26,7 @@ class OrderViewSet(
     queryset = (
         Order.objects.all()
         .select_related("user", "user__profile", "quote", "quote__artwork")
+        .prefetch_related("items", "items__product", "items__product_variant")
         .order_by("-created_at")
     )
     lookup_field = "reference"
@@ -41,7 +42,13 @@ class OrderViewSet(
         return self.serializer_classes.get(self.action, OrderListSerializer)
 
     def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "set_status", "set_payment"]:
+        if self.action in [
+            "create",
+            "update",
+            "partial_update",
+            "set_status",
+            "set_payment",
+        ]:
             return [IsStaffUser()]
         return [IsAuthenticated(), IsOwnerOrStaff(owner_field="user")]
 
