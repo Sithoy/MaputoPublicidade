@@ -6,6 +6,8 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+import os
+
 from apps.core.permissions import IsOwnerOrStaff, IsStaffUser
 from apps.orders.models import Order
 
@@ -222,7 +224,8 @@ class QuoteRequestViewSet(
         )
 
         if quote.file:
-            order.client_file.save(quote.file.name, quote.file, save=True)
+            filename = os.path.basename(quote.file.name)
+            order.client_file.save(filename, quote.file, save=True)
 
         quote.status = QuoteRequest.STATUS_APPROVED
         quote.save(update_fields=["status", "updated_at"])
