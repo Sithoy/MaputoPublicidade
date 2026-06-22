@@ -1,0 +1,11 @@
+Olá {{ order.user.get_full_name|default:order.user.email }},
+
+O estado da sua encomenda {{ order.reference }} foi actualizado.
+
+Estado anterior: {{ old_status_display }}
+Novo estado: {{ order.get_status_display }}
+
+Pode acompanhar o progresso na sua área de cliente.
+
+Cumprimentos,
+Maputo Publicidade

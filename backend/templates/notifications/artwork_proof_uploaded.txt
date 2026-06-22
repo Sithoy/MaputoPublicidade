@@ -1,0 +1,8 @@
+Olá {{ quote.client_name }},
+
+Uma nova prova de arte foi carregada para o orçamento {{ quote.reference }}.
+
+Por favor, aceda à sua área de cliente para aprovar ou pedir alterações.
+
+Cumprimentos,
+Maputo Publicidade

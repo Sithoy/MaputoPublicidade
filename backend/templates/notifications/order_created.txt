@@ -1,0 +1,11 @@
+Olá {{ order.user.get_full_name|default:order.user.email }},
+
+A sua encomenda {{ order.reference }} foi criada com sucesso.
+
+{% if order.final_price %}Preço final: {{ order.final_price }} MZN{% endif %}
+Estado: {{ order.get_status_display }}
+
+Pode acompanhar o progresso na sua área de cliente.
+
+Cumprimentos,
+Maputo Publicidade

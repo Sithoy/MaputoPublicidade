@@ -1,5 +1,5 @@
 import { fetchWithAuth } from './auth';
-import type { Cart, CartItem, Order, Quote, User, UserProfile } from './api';
+import type { Cart, CartItem, Order, Payment, Quote, User, UserProfile } from './api';
 
 function emitCartUpdate() {
   if (typeof window !== 'undefined') {
@@ -129,6 +129,26 @@ export async function getClientOrders(): Promise<Order[]> {
 
 export async function getClientOrder(reference: string): Promise<Order> {
   return fetchWithAuth(`/api/orders/${reference}/`) as Promise<Order>;
+}
+
+export async function getOrderPayments(reference: string): Promise<Payment[]> {
+  return fetchWithAuth(`/api/orders/${reference}/payments/`) as Promise<Payment[]>;
+}
+
+export type PaymentData = {
+  amount: number;
+  method?: string;
+  reference_code?: string;
+  status?: string;
+  notes?: string;
+};
+
+export async function createOrderPayment(reference: string, data: PaymentData): Promise<Payment> {
+  return fetchWithAuth(`/api/orders/${reference}/payments/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }) as Promise<Payment>;
 }
 
 export async function approveQuotePrice(reference: string, comment?: string) {

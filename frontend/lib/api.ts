@@ -291,6 +291,29 @@ export type OrderStatus =
 
 export type PaymentStatus = 'pending' | 'partial' | 'paid';
 
+export type PaymentMethod =
+  | 'cash'
+  | 'bank_transfer'
+  | 'mpesa'
+  | 'emola'
+  | 'other';
+
+export type Payment = {
+  id: number;
+  order: number;
+  amount: number;
+  method: PaymentMethod;
+  method_display?: string;
+  reference_code?: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  status_display?: string;
+  recorded_by?: number | null;
+  recorded_by_name?: string;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
+};
+
 export type OrderItem = {
   id: number;
   product?: number;
@@ -333,6 +356,7 @@ export type Order = {
   delivery_address?: string;
   internal_notes?: string;
   items: OrderItem[];
+  payments?: Payment[];
   item_count?: number;
   artwork?: {
     id: number;

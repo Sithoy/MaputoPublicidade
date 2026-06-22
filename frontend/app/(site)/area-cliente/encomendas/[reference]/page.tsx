@@ -11,9 +11,10 @@ import {
   approveArtwork,
   approveQuotePrice,
   getClientOrder,
+  getOrderPayments,
   requestArtworkChange,
 } from '@/lib/client-api';
-import type { Order } from '@/lib/api';
+import type { Order, Payment } from '@/lib/api';
 
 const statusFlow = [
   { key: 'received', label: 'Pedido recebido' },
@@ -32,6 +33,7 @@ export default function ClientOrderDetailPage() {
   const [error, setError] = useState('');
   const [comment, setComment] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [payments, setPayments] = useState<Payment[]>([]);
 
   useEffect(() => {
     if (!reference) return;
@@ -42,8 +44,12 @@ export default function ClientOrderDetailPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await getClientOrder(reference);
+      const [data, paymentList] = await Promise.all([
+        getClientOrder(reference),
+        getOrderPayments(reference),
+      ]);
       setOrder(data);
+      setPayments(paymentList);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar encomenda');
     } finally {
@@ -211,9 +217,33 @@ export default function ClientOrderDetailPage() {
             <span className="font-medium text-dark">Estado:</span>{' '}
             {order.payment_status_display || order.payment_status}
           </p>
+
+          {payments.length > 0 && (
+            <div className="overflow-x-auto pt-2">
+              <table className="w-full text-sm">
+                <thead className="border-b text-left text-gray-500">
+                  <tr>
+                    <th className="pb-2 font-medium">Data</th>
+                    <th className="pb-2 font-medium">Método</th>
+                    <th className="pb-2 font-medium">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((payment) => (
+                    <tr key={payment.id} className="border-b border-gray-50 last:border-0">
+                      <td className="py-2">{new Date(payment.created_at).toLocaleDateString('pt-MZ')}</td>
+                      <td className="py-2">{payment.method_display || payment.method}</td>
+                      <td className="py-2 font-medium text-dark">{payment.amount.toLocaleString()} MZN</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           {order.payment_status !== 'paid' && order.amount_due ? (
             <Button disabled className="w-full">
-              Pagar (disponível em breve)
+              Pagar (M-Pesa em breve)
             </Button>
           ) : null}
         </CardContent>

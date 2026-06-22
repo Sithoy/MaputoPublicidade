@@ -1,0 +1,10 @@
+Olá {{ quote.client_name }},
+
+O orçamento {{ quote.reference }} está pronto.
+
+{% if quote.final_price %}Preço final: {{ quote.final_price }} MZN{% endif %}
+
+Por favor, aceda à sua área de cliente para aprovar ou pedir alterações.
+
+Cumprimentos,
+Maputo Publicidade

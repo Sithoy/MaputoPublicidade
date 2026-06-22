@@ -1,0 +1,11 @@
+Olá {{ quote.client_name }},
+
+O estado do seu orçamento {{ quote.reference }} foi actualizado.
+
+Estado anterior: {{ old_status_display }}
+Novo estado: {{ quote.get_status_display }}
+
+Pode acompanhar o progresso na sua área de cliente.
+
+Cumprimentos,
+Maputo Publicidade

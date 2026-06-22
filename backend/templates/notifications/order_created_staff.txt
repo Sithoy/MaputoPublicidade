@@ -1,0 +1,6 @@
+Nova encomenda criada:
+
+Referência: {{ order.reference }}
+Cliente: {{ order.user.get_full_name|default:order.user.email }}
+{% if order.final_price %}Preço final: {{ order.final_price }} MZN{% endif %}
+Estado: {{ order.get_status_display }}

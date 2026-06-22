@@ -12,8 +12,8 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
-import { getOrder, updateOrderPayment, updateOrderStatus } from '@/lib/admin-api';
-import type { Order } from '@/lib/api';
+import { createOrderPayment, getOrder, getOrderPayments, updateOrderPayment, updateOrderStatus } from '@/lib/admin-api';
+import type { Order, Payment } from '@/lib/api';
 
 const statuses = [
   { value: 'received', label: 'Pedido recebido' },
@@ -45,6 +45,12 @@ export default function AdminOrderDetailPage() {
   const [paymentStatus, setPaymentStatus] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
+  const [payments, setPayments] = useState<Payment[]>([]);
+
+  const [newAmount, setNewAmount] = useState('');
+  const [newMethod, setNewMethod] = useState('cash');
+  const [newReference, setNewReference] = useState('');
+  const [newNotes, setNewNotes] = useState('');
 
   useEffect(() => {
     if (authLoading || !reference) return;
@@ -55,12 +61,16 @@ export default function AdminOrderDetailPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await getOrder(reference);
+      const [data, paymentList] = await Promise.all([
+        getOrder(reference),
+        getOrderPayments(reference),
+      ]);
       setOrder(data);
       setStatus(data.status);
       setPaymentStatus(data.payment_status);
       setAmountPaid(data.amount_paid?.toString() || '');
       setInternalNotes(data.internal_notes || '');
+      setPayments(paymentList);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar encomenda');
     } finally {
@@ -92,6 +102,29 @@ export default function AdminOrderDetailPage() {
       await loadOrder();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao actualizar pagamento');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAddPayment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reference || !newAmount) return;
+    setSaving(true);
+    try {
+      await createOrderPayment(reference, {
+        amount: Number(newAmount),
+        method: newMethod,
+        reference_code: newReference,
+        notes: newNotes,
+        status: 'completed',
+      });
+      setNewAmount('');
+      setNewReference('');
+      setNewNotes('');
+      await loadOrder();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao registar pagamento');
     } finally {
       setSaving(false);
     }
@@ -226,6 +259,73 @@ export default function AdminOrderDetailPage() {
             <Save className="h-4 w-4" />
             Actualizar pagamento
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <h2 className="text-lg font-semibold text-dark">Registo de pagamentos</h2>
+
+          {payments.length === 0 ? (
+            <p className="text-sm text-gray-500">Ainda não há pagamentos registados.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b text-left text-gray-500">
+                  <tr>
+                    <th className="pb-2 font-medium">Data</th>
+                    <th className="pb-2 font-medium">Método</th>
+                    <th className="pb-2 font-medium">Referência</th>
+                    <th className="pb-2 font-medium">Valor</th>
+                    <th className="pb-2 font-medium">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((payment) => (
+                    <tr key={payment.id} className="border-b border-gray-50 last:border-0">
+                      <td className="py-3">{new Date(payment.created_at).toLocaleDateString('pt-MZ')}</td>
+                      <td className="py-3">{payment.method_display || payment.method}</td>
+                      <td className="py-3">{payment.reference_code || '—'}</td>
+                      <td className="py-3 font-medium text-dark">{payment.amount.toLocaleString()} MZN</td>
+                      <td className="py-3">{payment.status_display || payment.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <form onSubmit={handleAddPayment} className="space-y-3 pt-2">
+            <h3 className="text-sm font-semibold text-dark">Registar novo pagamento</h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <Label htmlFor="pay_amount">Valor (MZN) *</Label>
+                <Input id="pay_amount" type="number" step="0.01" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} required className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="pay_method">Método</Label>
+                <Select id="pay_method" value={newMethod} onChange={(e) => setNewMethod(e.target.value)} className="mt-1">
+                  <option value="cash">Dinheiro</option>
+                  <option value="bank_transfer">Transferência bancária</option>
+                  <option value="mpesa">M-Pesa</option>
+                  <option value="emola">E-Mola</option>
+                  <option value="other">Outro</option>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="pay_ref">Referência</Label>
+                <Input id="pay_ref" value={newReference} onChange={(e) => setNewReference(e.target.value)} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="pay_notes">Observações</Label>
+              <Textarea id="pay_notes" value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={2} className="mt-1" />
+            </div>
+            <Button type="submit" disabled={saving || !newAmount} variant="outline" className="gap-2">
+              <Save className="h-4 w-4" />
+              Registar pagamento
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

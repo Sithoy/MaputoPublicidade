@@ -1,0 +1,12 @@
+Olá {{ quote.client_name }},
+
+Obrigado pelo seu pedido de orçamento.
+
+Referência: {{ quote.reference }}
+Estado: {{ quote.get_status_display }}
+{% if quote.estimated_price %}Estimativa: {{ quote.estimated_price }} MZN{% endif %}
+
+A nossa equipa irá analisar o pedido e entrar em contacto consigo em breve.
+
+Cumprimentos,
+Maputo Publicidade

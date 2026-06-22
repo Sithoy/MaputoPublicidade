@@ -7,6 +7,13 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.notifications import (
+    notify_artwork_proof_uploaded,
+    notify_order_created,
+    notify_quote_received,
+    notify_quote_ready,
+    notify_quote_status_changed,
+)
 from apps.core.permissions import IsOwnerOrStaff, IsStaffUser
 from apps.orders.models import Order, OrderItem
 
@@ -75,6 +82,7 @@ class QuoteRequestViewSet(
         serializer = QuoteRequestCreateSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         quote = serializer.save()
+        notify_quote_received(quote)
         detail = QuoteRequestDetailSerializer(quote, context={"request": request})
         return Response(detail.data, status=status.HTTP_201_CREATED)
 
@@ -89,9 +97,11 @@ class QuoteRequestViewSet(
         serializer = QuoteStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        old_status = quote.status
         new_status = serializer.validated_data["status"]
         quote.status = new_status
         quote.save(update_fields=["status", "updated_at"])
+        notify_quote_status_changed(quote, old_status)
 
         return Response(
             {
@@ -114,12 +124,16 @@ class QuoteRequestViewSet(
             quote.final_price = serializer.validated_data["final_price"]
         quote.save(update_fields=["estimated_price", "final_price", "updated_at"])
 
+        old_status = quote.status
         if quote.final_price and quote.status in (
             QuoteRequest.STATUS_RECEIVED,
             QuoteRequest.STATUS_REVIEWING,
         ):
             quote.status = QuoteRequest.STATUS_QUOTED
             quote.save(update_fields=["status", "updated_at"])
+            notify_quote_ready(quote)
+        elif old_status != quote.status:
+            notify_quote_status_changed(quote, old_status)
 
         return Response(
             {
@@ -139,8 +153,12 @@ class QuoteRequestViewSet(
         serializer.is_valid(raise_exception=True)
         serializer.save(status=ArtworkApproval.STATUS_PENDING)
 
+        old_status = quote.status
         quote.status = QuoteRequest.STATUS_QUOTED
         quote.save(update_fields=["status", "updated_at"])
+        notify_artwork_proof_uploaded(quote)
+        if old_status != quote.status:
+            notify_quote_status_changed(quote, old_status)
 
         return Response(
             {
@@ -162,8 +180,10 @@ class QuoteRequestViewSet(
         artwork.approved_at = timezone.now()
         artwork.save()
 
+        old_status = quote.status
         quote.status = QuoteRequest.STATUS_APPROVED
         quote.save()
+        notify_quote_status_changed(quote, old_status)
 
         return Response(
             {
@@ -184,8 +204,10 @@ class QuoteRequestViewSet(
         artwork.requested_changes = serializer.validated_data.get("comment", "")
         artwork.save()
 
+        old_status = quote.status
         quote.status = QuoteRequest.STATUS_REVIEWING
         quote.save()
+        notify_quote_status_changed(quote, old_status)
 
         return Response(
             {
@@ -203,8 +225,10 @@ class QuoteRequestViewSet(
                 {"detail": "Apenas orçamentos no estado 'Orçamentado' podem ser aprovados."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        old_status = quote.status
         quote.status = QuoteRequest.STATUS_APPROVED
         quote.save(update_fields=["status", "updated_at"])
+        notify_quote_status_changed(quote, old_status)
         return Response(
             {
                 "detail": "Preço aprovado.",
@@ -254,8 +278,12 @@ class QuoteRequestViewSet(
                 filename = os.path.basename(quote_item.artwork_file.name)
                 order_item.artwork_file.save(filename, quote_item.artwork_file, save=True)
 
+        old_status = quote.status
         quote.status = QuoteRequest.STATUS_APPROVED
         quote.save(update_fields=["status", "updated_at"])
+
+        notify_quote_status_changed(quote, old_status)
+        notify_order_created(order)
 
         from .serializers import QuoteRequestDetailSerializer
 

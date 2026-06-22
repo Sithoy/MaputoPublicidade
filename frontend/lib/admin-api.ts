@@ -1,19 +1,32 @@
 import { getToken } from './auth';
 import { del, get, patch, post, put } from './api';
-import type { Category, Order, Package, Partner, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
+import type { Category, Order, Package, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
 
 export type DashboardStats = {
   quotes: {
     total: number;
     by_status: Record<string, number>;
+    new: number;
+    awaiting_approval: number;
     pending: number;
     last_30_days: number;
+  };
+  orders: {
+    total: number;
+    by_status: Record<string, number>;
+    by_payment_status: Record<string, number>;
+    pending: number;
+    last_30_days: number;
+    amount_paid_sum: number;
+    amount_due_sum: number;
   };
   revenue: {
     estimated_total: number;
     final_total: number;
     estimated_last_30_days: number;
+    paid_total: number;
   };
+  conversion_rate: number;
   products: {
     total: number;
     active: number;
@@ -30,6 +43,15 @@ export type DashboardStats = {
     active: number;
     inactive: number;
   };
+  recent_activity: {
+    type: 'quote' | 'order';
+    reference: string;
+    status: string;
+    client: string;
+    created_at: string;
+  }[];
+  quotes_trend: { date: string; count: number }[];
+  orders_trend: { date: string; count: number }[];
 };
 
 export type AdminQuote = Quote & {
@@ -286,6 +308,22 @@ export async function updateOrderPayment(
   data: { payment_status: string; amount_paid?: number | null }
 ) {
   return post(`/api/orders/${reference}/set-payment/`, data, getToken());
+}
+
+export async function getOrderPayments(reference: string): Promise<Payment[]> {
+  return get<Payment[]>(`/api/orders/${reference}/payments/`, { headers: authHeaders() });
+}
+
+export type AdminPaymentData = {
+  amount: number;
+  method?: string;
+  reference_code?: string;
+  status?: string;
+  notes?: string;
+};
+
+export async function createOrderPayment(reference: string, data: AdminPaymentData): Promise<Payment> {
+  return post<Payment>(`/api/orders/${reference}/payments/`, data, getToken());
 }
 
 export async function convertQuoteToOrder(reference: string) {

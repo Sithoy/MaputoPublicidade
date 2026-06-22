@@ -3,7 +3,10 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.notifications import notify_order_status_changed
 from apps.core.permissions import IsOwnerOrStaff, IsStaffUser
+from apps.payments.models import Payment
+from apps.payments.serializers import PaymentCreateSerializer, PaymentSerializer
 
 from .models import Order
 from .serializers import (
@@ -63,9 +66,11 @@ class OrderViewSet(
         order = self.get_object()
         serializer = OrderStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        old_status = order.status
         new_status = serializer.validated_data["status"]
         order.status = new_status
         order.save(update_fields=["status", "updated_at"])
+        notify_order_status_changed(order, old_status)
         return Response(
             {
                 "detail": "Estado actualizado.",
@@ -94,3 +99,22 @@ class OrderViewSet(
             },
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=True, methods=["get", "post"], url_path="payments")
+    def payments(self, request, reference=None):
+        order = self.get_object()
+        if request.method == "GET":
+            queryset = order.payments.all()
+            serializer = PaymentSerializer(queryset, many=True)
+            return Response(serializer.data)
+
+        if not IsStaffUser().has_permission(request, self):
+            return Response(
+                {"detail": "Apenas staff pode registar pagamentos."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = PaymentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payment = serializer.save(order=order, recorded_by=request.user)
+        output = PaymentSerializer(payment)
+        return Response(output.data, status=status.HTTP_201_CREATED)

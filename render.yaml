@@ -34,7 +34,25 @@ services:
         value: https://maputopublicidade.vercel.app
       - key: SERVE_MEDIA
         value: "True"
-      - key: EMAIL_BACKEND
-        value: django.core.mail.backends.console.EmailBackend
       - key: DEFAULT_FROM_EMAIL
         value: maputopublicidade@outlook.com
+      - key: ADMIN_EMAIL
+        value: maputopublicidade@outlook.com
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        value: us-east-1
+      - key: AWS_S3_CUSTOM_DOMAIN
+        sync: false
