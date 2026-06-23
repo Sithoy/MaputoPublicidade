@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eye, Search } from 'lucide-react';
+import { Eye, FileDown, Search } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { DataTable } from '@/components/admin/DataTable';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { getQuotes } from '@/lib/admin-api';
+import { exportQuotes, getQuotes } from '@/lib/admin-api';
 import type { Quote } from '@/lib/api';
 
 const statusOptions = [
@@ -76,6 +76,16 @@ export default function AdminQuotesPage() {
         <div>
           <h1 className="text-2xl font-bold text-dark">Orçamentos</h1>
           <p className="text-sm text-gray-500">Gestão de orçamentos e pedidos</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => exportQuotes('csv', statusFilter ? { status: statusFilter } : {})} className="gap-2">
+            <FileDown className="h-4 w-4" />
+            CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportQuotes('xlsx', statusFilter ? { status: statusFilter } : {})} className="gap-2">
+            <FileDown className="h-4 w-4" />
+            Excel
+          </Button>
         </div>
       </div>
 

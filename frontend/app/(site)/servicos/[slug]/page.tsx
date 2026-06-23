@@ -27,6 +27,8 @@ export function generateStaticParams() {
   return mainServices.map((service) => ({ slug: service.slug }));
 }
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const service = getMainService(params.slug);
 
@@ -37,6 +39,11 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   return {
     title: `${service.title} | Maputo Publicidade`,
     description: service.summary,
+    openGraph: {
+      title: `${service.title} | Maputo Publicidade`,
+      description: service.summary,
+      images: [`${siteUrl}${service.image}`],
+    },
   };
 }
 
@@ -129,8 +136,36 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
   const quoteHref = `/orcamento?produto=${commercial.recommendedPackage.productSlug}&servico=${service.slug}`;
   const productGroups = getGroupedProducts(commercial.productGroups, products);
 
+  const serviceSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: service.title,
+    description: service.summary,
+    image: `${siteUrl}${service.image}`,
+    provider: {
+      '@type': 'LocalBusiness',
+      name: 'Maputo Publicidade',
+      telephone: '+25882555736',
+      email: 'maputopublicidade@outlook.com',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: 'Rua da Resistência Nº 1550 R/C',
+        addressLocality: 'Maputo',
+        addressCountry: 'MZ',
+      },
+    },
+    areaServed: {
+      '@type': 'City',
+      name: 'Maputo',
+    },
+  };
+
   return (
     <div className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
       <section className="border-b border-gray-100 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 py-10 lg:px-6 lg:py-14">
           <Link

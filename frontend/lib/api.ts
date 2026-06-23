@@ -304,9 +304,15 @@ export type Payment = {
   amount: number;
   method: PaymentMethod;
   method_display?: string;
+  provider?: 'manual' | 'mock' | 'mpesa' | 'emola';
+  provider_display?: string;
+  provider_transaction_id?: string;
+  correlation_id?: string;
+  phone_number?: string;
   reference_code?: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
   status_display?: string;
+  provider_payload?: Record<string, unknown>;
   recorded_by?: number | null;
   recorded_by_name?: string;
   notes?: string;

@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from apps.core.export_utils import export_response
+
 from .models import Order, OrderItem
 
 
@@ -24,3 +26,46 @@ class OrderAdmin(admin.ModelAdmin):
     readonly_fields = ["reference", "created_at", "updated_at"]
     autocomplete_fields = ["user", "quote"]
     inlines = [OrderItemInline]
+    actions = ["export_csv", "export_xlsx"]
+
+    @admin.action(description="Exportar seleccionados para CSV")
+    def export_csv(self, request, queryset):
+        field_map = {
+            "Referencia": "reference",
+            "Data": lambda obj: obj.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Cliente": lambda obj: obj.user.get_full_name() or obj.user.email,
+            "Email": "user.email",
+            "Telefone": lambda obj: getattr(obj.user.profile, "phone", "") if hasattr(obj.user, "profile") else "",
+            "Orcamento": lambda obj: obj.quote.reference if obj.quote else "",
+            "Estado": lambda obj: obj.get_status_display(),
+            "Pagamento": lambda obj: obj.get_payment_status_display(),
+            "Preco final": "final_price",
+            "Valor pago": "amount_paid",
+            "Em divida": lambda obj: obj.amount_due or 0,
+            "Entrega": lambda obj: obj.get_delivery_method_display(),
+            "Morada": "delivery_address",
+            "Itens": lambda obj: "; ".join(f"{i.description} x{i.quantity}" for i in obj.items.all()),
+            "Notas internas": "internal_notes",
+        }
+        return export_response(queryset, field_map, "encomendas", "csv")
+
+    @admin.action(description="Exportar seleccionados para Excel")
+    def export_xlsx(self, request, queryset):
+        field_map = {
+            "Referencia": "reference",
+            "Data": lambda obj: obj.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Cliente": lambda obj: obj.user.get_full_name() or obj.user.email,
+            "Email": "user.email",
+            "Telefone": lambda obj: getattr(obj.user.profile, "phone", "") if hasattr(obj.user, "profile") else "",
+            "Orcamento": lambda obj: obj.quote.reference if obj.quote else "",
+            "Estado": lambda obj: obj.get_status_display(),
+            "Pagamento": lambda obj: obj.get_payment_status_display(),
+            "Preco final": "final_price",
+            "Valor pago": "amount_paid",
+            "Em divida": lambda obj: obj.amount_due or 0,
+            "Entrega": lambda obj: obj.get_delivery_method_display(),
+            "Morada": "delivery_address",
+            "Itens": lambda obj: "; ".join(f"{i.description} x{i.quantity}" for i in obj.items.all()),
+            "Notas internas": "internal_notes",
+        }
+        return export_response(queryset, field_map, "encomendas", "xlsx")

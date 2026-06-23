@@ -151,6 +151,26 @@ export async function createOrderPayment(reference: string, data: PaymentData): 
   }) as Promise<Payment>;
 }
 
+export type PaymentInitiateData = {
+  order_reference: string;
+  method: 'mpesa' | 'emola';
+  phone_number: string;
+  amount?: number;
+};
+
+export type PaymentInitiateResponse = {
+  provider_response: Record<string, unknown>;
+  payment: Payment;
+};
+
+export async function initiatePayment(data: PaymentInitiateData): Promise<PaymentInitiateResponse> {
+  return fetchWithAuth('/api/payments/initiate/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }) as Promise<PaymentInitiateResponse>;
+}
+
 export async function approveQuotePrice(reference: string, comment?: string) {
   return fetchWithAuth(`/api/quotes/${reference}/approve-price/`, {
     method: 'POST',

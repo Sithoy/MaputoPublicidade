@@ -329,3 +329,37 @@ export async function createOrderPayment(reference: string, data: AdminPaymentDa
 export async function convertQuoteToOrder(reference: string) {
   return post<{ order_reference: string }>(`/api/quotes/${reference}/convert-to-order/`, {}, getToken());
 }
+
+export function downloadExport(path: string, filename: string) {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  fetch(`${window.location.origin}${path}`, { headers })
+    .then((res) => {
+      if (!res.ok) throw new Error('Export failed');
+      return res.blob();
+    })
+    .then((blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    });
+}
+
+export function exportQuotes(format: 'csv' | 'xlsx', params: Record<string, string> = {}) {
+  const query = new URLSearchParams({ format, ...params }).toString();
+  const ext = format === 'xlsx' ? 'xlsx' : 'csv';
+  downloadExport(`/api/quotes/export/?${query}`, `orcamentos.${ext}`);
+}
+
+export function exportOrders(format: 'csv' | 'xlsx', params: Record<string, string> = {}) {
+  const query = new URLSearchParams({ format, ...params }).toString();
+  const ext = format === 'xlsx' ? 'xlsx' : 'csv';
+  downloadExport(`/api/orders/export/?${query}`, `encomendas.${ext}`);
+}

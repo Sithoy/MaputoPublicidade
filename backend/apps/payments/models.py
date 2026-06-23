@@ -1,9 +1,14 @@
+import uuid
 from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.db import models
 
 from apps.orders.models import Order
+
+
+def _new_correlation_id():
+    return uuid.uuid4().hex[:16].upper()
 
 
 class Payment(models.Model):
@@ -31,6 +36,17 @@ class Payment(models.Model):
         (STATUS_REFUNDED, "Reembolsado"),
     ]
 
+    PROVIDER_MANUAL = "manual"
+    PROVIDER_MOCK = "mock"
+    PROVIDER_MPESA = "mpesa"
+    PROVIDER_EMOLA = "emola"
+    PROVIDER_CHOICES = [
+        (PROVIDER_MANUAL, "Manual"),
+        (PROVIDER_MOCK, "Mock"),
+        (PROVIDER_MPESA, "M-Pesa"),
+        (PROVIDER_EMOLA, "E-Mola"),
+    ]
+
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
@@ -44,6 +60,17 @@ class Payment(models.Model):
     reference_code = models.CharField(
         "referência / transação", max_length=100, blank=True
     )
+    provider = models.CharField(
+        "provider", max_length=20, choices=PROVIDER_CHOICES, default=PROVIDER_MANUAL
+    )
+    provider_transaction_id = models.CharField(
+        "ID transação provider", max_length=100, blank=True, db_index=True
+    )
+    correlation_id = models.CharField(
+        "correlation ID", max_length=50, blank=True, db_index=True, default=_new_correlation_id
+    )
+    phone_number = models.CharField("telemóvel", max_length=20, blank=True)
+    provider_payload = models.JSONField("payload provider", default=dict, blank=True)
     status = models.CharField(
         "estado", max_length=20, choices=STATUS_CHOICES, default=STATUS_COMPLETED
     )
@@ -63,6 +90,9 @@ class Payment(models.Model):
         verbose_name = "pagamento"
         verbose_name_plural = "pagamentos"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["provider", "provider_transaction_id"]),
+        ]
 
     def __str__(self):
         return f"{self.amount} MZN ({self.get_method_display()}) — {self.order.reference}"

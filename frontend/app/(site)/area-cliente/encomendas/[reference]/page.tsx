@@ -6,12 +6,16 @@ import { Check, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import {
   approveArtwork,
   approveQuotePrice,
   getClientOrder,
   getOrderPayments,
+  initiatePayment,
   requestArtworkChange,
 } from '@/lib/client-api';
 import type { Order, Payment } from '@/lib/api';
@@ -34,6 +38,10 @@ export default function ClientOrderDetailPage() {
   const [comment, setComment] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [payMethod, setPayMethod] = useState<'mpesa' | 'emola'>('mpesa');
+  const [payPhone, setPayPhone] = useState('');
+  const [payAmount, setPayAmount] = useState('');
+  const [payLoading, setPayLoading] = useState(false);
 
   useEffect(() => {
     if (!reference) return;
@@ -96,6 +104,30 @@ export default function ClientOrderDetailPage() {
       setError(err instanceof Error ? err.message : 'Erro ao pedir alteração');
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handlePay() {
+    if (!order) return;
+    if (!payPhone.trim()) {
+      setError('Introduza o número de telemóvel.');
+      return;
+    }
+    setPayLoading(true);
+    setError('');
+    try {
+      await initiatePayment({
+        order_reference: order.reference,
+        method: payMethod,
+        phone_number: payPhone,
+        amount: payAmount ? Number(payAmount) : undefined,
+      });
+      await loadOrder();
+      setPayAmount('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao iniciar pagamento');
+    } finally {
+      setPayLoading(false);
     }
   }
 
@@ -242,9 +274,44 @@ export default function ClientOrderDetailPage() {
           )}
 
           {order.payment_status !== 'paid' && order.amount_due ? (
-            <Button disabled className="w-full">
-              Pagar (M-Pesa em breve)
-            </Button>
+            <div className="space-y-3 rounded-lg border p-3">
+              <h3 className="text-sm font-medium text-dark">Pagar com M-Pesa / E-Mola</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="pay-method" className="text-xs">Método</Label>
+                  <Select
+                    id="pay-method"
+                    value={payMethod}
+                    onChange={(e) => setPayMethod(e.target.value as 'mpesa' | 'emola')}
+                  >
+                    <option value="mpesa">M-Pesa</option>
+                    <option value="emola">E-Mola</option>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="pay-phone" className="text-xs">Telemóvel</Label>
+                  <Input
+                    id="pay-phone"
+                    placeholder="25884..."
+                    value={payPhone}
+                    onChange={(e) => setPayPhone(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="pay-amount" className="text-xs">Valor (MZN)</Label>
+                  <Input
+                    id="pay-amount"
+                    type="number"
+                    placeholder={`Em dívida: ${(order.amount_due || 0).toLocaleString()} MZN`}
+                    value={payAmount}
+                    onChange={(e) => setPayAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+              <Button onClick={handlePay} disabled={payLoading} className="w-full">
+                {payLoading ? 'A processar...' : 'Pagar agora'}
+              </Button>
+            </div>
           ) : null}
         </CardContent>
       </Card>

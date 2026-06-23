@@ -56,3 +56,29 @@ services:
         value: us-east-1
       - key: AWS_S3_CUSTOM_DOMAIN
         sync: false
+      - key: PAYMENT_PROVIDER
+        value: mock
+      - key: MPESA_API_KEY
+        sync: false
+      - key: MPESA_PUBLIC_KEY
+        sync: false
+      - key: MPESA_SERVICE_PROVIDER_CODE
+        sync: false
+      - key: MPESA_ENVIRONMENT
+        value: sandbox
+      - key: MPESA_CALLBACK_URL
+        sync: false
+      - key: SMS_BACKEND
+        value: none
+      - key: SMS_FROM
+        value: MaputoPublicidade
+      - key: AFRICASTALKING_USERNAME
+        value: sandbox
+      - key: AFRICASTALKING_API_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false

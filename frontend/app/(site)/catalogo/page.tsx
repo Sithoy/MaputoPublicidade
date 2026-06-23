@@ -5,9 +5,16 @@ import { mainServices } from '@/lib/service-catalog';
 
 const categories = ['Todos', ...mainServices.map((service) => service.title)];
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
 export const metadata = {
   title: 'Catálogo | Maputo Publicidade',
   description: 'Explore o catálogo de produtos personalizáveis da Maputo Publicidade.',
+  openGraph: {
+    title: 'Catálogo | Maputo Publicidade',
+    description: 'Explore o catálogo de produtos personalizáveis da Maputo Publicidade.',
+    images: [`${siteUrl}/og-image.png`],
+  },
 };
 
 export const revalidate = 60;

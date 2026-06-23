@@ -7,6 +7,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.export_utils import export_response
 from apps.core.notifications import (
     notify_artwork_proof_uploaded,
     notify_order_created,
@@ -68,6 +69,7 @@ class QuoteRequestViewSet(
             "update",
             "partial_update",
             "destroy",
+            "export",
         ]:
             return [IsStaffUser()]
         return [IsAuthenticated(), IsOwnerOrStaff(owner_field="user")]
@@ -77,6 +79,43 @@ class QuoteRequestViewSet(
         if user.is_authenticated and user.is_staff:
             return self.queryset
         return self.queryset.filter(user=user)
+
+    @action(detail=False, methods=["get"], url_path="export")
+    def export(self, request):
+        fmt = request.query_params.get("format", "csv")
+        queryset = self.get_queryset()
+
+        status_filter = request.query_params.get("status")
+        urgency_filter = request.query_params.get("urgency")
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if urgency_filter:
+            queryset = queryset.filter(urgency=urgency_filter)
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
+
+        field_map = {
+            "Referencia": "reference",
+            "Data": lambda obj: obj.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Cliente": "client_name",
+            "Email": "client_email",
+            "Telefone": "client_phone",
+            "Empresa": "client_company",
+            "Estado": lambda obj: obj.get_status_display(),
+            "Urgencia": lambda obj: obj.get_urgency_display(),
+            "Preco estimado": "estimated_price",
+            "Preco final": "final_price",
+            "Itens": lambda obj: "; ".join(f"{i.description} x{i.quantity}" for i in obj.items.all()),
+            "Encomenda": lambda obj: obj.order.reference if hasattr(obj, "order") and obj.order else "",
+            "Notas": "notes",
+        }
+
+        return export_response(queryset, field_map, "orcamentos", fmt)
 
     def create(self, request, *args, **kwargs):
         serializer = QuoteRequestCreateSerializer(data=request.data, context={"request": request})

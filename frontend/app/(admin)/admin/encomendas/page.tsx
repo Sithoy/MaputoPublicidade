@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Edit, Search } from 'lucide-react';
+import { Edit, FileDown, Search } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { DataTable } from '@/components/admin/DataTable';
-import { getOrders } from '@/lib/admin-api';
+import { exportOrders, getOrders } from '@/lib/admin-api';
 import type { Order } from '@/lib/api';
 
 const statusLabels: Record<string, string> = {
@@ -78,6 +78,16 @@ export default function AdminOrdersPage() {
         <div>
           <h1 className="text-2xl font-bold text-dark">Encomendas</h1>
           <p className="text-sm text-gray-500">Gerir encomendas e fluxo de produção</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => exportOrders('csv')} className="gap-2">
+            <FileDown className="h-4 w-4" />
+            CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportOrders('xlsx')} className="gap-2">
+            <FileDown className="h-4 w-4" />
+            Excel
+          </Button>
         </div>
       </div>
 

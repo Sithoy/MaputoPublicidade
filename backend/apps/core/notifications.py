@@ -5,6 +5,8 @@ from django.template.loader import render_to_string
 from apps.orders.models import Order
 from apps.quotes.models import QuoteRequest
 
+from .sms import send_sms
+
 
 def _quote_recipients(quote: QuoteRequest):
     emails = set()
@@ -24,6 +26,27 @@ def _order_recipients(order: Order):
 
 def _staff_email():
     return getattr(settings, "ADMIN_EMAIL", None) or settings.DEFAULT_FROM_EMAIL
+
+
+def _quote_phone(quote: QuoteRequest):
+    if quote.client_phone:
+        return quote.client_phone
+    if quote.user and hasattr(quote.user, "profile") and quote.user.profile:
+        return quote.user.profile.phone
+    return None
+
+
+def _order_phone(order: Order):
+    if order.quote and order.quote.client_phone:
+        return order.quote.client_phone
+    if order.user and hasattr(order.user, "profile") and order.user.profile:
+        return order.user.profile.phone
+    return None
+
+
+def _send_sms(phone, message):
+    if phone:
+        send_sms(phone, message)
 
 
 def _send(template_name, subject, context, recipient_list, reply_to=None):
@@ -46,6 +69,10 @@ def notify_quote_received(quote: QuoteRequest):
         f"Maputo Publicidade — Pedido de orçamento recebido ({quote.reference})",
         context,
         _quote_recipients(quote),
+    )
+    _send_sms(
+        _quote_phone(quote),
+        f"Obrigado pelo seu pedido de orçamento {quote.reference}. A Maputo Publicidade irá analisar e contacta-lo em breve.",
     )
 
 
@@ -74,6 +101,10 @@ def notify_quote_ready(quote: QuoteRequest):
         context,
         _quote_recipients(quote),
     )
+    _send_sms(
+        _quote_phone(quote),
+        f"O orcamento {quote.reference} esta pronto. Aceda a area de cliente para aprovar ou pedir alteracoes.",
+    )
 
 
 def notify_artwork_proof_uploaded(quote: QuoteRequest):
@@ -83,6 +114,10 @@ def notify_artwork_proof_uploaded(quote: QuoteRequest):
         f"Maputo Publicidade — Prova de arte disponível ({quote.reference})",
         context,
         _quote_recipients(quote),
+    )
+    _send_sms(
+        _quote_phone(quote),
+        f"Nova prova de arte disponivel para o orcamento {quote.reference}. Aceda a area de cliente para revisao.",
     )
 
 
@@ -102,6 +137,10 @@ def notify_order_created(order: Order):
         context,
         [_staff_email()],
     )
+    _send_sms(
+        _order_phone(order),
+        f"A sua encomenda {order.reference} foi criada. Pode acompanhar o estado na area de cliente.",
+    )
 
 
 def notify_order_status_changed(order: Order, old_status: str):
@@ -119,3 +158,8 @@ def notify_order_status_changed(order: Order, old_status: str):
         context,
         _order_recipients(order),
     )
+    if order.status in (Order.STATUS_IN_PRODUCTION, Order.STATUS_READY, Order.STATUS_DELIVERED):
+        _send_sms(
+            _order_phone(order),
+            f"Actualizacao da encomenda {order.reference}: {order.get_status_display()}.",
+        )

@@ -10,3 +10,8 @@ python-dotenv==1.1.0
 whitenoise==6.9.0
 django-storages[boto3]==1.14.4
 boto3==1.35.95
+openpyxl==3.1.5
+africastalking==1.2.9
+twilio==9.5.0
+requests==2.32.3
+cryptography==44.0.0

@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.export_utils import export_response
 from apps.core.notifications import notify_order_status_changed
 from apps.core.permissions import IsOwnerOrStaff, IsStaffUser
 from apps.payments.models import Payment
@@ -51,6 +52,7 @@ class OrderViewSet(
             "partial_update",
             "set_status",
             "set_payment",
+            "export",
         ]:
             return [IsStaffUser()]
         return [IsAuthenticated(), IsOwnerOrStaff(owner_field="user")]
@@ -60,6 +62,48 @@ class OrderViewSet(
         if user.is_authenticated and user.is_staff:
             return self.queryset
         return self.queryset.filter(user=user)
+
+    @action(detail=False, methods=["get"], url_path="export")
+    def export(self, request):
+        fmt = request.query_params.get("format", "csv")
+        queryset = self.get_queryset()
+
+        status_filter = request.query_params.get("status")
+        payment_status_filter = request.query_params.get("payment_status")
+        delivery_method = request.query_params.get("delivery_method")
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if payment_status_filter:
+            queryset = queryset.filter(payment_status=payment_status_filter)
+        if delivery_method:
+            queryset = queryset.filter(delivery_method=delivery_method)
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
+
+        field_map = {
+            "Referencia": "reference",
+            "Data": lambda obj: obj.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Cliente": lambda obj: obj.user.get_full_name() or obj.user.email,
+            "Email": "user.email",
+            "Telefone": lambda obj: getattr(obj.user.profile, "phone", "") if hasattr(obj.user, "profile") else "",
+            "Orcamento": lambda obj: obj.quote.reference if obj.quote else "",
+            "Estado": lambda obj: obj.get_status_display(),
+            "Pagamento": lambda obj: obj.get_payment_status_display(),
+            "Preco final": "final_price",
+            "Valor pago": "amount_paid",
+            "Em divida": lambda obj: obj.amount_due or 0,
+            "Entrega": lambda obj: obj.get_delivery_method_display(),
+            "Morada": "delivery_address",
+            "Itens": lambda obj: "; ".join(f"{i.description} x{i.quantity}" for i in obj.items.all()),
+            "Notas internas": "internal_notes",
+        }
+
+        return export_response(queryset, field_map, "encomendas", fmt)
 
     @action(detail=True, methods=["post"], url_path="set-status")
     def set_status(self, request, reference=None):

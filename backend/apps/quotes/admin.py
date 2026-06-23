@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from apps.core.export_utils import export_response
+
 from .models import ArtworkApproval, QuoteItem, QuoteRequest
 
 
@@ -29,6 +31,7 @@ class QuoteRequestAdmin(admin.ModelAdmin):
     search_fields = ["reference", "client_name", "client_email", "client_company", "notes", "internal_notes"]
     readonly_fields = ["reference", "created_at", "updated_at"]
     inlines = [QuoteItemInline, ArtworkApprovalInline]
+    actions = ["export_csv", "export_xlsx"]
     fieldsets = [
         (
             "Identificação",
@@ -60,6 +63,44 @@ class QuoteRequestAdmin(admin.ModelAdmin):
             {"fields": ["estimated_price", "final_price"]},
         ),
     ]
+
+    @admin.action(description="Exportar seleccionados para CSV")
+    def export_csv(self, request, queryset):
+        field_map = {
+            "Referencia": "reference",
+            "Data": lambda obj: obj.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Cliente": "client_name",
+            "Email": "client_email",
+            "Telefone": "client_phone",
+            "Empresa": "client_company",
+            "Estado": lambda obj: obj.get_status_display(),
+            "Urgencia": lambda obj: obj.get_urgency_display(),
+            "Preco estimado": "estimated_price",
+            "Preco final": "final_price",
+            "Itens": lambda obj: "; ".join(f"{i.description} x{i.quantity}" for i in obj.items.all()),
+            "Encomenda": lambda obj: obj.order.reference if hasattr(obj, "order") and obj.order else "",
+            "Notas": "notes",
+        }
+        return export_response(queryset, field_map, "orcamentos", "csv")
+
+    @admin.action(description="Exportar seleccionados para Excel")
+    def export_xlsx(self, request, queryset):
+        field_map = {
+            "Referencia": "reference",
+            "Data": lambda obj: obj.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Cliente": "client_name",
+            "Email": "client_email",
+            "Telefone": "client_phone",
+            "Empresa": "client_company",
+            "Estado": lambda obj: obj.get_status_display(),
+            "Urgencia": lambda obj: obj.get_urgency_display(),
+            "Preco estimado": "estimated_price",
+            "Preco final": "final_price",
+            "Itens": lambda obj: "; ".join(f"{i.description} x{i.quantity}" for i in obj.items.all()),
+            "Encomenda": lambda obj: obj.order.reference if hasattr(obj, "order") and obj.order else "",
+            "Notas": "notes",
+        }
+        return export_response(queryset, field_map, "orcamentos", "xlsx")
 
 
 @admin.register(ArtworkApproval)
