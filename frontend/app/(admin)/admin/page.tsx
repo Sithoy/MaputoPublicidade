@@ -51,6 +51,16 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState('');
 
+  const quoteStatuses = useMemo(
+    () =>
+      stats
+        ? Object.entries(stats.quotes.by_status)
+            .filter(([, count]) => count > 0)
+            .sort(([, a], [, b]) => b - a)
+        : [],
+    [stats]
+  );
+
   useEffect(() => {
     if (authLoading) return;
     getStats()
@@ -65,14 +75,6 @@ export default function AdminDashboardPage() {
       </div>
     );
   }
-
-  const quoteStatuses = useMemo(
-    () =>
-      Object.entries(stats.quotes.by_status)
-        .filter(([, count]) => count > 0)
-        .sort(([, a], [, b]) => b - a),
-    [stats.quotes.by_status]
-  );
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
