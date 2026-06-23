@@ -54,7 +54,16 @@ Plataforma digital comercial inicial para a **Maputo Publicidade e Serviços Lda
    | Admin Django | http://localhost:8000/admin |
    | API docs (DRF) | http://localhost:8000/api/ |
 
-4. **Crie um superutilizador** (opcional, para aceder ao admin):
+4. **Credenciais de teste** (criadas automaticamente pelo Docker quando `SEED_TEST_USERS=True`):
+
+   | Página | E-mail | Palavra-passe |
+   |--------|--------|---------------|
+   | Admin | `testadmin@maputopublicidade.co.mz` | `admin12345` |
+   | Área do cliente | `cliente@maputopublicidade.co.mz` | `cliente12345` |
+
+   No frontend, também podes usar o botão **"Entrar com conta de teste"**.
+
+5. **Crie um superutilizador** (opcional, para aceder ao admin com outro e-mail):
 
    ```bash
    docker compose exec backend python manage.py createsuperuser
@@ -120,6 +129,9 @@ docker compose exec frontend sh
 
 # Garantir seed inicial manualmente
 docker compose exec backend python manage.py seed_initial_data
+
+# Criar utilizadores de teste (desenvolvimento)
+docker compose exec backend python manage.py seed_test_users
 ```
 
 ## Variáveis de ambiente
