@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
@@ -52,12 +52,8 @@ export default function AdminOrderDetailPage() {
   const [newReference, setNewReference] = useState('');
   const [newNotes, setNewNotes] = useState('');
 
-  useEffect(() => {
-    if (authLoading || !reference) return;
-    loadOrder();
-  }, [authLoading, reference]);
-
-  async function loadOrder() {
+  const loadOrder = useCallback(async () => {
+    if (!reference) return;
     setLoading(true);
     setError('');
     try {
@@ -76,7 +72,12 @@ export default function AdminOrderDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [reference]);
+
+  useEffect(() => {
+    if (authLoading || !reference) return;
+    loadOrder();
+  }, [authLoading, reference, loadOrder]);
 
   async function handleStatusUpdate() {
     if (!reference) return;

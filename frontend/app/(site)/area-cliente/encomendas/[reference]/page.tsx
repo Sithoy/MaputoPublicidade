@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Check, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -43,12 +43,8 @@ export default function ClientOrderDetailPage() {
   const [payAmount, setPayAmount] = useState('');
   const [payLoading, setPayLoading] = useState(false);
 
-  useEffect(() => {
+  const loadOrder = useCallback(async () => {
     if (!reference) return;
-    loadOrder();
-  }, [reference]);
-
-  async function loadOrder() {
     setLoading(true);
     setError('');
     try {
@@ -63,7 +59,12 @@ export default function ClientOrderDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [reference]);
+
+  useEffect(() => {
+    if (!reference) return;
+    loadOrder();
+  }, [reference, loadOrder]);
 
   async function handleApprovePrice() {
     if (!order?.quote_reference) return;
