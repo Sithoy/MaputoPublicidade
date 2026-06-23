@@ -12,6 +12,7 @@ from .serializers import (
     PaymentInitiateSerializer,
     PaymentSerializer,
 )
+from .webhook_security import verify_webhook_signature
 
 
 def _can_access_order(request, order: Order) -> bool:
@@ -121,6 +122,12 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def mpesa_webhook(request):
+    if not verify_webhook_signature(request):
+        return Response(
+            {"detail": "Assinatura webhook inválida."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     provider = get_provider()
     update = provider.handle_webhook(request.data)
     if not update:
@@ -138,6 +145,12 @@ def mpesa_webhook(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def emola_webhook(request):
+    if not verify_webhook_signature(request):
+        return Response(
+            {"detail": "Assinatura webhook inválida."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     from .providers.emola import EmolaProvider
 
     provider = EmolaProvider()

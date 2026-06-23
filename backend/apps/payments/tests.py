@@ -1,3 +1,7 @@
+import hashlib
+import hmac
+import json
+
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -6,6 +10,11 @@ from rest_framework.test import APIClient
 from apps.orders.models import Order
 from apps.payments.models import Payment
 from apps.payments.providers import get_provider
+
+
+def _webhook_signature(payload: dict, secret: str) -> str:
+    body = json.dumps(payload).encode("utf-8")
+    return hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
 
 
 class MockProviderTests(TestCase):
@@ -51,8 +60,60 @@ class PaymentApiTests(TestCase):
         self.assertEqual(data["payment"]["status"], "completed")
         self.assertEqual(data["payment"]["provider"], "mock")
 
-    @override_settings(PAYMENT_PROVIDER="mpesa")
+    @override_settings(PAYMENT_PROVIDER="mpesa", PAYMENT_WEBHOOK_SECRET="test-secret")
     def test_mpesa_webhook_updates_payment(self):
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=500,
+            method=Payment.METHOD_MPESA,
+            phone_number="258841234567",
+            status=Payment.STATUS_PENDING,
+            provider="mpesa",
+            provider_transaction_id="TX123",
+        )
+        payload = {
+            "output_TransactionID": "TX123",
+            "output_ResponseCode": "INS-0",
+            "output_ResponseDesc": "Approved",
+        }
+        response = self.client.post(
+            reverse("mpesa-webhook"),
+            payload,
+            content_type="application/json",
+            HTTP_X_WEBHOOK_SIGNATURE=_webhook_signature(payload, "test-secret"),
+        )
+        self.assertEqual(response.status_code, 200)
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, Payment.STATUS_COMPLETED)
+
+    @override_settings(PAYMENT_PROVIDER="mpesa", PAYMENT_WEBHOOK_SECRET="test-secret")
+    def test_mpesa_webhook_rejects_invalid_signature(self):
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=500,
+            method=Payment.METHOD_MPESA,
+            phone_number="258841234567",
+            status=Payment.STATUS_PENDING,
+            provider="mpesa",
+            provider_transaction_id="TX123",
+        )
+        payload = {
+            "output_TransactionID": "TX123",
+            "output_ResponseCode": "INS-0",
+            "output_ResponseDesc": "Approved",
+        }
+        response = self.client.post(
+            reverse("mpesa-webhook"),
+            payload,
+            content_type="application/json",
+            HTTP_X_WEBHOOK_SIGNATURE="invalid-signature",
+        )
+        self.assertEqual(response.status_code, 403)
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, Payment.STATUS_PENDING)
+
+    @override_settings(PAYMENT_PROVIDER="mpesa", PAYMENT_WEBHOOK_SECRET="test-secret")
+    def test_mpesa_webhook_rejects_missing_signature(self):
         payment = Payment.objects.create(
             order=self.order,
             amount=500,
@@ -71,6 +132,6 @@ class PaymentApiTests(TestCase):
             },
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
         payment.refresh_from_db()
-        self.assertEqual(payment.status, Payment.STATUS_COMPLETED)
+        self.assertEqual(payment.status, Payment.STATUS_PENDING)
