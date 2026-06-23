@@ -1,6 +1,5 @@
 import csv
 import io
-from typing import Iterable
 
 from django.db.models import QuerySet
 

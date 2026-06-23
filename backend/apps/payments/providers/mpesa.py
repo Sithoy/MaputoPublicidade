@@ -146,7 +146,6 @@ class MpesaProvider(PaymentProvider):
         tx_id = payload.get("output_TransactionID") or payload.get("transaction_id")
         correlation = payload.get("output_ThirdPartyReference")
         code = payload.get("output_ResponseCode") or payload.get("responseCode") or ""
-        desc = payload.get("output_ResponseDesc") or payload.get("responseDesc") or ""
 
         status = Payment.STATUS_PENDING
         if code == "INS-0":

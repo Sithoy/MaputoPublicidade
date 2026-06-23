@@ -71,6 +71,11 @@ class QuoteRequest(models.Model):
         verbose_name = "pedido de orçamento"
         verbose_name_plural = "pedidos de orçamento"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status"]),
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["-created_at"]),
+        ]
 
     def __str__(self):
         return f"{self.reference or 'Sem referência'} — {self.client_name}"

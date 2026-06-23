@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from django.contrib.auth import get_user_model
-
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.headless.adapter import DefaultHeadlessAdapter
-
+from django.contrib.auth import get_user_model
 
 User = get_user_model()
 

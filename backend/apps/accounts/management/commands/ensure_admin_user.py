@@ -32,16 +32,16 @@ class Command(BaseCommand):
         if not password:
             raise CommandError("ADMIN_PASSWORD cannot be empty.")
 
-        User = get_user_model()
+        user_model = get_user_model()
 
         with transaction.atomic():
-            user = User.objects.filter(email__iexact=email).first()
+            user = user_model.objects.filter(email__iexact=email).first()
             created = user is None
 
             if created:
-                user = User(username=self.unique_username(User, username), email=email)
+                user = user_model(username=self.unique_username(user_model, username), email=email)
             elif not user.username:
-                user.username = self.unique_username(User, username)
+                user.username = self.unique_username(user_model, username)
 
             user.email = email
             if first_name and not user.first_name:
@@ -67,11 +67,11 @@ class Command(BaseCommand):
             )
         )
 
-    def unique_username(self, User, base_username):
+    def unique_username(self, user_model, base_username):
         candidate = base_username
         suffix = 1
 
-        while User.objects.filter(username__iexact=candidate).exists():
+        while user_model.objects.filter(username__iexact=candidate).exists():
             suffix += 1
             candidate = f"{base_username}{suffix}"
 

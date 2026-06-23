@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 EMAILS = [
     ("admin@maputopublicidade.co.mz", True),
     ("testadmin@maputopublicidade.co.mz", True),

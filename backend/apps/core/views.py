@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
-from django.db.models import Sum
+from django.db.models import Count, DecimalField, Sum, Value
+from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.response import Response
@@ -18,7 +19,13 @@ class HealthCheckView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        return Response({"status": "ok"})
+        db_ok = True
+        try:
+            Order.objects.exists()
+        except Exception:
+            db_ok = False
+        status_code = 200 if db_ok else 503
+        return Response({"status": "ok" if db_ok else "error", "db": db_ok}, status=status_code)
 
 
 class AdminStatsView(APIView):
@@ -35,18 +42,17 @@ class AdminStatsView(APIView):
         users = User.objects.all()
         products = Product.objects.all()
 
-        quote_status_counts = {
-            status: quotes.filter(status=status).count()
-            for status, _ in QuoteRequest.STATUS_CHOICES
-        }
-        order_status_counts = {
-            status: orders.filter(status=status).count()
-            for status, _ in Order.STATUS_CHOICES
-        }
-        payment_status_counts = {
-            status: orders.filter(payment_status=status).count()
-            for status, _ in Order.PAYMENT_CHOICES
-        }
+        quote_status_counts = dict(
+            quotes.values("status").annotate(count=Count("id")).values_list("status", "count")
+        )
+        order_status_counts = dict(
+            orders.values("status").annotate(count=Count("id")).values_list("status", "count")
+        )
+        payment_status_counts = dict(
+            orders.values("payment_status")
+            .annotate(count=Count("id"))
+            .values_list("payment_status", "count")
+        )
 
         quotes_total = quotes.count()
         orders_total = orders.count()
@@ -54,6 +60,15 @@ class AdminStatsView(APIView):
         conversion_rate = 0
         if non_cancelled_quotes > 0:
             conversion_rate = round((orders_total / non_cancelled_quotes) * 100, 1)
+
+        amount_due_sum = (
+            orders.annotate(
+                due=Coalesce("final_price", Value(0), output_field=DecimalField())
+                - Coalesce("amount_paid", Value(0), output_field=DecimalField())
+            )
+            .aggregate(total=Sum("due"))["total"]
+            or 0
+        )
 
         data = {
             "quotes": {
@@ -77,7 +92,7 @@ class AdminStatsView(APIView):
                 ).count(),
                 "last_30_days": orders.filter(created_at__gte=last_30_days).count(),
                 "amount_paid_sum": orders.aggregate(Sum("amount_paid"))["amount_paid__sum"] or 0,
-                "amount_due_sum": sum(o.amount_due or 0 for o in orders),
+                "amount_due_sum": amount_due_sum,
             },
             "revenue": {
                 "estimated_total": quotes.aggregate(Sum("estimated_price"))[
@@ -151,10 +166,16 @@ class AdminStatsView(APIView):
     def _daily_trend(self, queryset):
         now = timezone.now()
         start = now - timezone.timedelta(days=29)
+        qs = (
+            queryset.filter(created_at__gte=start)
+            .annotate(date=TruncDate("created_at"))
+            .values("date")
+            .annotate(count=Count("id"))
+            .order_by("date")
+        )
+        counts = {item["date"].strftime("%Y-%m-%d"): item["count"] for item in qs}
         data = []
         for i in range(30):
-            day = start + timezone.timedelta(days=i)
-            next_day = day + timezone.timedelta(days=1)
-            count = queryset.filter(created_at__gte=day, created_at__lt=next_day).count()
-            data.append({"date": day.strftime("%Y-%m-%d"), "count": count})
+            day = (start + timezone.timedelta(days=i)).date()
+            data.append({"date": day.strftime("%Y-%m-%d"), "count": counts.get(day.strftime("%Y-%m-%d"), 0)})
         return data

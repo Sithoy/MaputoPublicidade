@@ -4,7 +4,6 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.core.permissions import IsOwnerOrStaff, IsStaffUser
 from apps.orders.models import Order
 
 from .models import Payment

@@ -11,8 +11,8 @@ from apps.core.export_utils import export_response
 from apps.core.notifications import (
     notify_artwork_proof_uploaded,
     notify_order_created,
-    notify_quote_received,
     notify_quote_ready,
+    notify_quote_received,
     notify_quote_status_changed,
 )
 from apps.core.permissions import IsOwnerOrStaff, IsStaffUser

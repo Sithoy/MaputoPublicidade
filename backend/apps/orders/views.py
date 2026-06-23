@@ -6,7 +6,6 @@ from rest_framework.response import Response
 from apps.core.export_utils import export_response
 from apps.core.notifications import notify_order_status_changed
 from apps.core.permissions import IsOwnerOrStaff, IsStaffUser
-from apps.payments.models import Payment
 from apps.payments.serializers import PaymentCreateSerializer, PaymentSerializer
 
 from .models import Order

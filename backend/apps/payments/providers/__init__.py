@@ -5,7 +5,6 @@ from .emola import EmolaProvider
 from .mock import MockProvider
 from .mpesa import MpesaProvider
 
-
 PROVIDER_MAP = {
     PaymentProvider.MOCK: MockProvider,
     PaymentProvider.MPESA: MpesaProvider,

@@ -34,6 +34,11 @@ const nextConfig = {
         hostname: '*.cloudfront.net',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '*.onrender.com',
+        pathname: '/media/**',
+      },
     ],
   },
   env: {

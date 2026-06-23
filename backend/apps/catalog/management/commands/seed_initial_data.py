@@ -7,7 +7,6 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-
 MODEL_ORDER = [
     "catalog.servicecategory",
     "catalog.product",
