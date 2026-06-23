@@ -96,7 +96,7 @@ export async function clearCart(): Promise<Cart> {
   return cart;
 }
 
-export async function createQuoteFromCart(cart: Cart, contact: {
+export async function createQuoteFromCart(_cart: Cart, contact: {
   client_name: string;
   client_email: string;
   client_phone?: string;
@@ -104,23 +104,10 @@ export async function createQuoteFromCart(cart: Cart, contact: {
   urgency?: string;
   notes?: string;
 }): Promise<Quote> {
-  const items = cart.items.map((item) => ({
-    product_slug: item.product_slug,
-    product_variant_id: item.product_variant,
-    description: item.description,
-    quantity: item.quantity,
-    size: item.size,
-    material: item.material,
-    colors: item.colors,
-    needs_design: item.needs_design,
-    notes: item.notes,
-    position: item.position,
-  }));
-
-  return fetchWithAuth('/api/quotes/', {
+  return fetchWithAuth('/api/cart/convert-to-quote/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...contact, items }),
+    body: JSON.stringify(contact),
   }) as Promise<Quote>;
 }
 
