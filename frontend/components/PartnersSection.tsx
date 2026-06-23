@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Handshake } from 'lucide-react';
-import { partners } from '@/lib/partners';
 import { normalizePaginatedResponse } from '@/lib/api';
 import type { Partner } from '@/lib/api';
 
@@ -80,7 +79,7 @@ export function PartnersSection() {
   const isPausedRef = useRef(false);
   const normalizeTimerRef = useRef<number | null>(null);
   const [managedPartners, setManagedPartners] = useState<Partner[]>([]);
-  const visiblePartners = managedPartners.length ? managedPartners : partners;
+  const visiblePartners = managedPartners;
   const partnerLoop = Array.from({ length: LOOP_COPIES }, () => visiblePartners).flat();
 
   const scrollPartners = useCallback((direction: -1 | 1) => {
@@ -107,8 +106,10 @@ export function PartnersSection() {
     fetch('/api/partners/')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        const list = normalizePaginatedResponse<Partner>(data);
-        if (mounted && list.length > 0) {
+        const list = normalizePaginatedResponse<Partner>(data).filter(
+          (partner) => partner.is_active !== false
+        );
+        if (mounted) {
           setManagedPartners(list);
         }
       })
@@ -153,6 +154,10 @@ export function PartnersSection() {
 
     return () => window.clearInterval(timer);
   }, [scrollPartners]);
+
+  if (visiblePartners.length === 0) {
+    return null;
+  }
 
   return (
     <section className="overflow-hidden border-y border-gray-100 bg-white py-12 lg:py-16">

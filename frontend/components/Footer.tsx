@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Facebook, Instagram, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { mainServices } from '@/lib/service-catalog';
 
 const WHATSAPP_NUMBER = '25882555736';
 const WHATSAPP_MESSAGE = 'Olá! Vi o site da Maputo Publicidade e gostaria de falar sobre um projeto.';
@@ -29,12 +30,13 @@ export function Footer() {
           <div>
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-brand">Serviços</h3>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li><Link href="/servicos" className="hover:text-white">Serigrafia e Bordado</Link></li>
-              <li><Link href="/servicos" className="hover:text-white">Gráfica</Link></li>
-              <li><Link href="/servicos" className="hover:text-white">Impressão Digital</Link></li>
-              <li><Link href="/servicos" className="hover:text-white">Impressão UV e Brindes</Link></li>
-              <li><Link href="/servicos" className="hover:text-white">Branding de Viaturas</Link></li>
-              <li><Link href="/servicos" className="hover:text-white">Sinalização e Placas</Link></li>
+              {mainServices.map((service) => (
+                <li key={service.slug}>
+                  <Link href={`/servicos/${service.slug}`} className="hover:text-white">
+                    {service.title}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 

@@ -14,6 +14,8 @@ const products = [
   { name: 'Gazebos e Stands', image: '/images/brand/product-gazebo.png', slug: 'gazebos-e-stands' },
 ];
 
+const featuredProducts = products.slice(0, 4);
+
 export function FeaturedProducts() {
   return (
     <section className="bg-white py-14 lg:py-20">
@@ -25,23 +27,23 @@ export function FeaturedProducts() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-8">
-          {products.map((product) => (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+          {featuredProducts.map((product) => (
             <Link
               key={product.slug}
               href={`/catalogo/${product.slug}`}
-              className="group overflow-hidden rounded-lg border border-gray-100 bg-white text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="group overflow-hidden rounded-lg border border-gray-100 bg-white text-center shadow-sm transition hover:-translate-y-1 hover:border-brand/25 hover:shadow-lg"
             >
               <div className="relative aspect-[4/3] bg-gray-50">
                 <Image
                   src={product.image}
                   alt={product.name}
                   fill
-                  sizes="(min-width: 1024px) 12vw, (min-width: 768px) 25vw, 50vw"
-                  className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                  className="object-contain p-5 transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
-              <div className="flex min-h-14 items-center justify-center px-2 py-3 text-sm font-semibold leading-tight text-dark">
+              <div className="flex min-h-16 items-center justify-center px-4 py-4 text-base font-semibold leading-tight text-dark">
                 {product.name}
               </div>
             </Link>

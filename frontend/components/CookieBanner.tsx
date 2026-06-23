@@ -31,23 +31,26 @@ export function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white p-4 shadow-lg">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
-        <p className="text-sm text-gray-700">
-          Utilizamos cookies para melhorar a experiência. Ao continuar, aceita a nossa{' '}
-          <Link href="/politica-cookies" className="text-brand hover:underline">
-            Política de Cookies
-          </Link>{' '}
-          e a{' '}
-          <Link href="/privacidade" className="text-brand hover:underline">
-            Política de Privacidade
-          </Link>
-          .
-        </p>
-        <Button onClick={accept} className="whitespace-nowrap">
-          Aceitar
-        </Button>
+    <>
+      <div className="h-32 sm:h-24" aria-hidden />
+      <div className="fixed bottom-3 left-3 right-3 z-50 sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-2xl">
+        <div className="flex flex-col items-start justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-2xl shadow-gray-900/15 sm:flex-row sm:items-center sm:p-4">
+          <p className="text-sm leading-relaxed text-gray-700">
+            Utilizamos cookies para melhorar a experiência. Ao continuar, aceita a nossa{' '}
+            <Link href="/politica-cookies" className="font-medium text-brand hover:underline">
+              Política de Cookies
+            </Link>{' '}
+            e a{' '}
+            <Link href="/privacidade" className="font-medium text-brand hover:underline">
+              Política de Privacidade
+            </Link>
+            .
+          </p>
+          <Button onClick={accept} className="w-full whitespace-nowrap sm:w-auto">
+            Aceitar
+          </Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
