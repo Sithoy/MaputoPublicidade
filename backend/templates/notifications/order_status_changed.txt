@@ -1,4 +1,4 @@
-Olá {{ order.user.get_full_name|default:order.user.email }},
+Olá {{ order.client_name_display }},
 
 O estado da sua encomenda {{ order.reference }} foi actualizado.
 

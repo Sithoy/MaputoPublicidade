@@ -2,7 +2,7 @@ import pytest
 from django.urls import reverse
 
 from apps.orders.models import Order
-from apps.quotes.models import ArtworkApproval, QuoteRequest
+from apps.quotes.models import ArtworkApproval, QuoteItem, QuoteRequest
 
 
 @pytest.mark.django_db
@@ -43,6 +43,30 @@ class TestQuoteApi:
         assert Order.objects.filter(quote=quoted_quote).exists()
         quoted_quote.refresh_from_db()
         assert quoted_quote.status == QuoteRequest.STATUS_APPROVED
+
+    def test_staff_converts_anonymous_quote_to_order(self, staff_client, product):
+        quote = QuoteRequest.objects.create(
+            user=None,
+            client_name="Cliente Anónimo",
+            client_email="anon@example.com",
+            client_phone="258840000000",
+            status=QuoteRequest.STATUS_QUOTED,
+            final_price="1000.00",
+        )
+        QuoteItem.objects.create(
+            quote=quote,
+            product=product,
+            description="Cartão de Visita",
+            quantity=1,
+        )
+        url = reverse("quote-convert-to-order", kwargs={"reference": quote.reference})
+        response = staff_client.post(url)
+        assert response.status_code == 201
+        order = Order.objects.get(quote=quote)
+        assert order.user is None
+        assert order.client_name_display == "Cliente Anónimo"
+        quote.refresh_from_db()
+        assert quote.status == QuoteRequest.STATUS_APPROVED
 
     def test_artwork_approval_flow(self, staff_client, authenticated_client, quote):
         staff_client.post(

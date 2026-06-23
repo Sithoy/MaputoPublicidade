@@ -87,9 +87,9 @@ class OrderViewSet(
         field_map = {
             "Referencia": "reference",
             "Data": lambda obj: obj.created_at.strftime("%Y-%m-%d %H:%M"),
-            "Cliente": lambda obj: obj.user.get_full_name() or obj.user.email,
-            "Email": "user.email",
-            "Telefone": lambda obj: getattr(obj.user.profile, "phone", "") if hasattr(obj.user, "profile") else "",
+            "Cliente": lambda obj: obj.client_name_display,
+            "Email": lambda obj: obj.client_email_display,
+            "Telefone": lambda obj: obj.client_phone_display,
             "Orcamento": lambda obj: obj.quote.reference if obj.quote else "",
             "Estado": lambda obj: obj.get_status_display(),
             "Pagamento": lambda obj: obj.get_payment_status_display(),

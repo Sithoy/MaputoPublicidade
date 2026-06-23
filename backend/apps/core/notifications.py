@@ -21,6 +21,8 @@ def _order_recipients(order: Order):
     emails = set()
     if order.user and order.user.email:
         emails.add(order.user.email)
+    if order.quote and order.quote.client_email:
+        emails.add(order.quote.client_email)
     return list(emails)
 
 

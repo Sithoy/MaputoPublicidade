@@ -94,7 +94,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     artwork = serializers.SerializerMethodField()
     quote_reference = serializers.CharField(source="quote.reference", read_only=True)
-    user_email = serializers.CharField(source="user.email", read_only=True)
+    user_email = serializers.SerializerMethodField()
     user_name = serializers.SerializerMethodField()
     profile = serializers.SerializerMethodField()
 
@@ -139,11 +139,15 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             return ArtworkApprovalSerializer(obj.quote.artwork).data
         return None
 
+    def get_user_email(self, obj):
+        return obj.client_email_display
+
     def get_user_name(self, obj):
-        full = obj.user.get_full_name()
-        return full or obj.user.email
+        return obj.client_name_display
 
     def get_profile(self, obj):
+        if not obj.user:
+            return None
         profile = getattr(obj.user, "profile", None)
         if profile:
             return ClientProfileSerializer(profile).data

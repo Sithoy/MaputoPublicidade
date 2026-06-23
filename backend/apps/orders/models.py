@@ -51,9 +51,11 @@ class Order(models.Model):
     )
     user = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="orders",
         verbose_name="cliente",
+        null=True,
+        blank=True,
     )
     reference = models.CharField(
         "referência", max_length=20, unique=True, blank=True, db_index=True
@@ -101,6 +103,30 @@ class Order(models.Model):
             models.Index(fields=["user", "-created_at"]),
             models.Index(fields=["-created_at"]),
         ]
+
+    @property
+    def client_name_display(self):
+        if self.user:
+            return self.user.get_full_name() or self.user.email
+        if self.quote:
+            return self.quote.client_name
+        return "Cliente anónimo"
+
+    @property
+    def client_email_display(self):
+        if self.user:
+            return self.user.email
+        if self.quote:
+            return self.quote.client_email
+        return ""
+
+    @property
+    def client_phone_display(self):
+        if self.user and hasattr(self.user, "profile"):
+            return self.user.profile.phone or ""
+        if self.quote:
+            return self.quote.client_phone or ""
+        return ""
 
     def __str__(self):
         return f"{self.reference or 'Sem referência'} — Encomenda"
