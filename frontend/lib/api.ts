@@ -129,6 +129,31 @@ export async function del<T = unknown>(path: string, token?: string | null): Pro
   return res.json() as Promise<T>;
 }
 
+export type PaginatedResponse<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
+
+export function normalizePaginatedResponse<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (
+    data &&
+    typeof data === 'object' &&
+    'results' in data &&
+    Array.isArray((data as Record<string, unknown>).results)
+  ) {
+    return ((data as Record<string, unknown>).results as T[]) ?? [];
+  }
+  return [];
+}
+
+export async function getList<T>(path: string, options?: RequestInit): Promise<T[]> {
+  const data = await get<T[] | PaginatedResponse<T>>(path, options);
+  return normalizePaginatedResponse<T>(data);
+}
+
 export type ProductVariant = {
   id: number;
   name: string;

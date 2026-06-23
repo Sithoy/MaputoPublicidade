@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { ProductVariantSelector } from '@/components/ProductVariantSelector';
-import { get, type Product } from '@/lib/api';
+import { get, getList, type Product } from '@/lib/api';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
@@ -10,7 +10,7 @@ export const revalidate = 60;
 
 export async function generateStaticParams() {
   try {
-    const products = await get<Product[]>('/api/products/', { next: { revalidate: 60 } });
+    const products = await getList<Product>('/api/products/', { next: { revalidate: 60 } });
     return products.map((p) => ({ slug: p.slug }));
   } catch {
     return [];

@@ -1,5 +1,5 @@
 import { getToken } from './auth';
-import { del, get, patch, post, put } from './api';
+import { del, get, getList, patch, post, put } from './api';
 import type { Category, Order, Package, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
 
 export type DashboardStats = {
@@ -141,7 +141,7 @@ export async function getStats(): Promise<DashboardStats> {
 }
 
 export async function getQuotes(params: string = ''): Promise<Quote[]> {
-  return get<Quote[]>(`/api/quotes/${params}`, { headers: authHeaders() });
+  return getList<Quote>(`/api/quotes/${params}`, { headers: authHeaders() });
 }
 
 export async function getQuote(reference: string): Promise<AdminQuote> {
@@ -168,7 +168,7 @@ export async function uploadArtworkProof(reference: string, formData: FormData) 
 }
 
 export async function getProducts(): Promise<Product[]> {
-  return get<Product[]>('/api/products/', { headers: authHeaders() });
+  return getList<Product>('/api/products/', { headers: authHeaders() });
 }
 
 export async function getProduct(slug: string): Promise<Product> {
@@ -200,7 +200,7 @@ export async function deleteVariant(id: number) {
 }
 
 export async function getCategories(): Promise<Category[]> {
-  return get<Category[]>('/api/categories/', { headers: authHeaders() });
+  return getList<Category>('/api/categories/', { headers: authHeaders() });
 }
 
 export async function createCategory(formData: FormData): Promise<Category> {
@@ -216,7 +216,7 @@ export async function deleteCategory(slug: string) {
 }
 
 export async function getPackages(): Promise<Package[]> {
-  return get<Package[]>('/api/packages/', { headers: authHeaders() });
+  return getList<Package>('/api/packages/', { headers: authHeaders() });
 }
 
 export async function createPackage(formData: FormData): Promise<Package> {
@@ -232,7 +232,7 @@ export async function deletePackage(slug: string) {
 }
 
 export async function getPortfolioItems(): Promise<PortfolioItem[]> {
-  return get<PortfolioItem[]>('/api/portfolio/', { headers: authHeaders() });
+  return getList<PortfolioItem>('/api/portfolio/', { headers: authHeaders() });
 }
 
 export async function getPortfolioItem(slug: string): Promise<PortfolioItem> {
@@ -252,7 +252,7 @@ export async function deletePortfolioItem(slug: string) {
 }
 
 export async function getPartners(): Promise<Partner[]> {
-  return get<Partner[]>('/api/partners/', { headers: authHeaders() });
+  return getList<Partner>('/api/partners/', { headers: authHeaders() });
 }
 
 export async function getPartner(slug: string): Promise<Partner> {
@@ -272,7 +272,7 @@ export async function deletePartner(slug: string) {
 }
 
 export async function getUsers(params: string = ''): Promise<User[]> {
-  return get<User[]>(`/api/auth/users/${params}`, { headers: authHeaders() });
+  return getList<User>(`/api/auth/users/${params}`, { headers: authHeaders() });
 }
 
 export async function getUser(id: number): Promise<User> {
@@ -292,7 +292,7 @@ export async function toggleUserActive(id: number) {
 }
 
 export async function getOrders(params: string = ''): Promise<Order[]> {
-  return get<Order[]>(`/api/orders/${params}`, { headers: authHeaders() });
+  return getList<Order>(`/api/orders/${params}`, { headers: authHeaders() });
 }
 
 export async function getOrder(reference: string): Promise<Order> {
@@ -311,7 +311,7 @@ export async function updateOrderPayment(
 }
 
 export async function getOrderPayments(reference: string): Promise<Payment[]> {
-  return get<Payment[]>(`/api/orders/${reference}/payments/`, { headers: authHeaders() });
+  return getList<Payment>(`/api/orders/${reference}/payments/`, { headers: authHeaders() });
 }
 
 export type AdminPaymentData = {

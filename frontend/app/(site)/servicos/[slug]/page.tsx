@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
-import { get, type Category, type Product } from '@/lib/api';
+import { get, normalizePaginatedResponse, type Category, type PaginatedResponse, type Product } from '@/lib/api';
 import {
   getMainService,
   getServiceCommercialDetails,
@@ -63,7 +63,8 @@ async function getWithTimeout<T>(path: string) {
 
 async function getServiceProducts(categorySlug: string) {
   try {
-    return await getWithTimeout<Product[]>(`/api/products/?category=${categorySlug}`);
+    const data = await getWithTimeout<Product[] | PaginatedResponse<Product>>(`/api/products/?category=${categorySlug}`);
+    return normalizePaginatedResponse<Product>(data);
   } catch {
     return [];
   }

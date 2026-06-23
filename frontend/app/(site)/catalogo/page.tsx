@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ProductCard } from '@/components/ProductCard';
-import { get, type Product } from '@/lib/api';
+import { getList, type Product } from '@/lib/api';
 import { mainServices } from '@/lib/service-catalog';
 
 const categories = ['Todos', ...mainServices.map((service) => service.title)];
@@ -24,7 +24,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: { ca
   let products: Product[] = [];
 
   try {
-    products = await get<Product[]>('/api/products/', { next: { revalidate: 60 } });
+    products = await getList<Product>('/api/products/', { next: { revalidate: 60 } });
   } catch {
     products = [];
   }

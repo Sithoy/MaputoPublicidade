@@ -1,4 +1,5 @@
 import { fetchWithAuth } from './auth';
+import { normalizePaginatedResponse } from './api';
 import type { Cart, CartItem, Order, Payment, Quote, User, UserProfile } from './api';
 
 function emitCartUpdate() {
@@ -124,7 +125,8 @@ export async function createQuoteFromCart(cart: Cart, contact: {
 }
 
 export async function getClientOrders(): Promise<Order[]> {
-  return fetchWithAuth('/api/orders/') as Promise<Order[]>;
+  const data = await fetchWithAuth('/api/orders/');
+  return normalizePaginatedResponse<Order>(data);
 }
 
 export async function getClientOrder(reference: string): Promise<Order> {
@@ -132,7 +134,8 @@ export async function getClientOrder(reference: string): Promise<Order> {
 }
 
 export async function getOrderPayments(reference: string): Promise<Payment[]> {
-  return fetchWithAuth(`/api/orders/${reference}/payments/`) as Promise<Payment[]>;
+  const data = await fetchWithAuth(`/api/orders/${reference}/payments/`);
+  return normalizePaginatedResponse<Payment>(data);
 }
 
 export type PaymentData = {
