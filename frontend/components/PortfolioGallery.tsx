@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { normalizePaginatedResponse } from '@/lib/api';
 import type { PortfolioItem } from '@/lib/api';
 
 export function PortfolioGallery() {
@@ -14,8 +15,8 @@ export function PortfolioGallery() {
   useEffect(() => {
     fetch('/api/portfolio/')
       .then((res) => res.json())
-      .then((data: PortfolioItem[]) => {
-        setItems(data);
+      .then((data) => {
+        setItems(normalizePaginatedResponse<PortfolioItem>(data));
         setLoading(false);
       })
       .catch(() => setLoading(false));

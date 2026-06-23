@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Handshake } from 'lucide-react';
 import { partners } from '@/lib/partners';
+import { normalizePaginatedResponse } from '@/lib/api';
 import type { Partner } from '@/lib/api';
 
 const AUTO_ADVANCE_MS = 5000;
@@ -105,9 +106,10 @@ export function PartnersSection() {
 
     fetch('/api/partners/')
       .then((res) => (res.ok ? res.json() : []))
-      .then((data: Partner[]) => {
-        if (mounted && Array.isArray(data) && data.length > 0) {
-          setManagedPartners(data);
+      .then((data) => {
+        const list = normalizePaginatedResponse<Partner>(data);
+        if (mounted && list.length > 0) {
+          setManagedPartners(list);
         }
       })
       .catch(() => {
