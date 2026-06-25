@@ -10,9 +10,11 @@ import {
   PackageCheck,
   Sparkles,
 } from 'lucide-react';
+import { SafeImage } from '@/components/SafeImage';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
 import { get, normalizePaginatedResponse, type Category, type PaginatedResponse, type Product } from '@/lib/api';
+import { getProductImageSrc } from '@/lib/image-fallbacks';
 import {
   getMainService,
   getServiceCommercialDetails,
@@ -178,14 +180,14 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
           </Link>
 
           <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
+            <div className="min-w-0 max-w-3xl">
               <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-brand text-white shadow-lg shadow-brand/30">
                 <ServiceIcon className="h-6 w-6" />
               </div>
-              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-brand">
+              <p className="mb-3 break-words text-xs font-semibold uppercase tracking-[0.12em] text-brand sm:text-sm sm:tracking-[0.18em]">
                 {service.eyebrow}
               </p>
-              <h1 className="text-4xl font-bold leading-tight text-dark md:text-5xl">{service.title}</h1>
+              <h1 className="text-3xl font-bold leading-tight text-dark md:text-5xl">{service.title}</h1>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -200,7 +202,7 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
             </div>
           </div>
 
-          <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-dark shadow-2xl shadow-gray-900/15 ring-1 ring-black/5">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-dark shadow-2xl shadow-gray-900/15 ring-1 ring-black/5 sm:aspect-[16/9]">
             <Image
               src={service.image}
               alt={service.title}
@@ -212,7 +214,7 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
             />
           </div>
 
-          <div className="mt-6 rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-100 lg:p-7">
+          <div className="mt-6 rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-6 lg:p-7">
             <p className="text-base leading-relaxed text-gray-700 md:text-lg">{service.showcaseText}</p>
           </div>
         </div>
@@ -378,12 +380,13 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
                           className="grid gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4 sm:grid-cols-[96px_1fr_auto] sm:items-center"
                         >
                           <div className="relative aspect-[4/3] w-24 overflow-hidden rounded-md bg-white">
-                            <Image
-                              src={product.image || service.image}
+                            <SafeImage
+                              src={getProductImageSrc(product, null, service.image)}
+                              fallbackSrc={service.image}
                               alt={product.name}
                               fill
                               sizes="96px"
-                              className={product.image ? 'object-contain p-2' : 'object-cover'}
+                              className="object-contain p-2"
                             />
                           </div>
                           <div>

@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { SafeImage } from '@/components/SafeImage';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { getPortfolioImageSrc } from '@/lib/image-fallbacks';
 import { normalizePaginatedResponse } from '@/lib/api';
 import type { PortfolioItem } from '@/lib/api';
 
@@ -78,8 +79,9 @@ export function PortfolioGallery() {
               className="group overflow-hidden rounded-lg border border-gray-100 bg-white shadow-sm transition hover:shadow-lg"
             >
               <div className="relative aspect-[5/4]">
-                <Image
-                  src={item.image || '/images/screen-printing.jpg'}
+                <SafeImage
+                  src={getPortfolioImageSrc(item)}
+                  fallbackSrc="/images/brand/portfolio-gifts.png"
                   alt={item.title}
                   fill
                   sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"

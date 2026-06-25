@@ -1,13 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { MessageCircle, ShoppingCart } from 'lucide-react';
+import { SafeImage } from '@/components/SafeImage';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { AddToCartModal } from '@/components/AddToCartModal';
+import { getProductFallback, getProductImageSrc } from '@/lib/image-fallbacks';
 import type { Product, ProductVariant } from '@/lib/api';
 
 export function ProductVariantSelector({ product }: { product: Product }) {
@@ -19,15 +20,17 @@ export function ProductVariantSelector({ product }: { product: Product }) {
   const [selected, setSelected] = useState<ProductVariant | null>(activeVariants[0] ?? null);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const displayImage = selected?.image || product.image || '/images/screen-printing.jpg';
+  const displayImage = getProductImageSrc(product, selected);
+  const fallbackImage = getProductFallback(product);
   const displayPrice = selected?.price || product.starting_price || product.base_price;
 
   return (
     <>
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
-          <Image
+          <SafeImage
             src={displayImage}
+            fallbackSrc={fallbackImage}
             alt={product.name}
             fill
             className="object-contain p-8"

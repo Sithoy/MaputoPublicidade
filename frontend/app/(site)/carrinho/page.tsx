@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Minus, Plus, Trash2 } from 'lucide-react';
+import { SafeImage } from '@/components/SafeImage';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { getCart, removeCartItem, updateCartItem } from '@/lib/client-api';
 import { getToken } from '@/lib/auth';
+import { getCartItemImageSrc } from '@/lib/image-fallbacks';
 import type { Cart, CartItem } from '@/lib/api';
 
 export default function CartPage() {
@@ -88,10 +89,10 @@ export default function CartPage() {
           <div className="space-y-4 lg:col-span-2">
             {cart.items.map((item) => (
               <Card key={item.id}>
-                <CardContent className="flex gap-4 p-4">
+                  <CardContent className="flex gap-4 p-4">
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-50">
-                    <Image
-                      src={item.product_image || '/images/screen-printing.jpg'}
+                    <SafeImage
+                      src={getCartItemImageSrc(item)}
                       alt={item.product_name || 'Produto'}
                       fill
                       className="object-contain p-2"

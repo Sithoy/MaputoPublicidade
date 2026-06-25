@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Send } from 'lucide-react';
+import { SafeImage } from '@/components/SafeImage';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { clearCart, createQuoteFromCart, getCart, getMe } from '@/lib/client-api';
+import { getCartItemImageSrc } from '@/lib/image-fallbacks';
 import type { Cart, User } from '@/lib/api';
 
 export function CartCheckout() {
@@ -112,8 +113,8 @@ export function CartCheckout() {
                 <Card key={item.id}>
                   <CardContent className="flex gap-4 p-4">
                     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-50">
-                      <Image
-                        src={item.product_image || '/images/screen-printing.jpg'}
+                      <SafeImage
+                        src={getCartItemImageSrc(item)}
                         alt={item.product_name || 'Produto'}
                         fill
                         className="object-contain p-2"

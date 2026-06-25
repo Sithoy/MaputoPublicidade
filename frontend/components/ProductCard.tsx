@@ -2,18 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ShoppingCart } from 'lucide-react';
+import { SafeImage } from '@/components/SafeImage';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { AddToCartModal } from '@/components/AddToCartModal';
+import { getProductFallback, getProductImageSrc } from '@/lib/image-fallbacks';
 import type { Product } from '@/lib/api';
 
 export function ProductCard({ product }: { product: Product }) {
   const [cartOpen, setCartOpen] = useState(false);
   const firstVariant = product.variants?.find((v) => v.is_active !== false);
-  const displayImage = firstVariant?.image || product.image || '/images/screen-printing.jpg';
+  const displayImage = getProductImageSrc(product, firstVariant);
+  const fallbackImage = getProductFallback(product);
   const displayPrice = product.starting_price || product.base_price;
 
   return (
@@ -21,8 +23,9 @@ export function ProductCard({ product }: { product: Product }) {
       <Card className="overflow-hidden transition-shadow hover:shadow-md">
         <Link href={`/catalogo/${product.slug}`}>
           <div className="relative aspect-[4/3] bg-gray-50">
-            <Image
+            <SafeImage
               src={displayImage}
+              fallbackSrc={fallbackImage}
               alt={product.name}
               fill
               className="object-contain p-6"

@@ -3,10 +3,19 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { ProductVariantSelector } from '@/components/ProductVariantSelector';
 import { get, getList, type Product } from '@/lib/api';
+import { getProductImageSrc } from '@/lib/image-fallbacks';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export const revalidate = 60;
+
+function absoluteImageUrl(src: string) {
+  if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
+    return src;
+  }
+
+  return `${siteUrl}${src}`;
+}
 
 export async function generateStaticParams() {
   try {
@@ -26,7 +35,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       openGraph: {
         title: `${product.name} | Maputo Publicidade`,
         description: product.description,
-        images: product.image ? [`${siteUrl}${product.image}`] : [`${siteUrl}/og-image.png`],
+        images: [absoluteImageUrl(getProductImageSrc(product))],
       },
     };
   } catch {
@@ -45,7 +54,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
   if (!product) notFound();
 
   const price = product.starting_price || product.base_price || product.variants?.[0]?.price;
-  const imageUrl = product.image ? `${siteUrl}${product.image}` : `${siteUrl}/og-image.png`;
+  const imageUrl = absoluteImageUrl(getProductImageSrc(product));
 
   const productSchema = {
     '@context': 'https://schema.org',
