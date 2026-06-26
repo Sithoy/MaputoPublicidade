@@ -1,21 +1,23 @@
-import base64
-
 from rest_framework import serializers
 
 from apps.catalog.models import ServiceCategory
-from apps.core.fields import RelativeImageField
+from apps.core.fields import (
+    PersistedImageSerializerMixin,
+    PersistentImageField,
+    build_data_url,
+)
 
 from .models import Partner, PortfolioItem
 
 
-class PortfolioItemSerializer(serializers.ModelSerializer):
+class PortfolioItemSerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     category = serializers.PrimaryKeyRelatedField(
         queryset=ServiceCategory.objects.all(),
         required=False,
         allow_null=True,
     )
-    image = RelativeImageField(required=False)
+    image = PersistentImageField(required=False, allow_null=True)
 
     class Meta:
         model = PortfolioItem
@@ -36,13 +38,6 @@ class PortfolioItemSerializer(serializers.ModelSerializer):
 
 
 MAX_PARTNER_LOGO_BYTES = 2 * 1024 * 1024
-
-
-def build_data_url(upload):
-    content_type = getattr(upload, "content_type", "") or "image/png"
-    upload.seek(0)
-    encoded = base64.b64encode(upload.read()).decode("ascii")
-    return f"data:{content_type};base64,{encoded}"
 
 
 class PartnerSerializer(serializers.ModelSerializer):

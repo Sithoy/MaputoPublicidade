@@ -1,12 +1,12 @@
 from rest_framework import serializers
 
-from apps.core.fields import RelativeImageField
+from apps.core.fields import PersistedImageSerializerMixin, PersistentImageField
 
 from .models import Package, Product, ProductVariant, ServiceCategory
 
 
-class ServiceCategorySerializer(serializers.ModelSerializer):
-    image = RelativeImageField(required=False)
+class ServiceCategorySerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):
+    image = PersistentImageField(required=False, allow_null=True)
 
     class Meta:
         model = ServiceCategory
@@ -23,8 +23,8 @@ class ServiceCategorySerializer(serializers.ModelSerializer):
         ]
 
 
-class ProductVariantSerializer(serializers.ModelSerializer):
-    image = RelativeImageField(required=False)
+class ProductVariantSerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):
+    image = PersistentImageField(required=False, allow_null=True)
 
     class Meta:
         model = ProductVariant
@@ -45,7 +45,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         }
 
 
-class ProductSerializer(serializers.ModelSerializer):
+class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):
     category = serializers.CharField(source="category.name", read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=ServiceCategory.objects.all(), source="category", write_only=True, required=False
@@ -53,7 +53,7 @@ class ProductSerializer(serializers.ModelSerializer):
     base_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False, required=False
     )
-    image = RelativeImageField(required=False)
+    image = PersistentImageField(required=False, allow_null=True)
     variants = serializers.SerializerMethodField()
     starting_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False, read_only=True
@@ -101,11 +101,11 @@ class ProductSerializer(serializers.ModelSerializer):
         return ProductVariantSerializer(sorted_variants, many=True, context=self.context).data
 
 
-class PackageSerializer(serializers.ModelSerializer):
+class PackageSerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):
     price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
-    image = RelativeImageField(required=False)
+    image = PersistentImageField(required=False, allow_null=True)
 
     class Meta:
         model = Package

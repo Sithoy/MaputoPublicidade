@@ -16,6 +16,7 @@ class PortfolioItem(models.Model):
         verbose_name="categoria",
     )
     image = models.ImageField("imagem", upload_to="portfolio/", blank=True, null=True)
+    image_data_url = models.TextField("imagem embutida", blank=True)
     description = models.TextField("descrição", blank=True)
     client_name = models.CharField("cliente", max_length=255, blank=True)
     completion_date = models.DateField("data de conclusão", null=True, blank=True)

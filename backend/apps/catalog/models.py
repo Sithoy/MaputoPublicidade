@@ -14,6 +14,7 @@ class ServiceCategory(models.Model):
     short_description = models.CharField("descrição curta", max_length=255, blank=True)
     description = models.TextField("descrição", blank=True)
     image = models.ImageField("imagem", upload_to="categories/", blank=True, null=True)
+    image_data_url = models.TextField("imagem embutida", blank=True)
     display_order = models.PositiveSmallIntegerField("ordem", default=0)
     is_active = models.BooleanField("ativo", default=True)
 
@@ -51,6 +52,7 @@ class Product(models.Model):
     )
     description = models.TextField("descrição", blank=True)
     image = models.ImageField("imagem", upload_to="products/", blank=True, null=True)
+    image_data_url = models.TextField("imagem embutida", blank=True)
     materials = models.JSONField(
         "materiais",
         default=list,
@@ -115,6 +117,7 @@ class ProductVariant(models.Model):
     sku = models.CharField("SKU", max_length=100, blank=True)
     price = models.DecimalField("preço", max_digits=12, decimal_places=2)
     image = models.ImageField("imagem", upload_to="variants/", blank=True, null=True)
+    image_data_url = models.TextField("imagem embutida", blank=True)
     position = models.PositiveIntegerField("ordem", default=0)
     is_active = models.BooleanField("ativo", default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -141,6 +144,7 @@ class Package(models.Model):
         help_text="Lista de itens incluídos no pacote.",
     )
     image = models.ImageField("imagem", upload_to="packages/", blank=True, null=True)
+    image_data_url = models.TextField("imagem embutida", blank=True)
     target_audience = models.CharField(
         "público-alvo", max_length=255, blank=True
     )

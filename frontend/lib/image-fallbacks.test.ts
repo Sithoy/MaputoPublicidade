@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { getPortfolioImageSrc, getProductImageSrc, resolveImageSrc } from './image-fallbacks';
 
 describe('image fallback helpers', () => {
-  it('maps known missing production media paths to bundled product assets', () => {
+  it('keeps product media paths so real uploaded images are attempted first', () => {
     expect(
       getProductImageSrc({
         slug: 'autocolantes',
         image: '/media/products/autocolantes.jpg',
       })
-    ).toBe('/images/brand/product-sticker.png');
+    ).toBe('/media/products/autocolantes.jpg');
   });
 
   it('keeps unknown media paths so SafeImage can try them first', () => {
@@ -17,12 +17,12 @@ describe('image fallback helpers', () => {
     );
   });
 
-  it('maps known missing portfolio media paths to bundled portfolio assets', () => {
+  it('keeps portfolio media paths so real uploaded images are attempted first', () => {
     expect(
       getPortfolioImageSrc({
         slug: 'roll-up',
         image: '/media/portfolio/Roll_UP_Emose.jfif',
       })
-    ).toBe('/images/brand/portfolio-rollup.png');
+    ).toBe('/media/portfolio/Roll_UP_Emose.jfif');
   });
 });

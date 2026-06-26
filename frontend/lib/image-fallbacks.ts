@@ -14,24 +14,6 @@ const PRODUCT_SLUG_FALLBACKS: Record<string, string> = {
   'placas-de-identificacao': '/images/brand/product-sign.png',
 };
 
-const MEDIA_PATH_FALLBACKS: Record<string, string> = {
-  '/media/products/autocolantes.jpg': PRODUCT_SLUG_FALLBACKS.autocolantes,
-  '/media/products/branding-de-viaturas.jpg': PRODUCT_SLUG_FALLBACKS['branding-de-viaturas'],
-  '/media/products/camisetas-personalizadas.jpg': PRODUCT_SLUG_FALLBACKS['camisetas-personalizadas'],
-  '/media/products/cartoes-de-visita.jpg': PRODUCT_SLUG_FALLBACKS['cartoes-de-visita'],
-  '/media/products/rollups.jpg': PRODUCT_SLUG_FALLBACKS.rollups,
-  '/media/products/rollup.jpg': PRODUCT_SLUG_FALLBACKS.rollups,
-  '/media/products/bones-bordados.jpg': PRODUCT_SLUG_FALLBACKS['bones-bordados'],
-  '/media/products/Cap_Az6xFnq.jpeg': PRODUCT_SLUG_FALLBACKS['bones-bordados'],
-  '/media/products/Cap.jpeg': PRODUCT_SLUG_FALLBACKS['bones-bordados'],
-  '/media/products/Polo_Branca_masdculina_100_algodao_-_1635mzn.jpg':
-    PRODUCT_SLUG_FALLBACKS['camissete-polo'],
-  '/media/products/gazebos-e-stands.jpg': PRODUCT_SLUG_FALLBACKS['gazebos-e-stands'],
-  '/media/products/placas-de-identificacao.jpg': PRODUCT_SLUG_FALLBACKS['placas-de-identificacao'],
-  '/media/portfolio/Arc_Flag_-_INCM.jfif': '/images/brand/portfolio-stand.png',
-  '/media/portfolio/Roll_UP_Emose.jfif': '/images/brand/portfolio-rollup.png',
-};
-
 const PORTFOLIO_SLUG_FALLBACKS: Record<string, string> = {
   'branding-de-frota-comercial': '/images/brand/portfolio-vehicle.png',
   'uniformes-corporativos-bordados': '/images/brand/portfolio-uniforms.png',
@@ -40,25 +22,9 @@ const PORTFOLIO_SLUG_FALLBACKS: Record<string, string> = {
   'roll-up': '/images/brand/portfolio-rollup.png',
 };
 
-function getPathname(src: string) {
-  if (src.startsWith('data:') || src.startsWith('blob:')) return src;
-
-  try {
-    if (src.startsWith('http://') || src.startsWith('https://')) {
-      return new URL(src).pathname;
-    }
-  } catch {
-    return src;
-  }
-
-  return src.startsWith('/') ? src : `/${src}`;
-}
-
 export function resolveImageSrc(src?: string | null, fallbackSrc = DEFAULT_IMAGE_FALLBACK) {
   if (!src) return fallbackSrc;
-
-  const pathname = getPathname(src);
-  return MEDIA_PATH_FALLBACKS[pathname] || src;
+  return src;
 }
 
 export function getProductFallback(product?: Pick<Product, 'slug'> | null) {
