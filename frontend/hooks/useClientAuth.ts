@@ -5,12 +5,24 @@ import { useRouter } from 'next/navigation';
 import { fetchSession, getToken, removeToken } from '@/lib/auth';
 import type { User } from '@/lib/api';
 
-export function useClientAuth() {
+type UseClientAuthOptions = {
+  enabled?: boolean;
+};
+
+export function useClientAuth({ enabled = true }: UseClientAuthOptions = {}) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!enabled) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
     if (!getToken()) {
       removeToken();
       router.replace('/area-cliente/login');
@@ -36,7 +48,7 @@ export function useClientAuth() {
         removeToken();
         router.replace('/area-cliente/login');
       });
-  }, [router]);
+  }, [enabled, router]);
 
   return { user, loading };
 }

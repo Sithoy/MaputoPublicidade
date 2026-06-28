@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { SafeImage } from '@/components/SafeImage';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
@@ -8,7 +9,11 @@ import { getPortfolioImageSrc } from '@/lib/image-fallbacks';
 import { normalizePaginatedResponse } from '@/lib/api';
 import type { PortfolioItem } from '@/lib/api';
 
-export function PortfolioGallery() {
+type PortfolioGalleryProps = {
+  limit?: number;
+};
+
+export function PortfolioGallery({ limit }: PortfolioGalleryProps) {
   const [items, setItems] = useState<PortfolioItem[]>([]);
   const [active, setActive] = useState('Todos');
   const [loading, setLoading] = useState(true);
@@ -34,6 +39,8 @@ export function PortfolioGallery() {
     active === 'Todos'
       ? items
       : items.filter((item) => item.category_name === active);
+  const visibleItems = typeof limit === 'number' ? filtered.slice(0, limit) : filtered;
+  const hasMoreItems = typeof limit === 'number' && filtered.length > limit;
 
   if (loading) {
     return (
@@ -73,7 +80,7 @@ export function PortfolioGallery() {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((item) => (
+          {visibleItems.map((item) => (
             <article
               key={item.id}
               className="group overflow-hidden rounded-lg border border-gray-100 bg-white shadow-sm transition hover:shadow-lg"
@@ -96,11 +103,15 @@ export function PortfolioGallery() {
           ))}
         </div>
 
-        <div className="mt-10 text-center">
-          <Button variant="primary" className="gap-2">
-            Ver mais trabalhos
-          </Button>
-        </div>
+        {hasMoreItems ? (
+          <div className="mt-10 text-center">
+            <Link href="/portfolio">
+              <Button variant="primary" className="gap-2">
+                Ver mais trabalhos
+              </Button>
+            </Link>
+          </div>
+        ) : null}
       </div>
     </section>
   );

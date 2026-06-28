@@ -88,14 +88,14 @@ export function Header() {
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-6">
-        <Link href="/" className="flex items-center gap-2">
+      <div className="mx-auto flex max-w-[360px] items-center justify-between gap-3 px-4 py-3 sm:max-w-7xl lg:px-6">
+        <Link href="/" className="flex min-w-0 items-center gap-2">
           <Image
             src="/logo-tight.png"
             alt="Maputo Publicidade"
             width={170}
             height={78}
-            className="h-12 w-auto object-contain sm:h-14"
+            className="h-10 w-auto max-w-[125px] object-contain sm:h-14 sm:max-w-none"
             priority
           />
         </Link>
@@ -129,7 +129,7 @@ export function Header() {
           </a>
         </div>
 
-        <div className="flex items-center gap-1 lg:hidden">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 lg:hidden">
           <CartCount />
           <Link href="/area-cliente" className="rounded-md p-2 text-dark hover:bg-gray-100" aria-label="Área do cliente">
             <User className="h-5 w-5" />

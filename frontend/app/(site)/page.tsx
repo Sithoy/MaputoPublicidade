@@ -64,7 +64,7 @@ export default function HomePage() {
       <FeaturedProducts />
       <HowItWorks />
       <StatsSection />
-      <PortfolioGallery />
+      <PortfolioGallery limit={9} />
       <PartnersSection />
       <PackagesSection />
       <CTABanner />

@@ -33,7 +33,7 @@ export default function ServicesPage() {
             const ServiceIcon = serviceIconMap[service.iconName];
 
             return (
-              <Card key={service.slug} className="group transition-shadow hover:shadow-lg">
+              <Card key={service.slug} className="group flex flex-col transition-shadow hover:shadow-lg">
                 <div className="relative aspect-[4/3] overflow-hidden bg-dark">
                   <Image
                     src={service.image}
@@ -48,7 +48,7 @@ export default function ServicesPage() {
                     <ServiceIcon className="h-5 w-5" />
                   </div>
                 </div>
-                <CardContent className="flex h-full flex-col">
+                <CardContent className="flex flex-1 flex-col">
                   <h2 className="text-xl font-semibold text-dark">{service.title}</h2>
                   <p className="mt-2 flex-1 text-sm leading-relaxed text-gray-600">{service.summary}</p>
                   <div className="mt-5 flex flex-wrap gap-2">

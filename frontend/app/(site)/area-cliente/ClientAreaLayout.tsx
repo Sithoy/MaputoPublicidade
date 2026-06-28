@@ -17,11 +17,16 @@ const nav = [
 export default function ClientAreaLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, loading } = useClientAuth();
+  const isLoginRoute = pathname === '/area-cliente/login';
+  const { user, loading } = useClientAuth({ enabled: !isLoginRoute });
 
   function handleLogout() {
     removeToken();
     router.push('/area-cliente/login');
+  }
+
+  if (isLoginRoute) {
+    return <>{children}</>;
   }
 
   if (loading) {

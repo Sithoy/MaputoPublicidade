@@ -7,7 +7,7 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply font-sans text-dark bg-white antialiased;
+    @apply overflow-x-hidden font-sans text-dark bg-white antialiased;
   }
 }
 

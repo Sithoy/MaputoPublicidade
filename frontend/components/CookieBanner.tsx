@@ -33,7 +33,7 @@ export function CookieBanner() {
   return (
     <>
       <div className="h-32 sm:h-24" aria-hidden />
-      <div className="fixed bottom-3 left-3 right-3 z-50 sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-2xl">
+      <div className="fixed bottom-3 left-3 z-50 w-[calc(100vw-1.5rem)] max-w-[360px] sm:bottom-4 sm:left-4 sm:max-w-2xl">
         <div className="flex flex-col items-start justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-2xl shadow-gray-900/15 sm:flex-row sm:items-center sm:p-4">
           <p className="text-sm leading-relaxed text-gray-700">
             Utilizamos cookies para melhorar a experiência. Ao continuar, aceita a nossa{' '}

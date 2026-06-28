@@ -37,8 +37,8 @@ function ClientLoginForm() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-200px)] max-w-md items-center px-4 py-16">
-      <div className="w-full rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:p-8">
+    <div className="mx-auto flex min-h-[calc(100vh-200px)] w-full max-w-[360px] items-start px-3 py-10 sm:max-w-md sm:items-center sm:px-4 sm:py-16">
+      <div className="w-full min-w-0 rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-dark">Área do Cliente</h1>
           <p className="mt-1 text-sm text-gray-600">Inicie sessão para ver os seus orçamentos.</p>
