@@ -41,9 +41,6 @@ const nextConfig = {
       },
     ],
   },
-  env: {
-    INTERNAL_API_URL: internalApiUrl,
-  },
   async rewrites() {
     return [
       {

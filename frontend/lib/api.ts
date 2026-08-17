@@ -1,10 +1,36 @@
-export function apiUrl(path: string): string {
-  if (typeof window === 'undefined') {
-    const base = process.env.INTERNAL_API_URL || 'http://backend:8000';
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    return `${base}${cleanPath}`;
+const LOCAL_SERVER_API_ORIGIN = 'http://backend:8000';
+const PUBLIC_API_ORIGIN = 'https://www.maputopublicidade.com';
+
+function isLocalOnlyOrigin(origin: string): boolean {
+  try {
+    const hostname = new URL(origin).hostname;
+    return hostname === 'backend' || hostname === 'localhost' || hostname === '127.0.0.1';
+  } catch {
+    return false;
   }
-  return path.startsWith('/') ? path : `/${path}`;
+}
+
+type ApiEnvironment = Record<string, string | undefined>;
+
+export function resolveServerApiOrigin(env: ApiEnvironment = process.env): string {
+  const configuredOrigin = env.INTERNAL_API_URL?.replace(/\/$/, '');
+  const isVercel = env.VERCEL === '1' || Boolean(env.VERCEL_ENV);
+
+  if (isVercel && (!configuredOrigin || isLocalOnlyOrigin(configuredOrigin))) {
+    return (env.PUBLIC_CONTENT_API_ORIGIN || PUBLIC_API_ORIGIN).replace(/\/$/, '');
+  }
+
+  return configuredOrigin || LOCAL_SERVER_API_ORIGIN;
+}
+
+export function apiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window === 'undefined') {
+    return `${resolveServerApiOrigin()}${cleanPath}`;
+  }
+  return cleanPath;
 }
 
 const DEFAULT_FETCH_TIMEOUT_MS = 10000;
@@ -170,7 +196,7 @@ export type Product = {
   name: string;
   description: string;
   image?: string;
-  category: string;
+  category?: string | null;
   category_id?: number;
   materials?: string[];
   sizes?: string[];
