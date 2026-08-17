@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Building2, ChevronLeft, ChevronRight, Handshake } from 'lucide-react';
 import { normalizePaginatedResponse } from '@/lib/api';
 import type { Partner } from '@/lib/api';
-import { partners as fallbackPartners } from '@/lib/partners';
+import { getPublicContentApiUrl } from '@/lib/public-content-api';
 
 const AUTO_ADVANCE_MS = 5000;
 const LOOP_COPIES = 3;
@@ -82,7 +82,7 @@ export function PartnersSection() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const isPausedRef = useRef(false);
   const normalizeTimerRef = useRef<number | null>(null);
-  const [managedPartners, setManagedPartners] = useState<Partner[]>(fallbackPartners);
+  const [managedPartners, setManagedPartners] = useState<Partner[]>([]);
   const visiblePartners = managedPartners;
   const partnerLoop =
     visiblePartners.length > 1
@@ -110,17 +110,24 @@ export function PartnersSection() {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetch('/api/partners/', { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : []))
+    fetch(getPublicContentApiUrl('/api/partners/'), {
+      signal: controller.signal,
+      credentials: 'omit',
+      headers: { Accept: 'application/json' },
+    })
+      .then((res) => {
+        const contentType = res.headers.get('content-type') || '';
+        return res.ok && contentType.includes('application/json') ? res.json() : [];
+      })
       .then((data) => {
         const list = normalizePaginatedResponse<Partner>(data)
           .filter((partner) => partner.is_active !== false)
           .sort((left, right) => Number(right.is_featured) - Number(left.is_featured));
-        setManagedPartners(list.length > 0 ? list : fallbackPartners);
+        setManagedPartners(list);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        setManagedPartners(fallbackPartners);
+        setManagedPartners([]);
       });
 
     return () => controller.abort();
@@ -160,6 +167,10 @@ export function PartnersSection() {
 
     return () => window.clearInterval(timer);
   }, [scrollPartners, visiblePartners.length]);
+
+  if (visiblePartners.length === 0) {
+    return null;
+  }
 
   return (
     <section id="parceiros" className="scroll-mt-24 overflow-hidden bg-brand-800 py-14 text-white sm:py-16 lg:py-20">

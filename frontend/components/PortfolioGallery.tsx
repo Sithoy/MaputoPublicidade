@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { getPortfolioImageSrc } from '@/lib/image-fallbacks';
 import { normalizePaginatedResponse } from '@/lib/api';
 import type { PortfolioItem } from '@/lib/api';
+import { getPublicContentApiUrl } from '@/lib/public-content-api';
 
 type PortfolioGalleryProps = {
   limit?: number;
@@ -21,7 +22,11 @@ export function PortfolioGallery({ limit }: PortfolioGalleryProps) {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetch('/api/portfolio/', { signal: controller.signal })
+    fetch(getPublicContentApiUrl('/api/portfolio/'), {
+      signal: controller.signal,
+      credentials: 'omit',
+      headers: { Accept: 'application/json' },
+    })
       .then((res) => {
         if (!res.ok) throw new Error('Não foi possível carregar o portfólio.');
         return res.json();
