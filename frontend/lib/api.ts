@@ -27,11 +27,14 @@ export function resolveServerGetFallbackUrl(
   path: string,
   env: ApiEnvironment = process.env
 ): string | null {
-  if (/^https?:\/\//i.test(path) || !isLocalOnlyOrigin(resolveServerApiOrigin(env))) {
+  const publicOrigin = (env.PUBLIC_CONTENT_API_ORIGIN || PUBLIC_API_ORIGIN).replace(/\/$/, '');
+  if (
+    /^https?:\/\//i.test(path) ||
+    resolveServerApiOrigin(env).replace(/\/$/, '') === publicOrigin
+  ) {
     return null;
   }
 
-  const publicOrigin = (env.PUBLIC_CONTENT_API_ORIGIN || PUBLIC_API_ORIGIN).replace(/\/$/, '');
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${publicOrigin}${cleanPath}`;
 }
@@ -67,12 +70,16 @@ export async function get<T = unknown>(path: string, options?: RequestInit): Pro
     }
   };
 
+  const fallbackUrl = typeof window === 'undefined' ? resolveServerGetFallbackUrl(path) : null;
   let res: Response;
   try {
     res = await request(apiUrl(path));
   } catch (error) {
-    const fallbackUrl = typeof window === 'undefined' ? resolveServerGetFallbackUrl(path) : null;
     if (!fallbackUrl || options?.signal?.aborted) throw error;
+    res = await request(fallbackUrl);
+  }
+
+  if (!res.ok && fallbackUrl) {
     res = await request(fallbackUrl);
   }
 

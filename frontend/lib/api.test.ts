@@ -1,9 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  get,
   normalizePaginatedResponse,
   resolveServerApiOrigin,
   resolveServerGetFallbackUrl,
 } from './api';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 describe('resolveServerApiOrigin', () => {
   it('keeps the internal Docker service address during local development', () => {
@@ -47,12 +53,44 @@ describe('resolveServerApiOrigin', () => {
     ).toBe('https://www.maputopublicidade.com/api/products/');
   });
 
-  it('does not override a reachable public server address', () => {
+  it('provides the content fallback when another public server is configured', () => {
     expect(
       resolveServerGetFallbackUrl('/api/products/', {
         INTERNAL_API_URL: 'https://api.example.com',
       })
+    ).toBe('https://www.maputopublicidade.com/api/products/');
+  });
+
+  it('does not create a fallback loop when the public content API is primary', () => {
+    expect(
+      resolveServerGetFallbackUrl('/api/products/', {
+        INTERNAL_API_URL: 'https://www.maputopublicidade.com',
+      })
     ).toBeNull();
+  });
+});
+
+describe('get', () => {
+  it('retries a failed server GET against the public content API', async () => {
+    vi.stubGlobal('window', undefined);
+    vi.stubEnv('INTERNAL_API_URL', 'https://api.example.com');
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 16, name: 'Camissete Polo Branca' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(get<{ id: number }>('/api/products/')).resolves.toMatchObject({ id: 16 });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://www.maputopublicidade.com/api/products/',
+      expect.any(Object)
+    );
   });
 });
 
