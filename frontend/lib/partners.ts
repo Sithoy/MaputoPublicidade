@@ -1,17 +1,13 @@
 import type { Partner } from './api';
 
-export type FallbackPartner = Pick<Partner, 'id' | 'name' | 'slug' | 'sector' | 'logo' | 'website' | 'is_active'> & {
-  name: string;
-  sector: string;
-};
-
-export const partners: FallbackPartner[] = [
-  { id: 1, name: 'Parceiro 01', slug: 'parceiro-01', sector: 'Institucional', is_active: true },
-  { id: 2, name: 'Parceiro 02', slug: 'parceiro-02', sector: 'Retalho', is_active: true },
-  { id: 3, name: 'Parceiro 03', slug: 'parceiro-03', sector: 'Eventos', is_active: true },
-  { id: 4, name: 'Parceiro 04', slug: 'parceiro-04', sector: 'Educacao', is_active: true },
-  { id: 5, name: 'Parceiro 05', slug: 'parceiro-05', sector: 'Hotelaria', is_active: true },
-  { id: 6, name: 'Parceiro 06', slug: 'parceiro-06', sector: 'Construcao', is_active: true },
-  { id: 7, name: 'Parceiro 07', slug: 'parceiro-07', sector: 'Tecnologia', is_active: true },
-  { id: 8, name: 'Parceiro 08', slug: 'parceiro-08', sector: 'Servicos', is_active: true },
+export const partners: Partner[] = [
+  { id: 1, name: 'Bayport', slug: 'bayport', sector: 'Serviços financeiros', is_featured: true, is_active: true },
+  { id: 5, name: 'Cimentos de Moçambique', slug: 'cimentos-de-mocambique', sector: 'Indústria transformadora', is_active: true },
+  { id: 2, name: 'Eletricidade de Moçambique', slug: 'eletricidade-de-mocambique', sector: 'Energia', is_active: true },
+  { id: 4, name: 'Emose', slug: 'emose', sector: 'Seguros', is_active: true },
+  { id: 7, name: 'IIAM', slug: 'iiam', sector: 'Instituição pública', is_active: true },
+  { id: 6, name: 'MAHS', slug: 'mahs', sector: 'Gestão de aeroportos', is_active: true },
+  { id: 3, name: 'Petromoc', slug: 'petromoc', sector: 'Petróleo e energia', is_active: true },
+  { id: 8, name: 'SMS', slug: 'sms', sector: 'Catering', is_active: true },
+  { id: 9, name: 'Tmcel', slug: 'tmcel', sector: 'Tecnologia', is_active: true },
 ];
