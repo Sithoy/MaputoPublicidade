@@ -11,7 +11,7 @@ export function StatsSection() {
   return (
     <section className="relative overflow-hidden bg-dark py-12 text-white">
       <div className="absolute inset-y-0 right-0 hidden w-2/3 opacity-45 lg:block">
-        <div className="h-full w-full bg-[url('/images/supplied/overview-brand.png')] bg-cover bg-center" />
+        <div className="h-full w-full bg-[url('/images/supplied/overview-brand.jpg')] bg-cover bg-center" />
       </div>
       <div className="absolute inset-0 bg-gradient-to-r from-brand-900 via-dark/95 to-brand-900/45" />
       <div className="relative z-10 mx-auto max-w-7xl px-4 lg:px-6">

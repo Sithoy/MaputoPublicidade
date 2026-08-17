@@ -1,58 +1,59 @@
-import { MousePointerClick, Upload, FileText, CheckCircle, Truck } from 'lucide-react';
+import { ClipboardList, FileCheck2, MessageSquareText, Settings2, Truck } from 'lucide-react';
 
 const steps = [
   {
-    icon: MousePointerClick,
-    title: 'Escolha',
-    description: 'Escolha o produto ou serviço que precisa.',
+    icon: MessageSquareText,
+    title: 'Briefing',
+    description: 'Entendemos a necessidade, o objetivo, a quantidade e o prazo do projeto.',
   },
   {
-    icon: Upload,
-    title: 'Envie a arte',
-    description: 'Faça upload do seu logótipo ou descrição da ideia.',
+    icon: ClipboardList,
+    title: 'Proposta',
+    description: 'Organizamos opções, materiais, quantidades, orçamento e calendário.',
   },
   {
-    icon: FileText,
-    title: 'Receba orçamento',
-    description: 'Receba o orçamento com preço e prazo de entrega.',
+    icon: FileCheck2,
+    title: 'Arte e aprovação',
+    description: 'Preparamos ou validamos a arte antes de avançar para produção.',
   },
   {
-    icon: CheckCircle,
-    title: 'Aprove a prova digital',
-    description: 'Aprovamos a arte digital antes de produzir.',
+    icon: Settings2,
+    title: 'Produção',
+    description: 'Executamos o trabalho com acompanhamento e controlo de qualidade.',
   },
   {
     icon: Truck,
-    title: 'Produzimos e entregamos',
-    description: 'Produção com qualidade e entrega no prazo.',
+    title: 'Entrega ou instalação',
+    description: 'Finalizamos o projeto e acompanhamos a entrega ou instalação.',
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section className="bg-light py-16 lg:py-24">
-      <div className="mx-auto max-w-7xl px-4 lg:px-6">
-        <div className="mb-12 text-center">
-          <h2 className="text-3xl font-bold text-dark md:text-4xl">Como Funciona</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-            Um processo simples e transparente do pedido à entrega.
+    <section className="bg-white py-16 sm:py-20 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="mb-12 max-w-3xl lg:mb-16">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand">Um processo acompanhado</p>
+          <h2 className="mt-4 text-balance text-3xl font-extrabold tracking-[-0.035em] text-dark sm:text-4xl lg:text-5xl">Da ideia à presença da sua marca.</h2>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-[#66736D] sm:text-lg">
+            Cada etapa tem um objetivo claro, para reduzir dúvidas, retrabalho e surpresas na entrega.
           </p>
         </div>
 
         <div className="relative">
-          <div className="absolute left-1/2 top-8 hidden h-1 w-[80%] -translate-x-1/2 bg-gray-200 lg:block" />
-          <div className="grid gap-8 md:grid-cols-3 lg:grid-cols-5">
+          <div className="absolute left-[10%] right-[10%] top-6 hidden h-px bg-[#DCE5DF] lg:block" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {steps.map((step, index) => (
-              <div key={step.title} className="relative z-10 flex flex-col items-center text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white bg-white text-brand shadow-md">
-                  <step.icon className="h-7 w-7" />
+              <article key={step.title} className="relative z-10 rounded-2xl border border-[#E3E8E4] bg-[#FAFBF8] p-5 transition hover:border-brand/20 hover:bg-white sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-brand-100 bg-white text-brand shadow-sm">
+                    <step.icon className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-extrabold tracking-[0.12em] text-[#A3AEA8]">0{index + 1}</span>
                 </div>
-                <span className="mb-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
-                  {index + 1}
-                </span>
-                <h3 className="mb-1 font-semibold text-dark">{step.title}</h3>
-                <p className="text-sm text-gray-600">{step.description}</p>
-              </div>
+                <h3 className="mt-8 text-base font-bold text-dark">{step.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#66736D]">{step.description}</p>
+              </article>
             ))}
           </div>
         </div>

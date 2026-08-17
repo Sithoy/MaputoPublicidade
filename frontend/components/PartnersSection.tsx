@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Handshake } from 'lucide-react';
+import Image from 'next/image';
+import { Building2, ChevronLeft, ChevronRight, Handshake } from 'lucide-react';
 import { normalizePaginatedResponse } from '@/lib/api';
 import type { Partner } from '@/lib/api';
 
@@ -55,12 +56,14 @@ function PartnerLogo({ partner }: { partner: Partner }) {
 
   if (partner.logo && !hasImageError) {
     return (
-      <div className="flex aspect-square w-full items-center justify-center rounded-md border border-gray-100 bg-white p-5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <div className="relative flex h-24 w-full items-center justify-center px-5 sm:h-28">
+        <Image
           src={partner.logo}
-          alt={partner.name}
-          className="max-h-full max-w-full object-contain"
+          alt={`Logótipo da ${partner.name}`}
+          fill
+          sizes="(min-width: 1024px) 190px, (min-width: 640px) 220px, 66vw"
+          className="object-contain p-5"
+          unoptimized={partner.logo.startsWith('data:')}
           onError={() => setHasImageError(true)}
         />
       </div>
@@ -68,7 +71,7 @@ function PartnerLogo({ partner }: { partner: Partner }) {
   }
 
   return (
-    <div className="flex aspect-square w-full items-center justify-center rounded-md bg-dark text-3xl font-bold text-white">
+    <div className="flex h-24 w-full items-center justify-center text-2xl font-extrabold tracking-[-0.04em] text-brand-800 sm:h-28">
       {getInitials(partner.name)}
     </div>
   );
@@ -80,7 +83,10 @@ export function PartnersSection() {
   const normalizeTimerRef = useRef<number | null>(null);
   const [managedPartners, setManagedPartners] = useState<Partner[]>([]);
   const visiblePartners = managedPartners;
-  const partnerLoop = Array.from({ length: LOOP_COPIES }, () => visiblePartners).flat();
+  const partnerLoop =
+    visiblePartners.length > 1
+      ? Array.from({ length: LOOP_COPIES }, () => visiblePartners).flat()
+      : visiblePartners;
 
   const scrollPartners = useCallback((direction: -1 | 1) => {
     const carousel = carouselRef.current;
@@ -101,25 +107,22 @@ export function PartnersSection() {
   }, [visiblePartners.length]);
 
   useEffect(() => {
-    let mounted = true;
+    const controller = new AbortController();
 
-    fetch('/api/partners/')
+    fetch('/api/partners/', { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        const list = normalizePaginatedResponse<Partner>(data).filter(
-          (partner) => partner.is_active !== false
-        );
-        if (mounted) {
-          setManagedPartners(list);
-        }
+        const list = normalizePaginatedResponse<Partner>(data)
+          .filter((partner) => partner.is_active !== false)
+          .sort((left, right) => Number(right.is_featured) - Number(left.is_featured));
+        setManagedPartners(list);
       })
-      .catch(() => {
-        if (mounted) setManagedPartners([]);
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setManagedPartners([]);
       });
 
-    return () => {
-      mounted = false;
-    };
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -143,6 +146,8 @@ export function PartnersSection() {
   }, [visiblePartners.length]);
 
   useEffect(() => {
+    if (visiblePartners.length < 2) return;
+
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (prefersReducedMotion.matches) return;
 
@@ -153,51 +158,63 @@ export function PartnersSection() {
     }, AUTO_ADVANCE_MS);
 
     return () => window.clearInterval(timer);
-  }, [scrollPartners]);
+  }, [scrollPartners, visiblePartners.length]);
 
   if (visiblePartners.length === 0) {
     return null;
   }
 
   return (
-    <section className="overflow-hidden border-y border-gray-100 bg-white py-12 lg:py-16">
+    <section id="parceiros" className="scroll-mt-24 overflow-hidden bg-brand-800 py-14 text-white sm:py-16 lg:py-20">
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
-        <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-brand/10 text-brand">
-              <Handshake className="h-5 w-5" />
-            </div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
+        <div className="mb-9 grid gap-7 lg:grid-cols-[1fr_0.72fr] lg:items-end">
+          <div className="max-w-3xl">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.16em] text-brand-100">
+              <Handshake className="h-4 w-4" />
               Nossos parceiros
-            </p>
-            <h2 className="mt-2 text-3xl font-bold text-dark md:text-4xl">
-              Marcas e empresas que confiaram no nosso trabalho.
+            </div>
+            <h2 className="text-balance text-3xl font-extrabold tracking-[-0.035em] text-white sm:text-4xl lg:text-5xl">
+              Marcas que confiam na nossa capacidade de executar.
             </h2>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-white/68 sm:text-lg">
+              Relações construídas com consistência, resposta próxima e atenção ao detalhe — em
+              projetos que representam empresas e instituições de referência em Moçambique.
+            </p>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => scrollPartners(-1)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-gray-200 bg-white text-dark shadow-sm transition hover:border-brand hover:text-brand"
-              aria-label="Parceiros anteriores"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollPartners(1)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-gray-200 bg-white text-dark shadow-sm transition hover:border-brand hover:text-brand"
-              aria-label="Proximos parceiros"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+          <div className="flex items-end justify-between gap-5 lg:justify-end">
+            <div className="hidden max-w-xs items-center gap-3 text-sm leading-6 text-white/60 sm:flex">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-brand-100">
+                <Building2 className="h-4 w-4" />
+              </span>
+              Empresas de diferentes sectores, unidas pela confiança no nosso trabalho.
+            </div>
+            {visiblePartners.length > 1 ? (
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => scrollPartners(-1)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:border-white/35 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-800"
+                  aria-label="Parceiros anteriores"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollPartners(1)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:border-white/35 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-800"
+                  aria-label="Próximos parceiros"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
 
         <div
           ref={carouselRef}
-          className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-4"
           aria-label="Lista de parceiros"
           onFocusCapture={() => {
             isPausedRef.current = true;
@@ -216,26 +233,14 @@ export function PartnersSection() {
             <article
               key={`${partner.name}-${index}`}
               data-partner-card
-              className="flex min-h-[260px] shrink-0 basis-[74%] snap-start flex-col justify-between rounded-lg border border-gray-100 bg-gray-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/25 hover:bg-white hover:shadow-md sm:basis-[42%] md:basis-[calc((100%_-_40px)/3)] lg:basis-[calc((100%_-_60px)/4)]"
+              className="flex min-h-[190px] shrink-0 basis-[72%] snap-start flex-col justify-between rounded-2xl border border-white/15 bg-white p-4 text-dark shadow-[0_18px_45px_-32px_rgba(0,0,0,0.55)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_-28px_rgba(0,0,0,0.62)] sm:basis-[42%] md:basis-[calc((100%_-_32px)/3)] lg:basis-[calc((100%_-_64px)/5)]"
             >
-              <div>
-                <PartnerLogo partner={partner} />
-                <h3 className="mt-4 text-base font-semibold text-dark">{partner.name}</h3>
-                <p className="mt-1 text-sm text-gray-500">{partner.sector}</p>
-              </div>
-
-              <div className="mt-5 flex items-center justify-between gap-3">
-                <div className="h-1.5 flex-1 rounded-full bg-gradient-to-r from-brand via-secondary to-brand/20" />
-                {partner.website && (
-                  <a
-                    href={partner.website}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-semibold uppercase tracking-[0.14em] text-brand hover:text-secondary"
-                  >
-                    Site
-                  </a>
-                )}
+              <PartnerLogo partner={partner} />
+              <div className="border-t border-[#E3E8E4] pt-3 text-center">
+                <h3 className="truncate text-sm font-bold text-dark">{partner.name}</h3>
+                {partner.sector ? (
+                  <p className="mt-1 truncate text-xs text-[#748078]">{partner.sector}</p>
+                ) : null}
               </div>
             </article>
           ))}

@@ -3,25 +3,25 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Facebook, Instagram, Mail, MapPin, Menu, MessageCircle, Phone, ShoppingCart, User, X } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { usePathname } from 'next/navigation';
+import { ArrowUpRight, Menu, MessageCircle, Phone, ShoppingCart, User, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getToken } from '@/lib/auth';
 import { getCart } from '@/lib/client-api';
 
 const navLinks = [
   { href: '/', label: 'Início' },
-  { href: '/servicos', label: 'Serviços' },
-  { href: '/catalogo', label: 'Catálogo' },
+  { href: '/sobre', label: 'A Nossa História' },
+  { href: '/servicos', label: 'Soluções' },
+  { href: '/#plataforma', label: 'Plataforma' },
   { href: '/portfolio', label: 'Portfólio' },
-  { href: '/orcamento', label: 'Orçamento' },
   { href: '/contactos', label: 'Contactos' },
 ];
 
 const WHATSAPP_NUMBER = '25882555736';
 const WHATSAPP_MESSAGE = 'Olá! Vi o site da Maputo Publicidade e gostaria de falar sobre um projeto.';
 
-function CartCount() {
+function CartCount({ inverted = false }: { inverted?: boolean }) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -40,7 +40,16 @@ function CartCount() {
   }, []);
 
   return (
-    <Link href="/carrinho" className="relative inline-flex items-center justify-center rounded-md p-2 text-dark hover:bg-gray-100">
+    <Link
+      href="/carrinho"
+      className={cn(
+        'relative inline-flex h-10 w-10 items-center justify-center rounded-full transition',
+        inverted
+          ? 'text-white/85 hover:bg-white/10 hover:text-white'
+          : 'text-[#304038] hover:bg-[#e9efea] hover:text-brand-700'
+      )}
+      aria-label="Carrinho"
+    >
       <ShoppingCart className="h-5 w-5" />
       {count > 0 && (
         <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">
@@ -53,120 +62,162 @@ function CartCount() {
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const isHome = pathname === '/';
+  const [isAtHomePosition, setIsAtHomePosition] = useState(isHome);
+
+  useEffect(() => {
+    if (!isHome) {
+      setIsAtHomePosition(false);
+      return;
+    }
+
+    const updateHeader = () => {
+      setIsAtHomePosition(window.scrollY <= 1);
+    };
+
+    updateHeader();
+    window.addEventListener('scroll', updateHeader, { passive: true });
+    return () => window.removeEventListener('scroll', updateHeader);
+  }, [isHome]);
+
+  const transparentHeader = isHome && isAtHomePosition;
 
   const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white shadow-sm">
-      <div className="bg-brand-700 text-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 text-xs lg:px-6">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1">
-            <a href="tel:+25882555736" className="inline-flex items-center gap-1.5 hover:text-brand-100">
-              <Phone className="h-3.5 w-3.5" />
-              82 555 736
-            </a>
-            <a href="mailto:maputopublicidade@outlook.com" className="hidden items-center gap-1.5 hover:text-brand-100 sm:inline-flex">
-              <Mail className="h-3.5 w-3.5" />
-              maputopublicidade@outlook.com
-            </a>
-            <span className="hidden items-center gap-1.5 lg:inline-flex">
-              <MapPin className="h-3.5 w-3.5" />
-              Rua da Resistência Nº 1550 R/C
-            </span>
-          </div>
-          <div className="hidden items-center gap-3 sm:flex">
-            <a href="#" aria-label="Facebook" className="hover:text-brand-100">
-              <Facebook className="h-4 w-4" />
-            </a>
-            <a href="#" aria-label="Instagram" className="hover:text-brand-100">
-              <Instagram className="h-4 w-4" />
-            </a>
-            <a href={whatsappHref} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="hover:text-brand-100">
-              <MessageCircle className="h-4 w-4" />
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto flex max-w-[360px] items-center justify-between gap-3 px-4 py-3 sm:max-w-7xl lg:px-6">
+    <header
+      className={cn(
+        'site-header-enter top-0 z-50 w-full transition-[background-color,border-color,box-shadow] duration-200',
+        isHome ? 'fixed inset-x-0' : 'sticky',
+        transparentHeader
+          ? 'border-b border-transparent bg-transparent shadow-none'
+          : 'border-b border-[#E3E8E4]/90 bg-[#FAFBF8]/95 shadow-[0_8px_28px_-24px_rgba(6,63,43,0.55)] backdrop-blur-xl'
+      )}
+    >
+      <div className="mx-auto flex h-[74px] max-w-7xl items-center justify-between gap-4 px-4 lg:h-[82px] lg:px-6">
         <Link href="/" className="flex min-w-0 items-center gap-2">
           <Image
             src="/logo-tight.png"
             alt="Maputo Publicidade"
             width={170}
             height={78}
-            className="h-10 w-auto max-w-[125px] object-contain sm:h-14 sm:max-w-none"
+            className={cn(
+              'h-11 w-auto max-w-[132px] object-contain transition-[filter] duration-300 sm:h-12 sm:max-w-none',
+              transparentHeader && 'brightness-0 invert'
+            )}
             priority
           />
         </Link>
 
-        <nav className="hidden items-center gap-6 lg:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-dark hover:text-brand"
+              className={cn(
+                'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                transparentHeader
+                  ? pathname === link.href
+                    ? 'bg-white/12 text-white'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  : pathname === link.href ||
+                      (link.href !== '/' && !link.href.includes('#') && pathname.startsWith(link.href))
+                    ? 'bg-brand-50 text-brand-800'
+                    : 'text-[#52635B] hover:bg-white hover:text-dark'
+              )}
             >
               {link.label}
             </Link>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
-          <CartCount />
-          <Link href="/area-cliente" className="rounded-md p-2 text-dark hover:bg-gray-100" aria-label="Área do cliente">
-            <User className="h-5 w-5" />
+        <div className="hidden items-center gap-1.5 lg:flex">
+          <CartCount inverted={transparentHeader} />
+          <Link
+            href="/area-cliente"
+            className={cn(
+              'inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition',
+              transparentHeader
+                ? 'text-white/85 hover:bg-white/10 hover:text-white'
+                : 'text-[#405047] hover:bg-white hover:text-brand-800'
+            )}
+          >
+            <User className="h-[18px] w-[18px]" />
+            Área do cliente
           </Link>
-          <a href="tel:+25882555736" className="flex items-center gap-1.5 text-sm font-medium text-dark hover:text-brand">
-            <Phone className="h-4 w-4" />
-            82 555 736
-          </a>
-          <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
-            <Button className="gap-2">
-              <MessageCircle className="h-4 w-4" />
-              Falar no WhatsApp
-            </Button>
-          </a>
+          <Link
+            href="/orcamento"
+            className={cn(
+              'ml-2 inline-flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold transition hover:-translate-y-0.5',
+              transparentHeader
+                ? 'bg-white text-[#063F2B] shadow-[0_12px_28px_-16px_rgba(0,0,0,0.7)] hover:bg-[#F4F0E8]'
+                : 'bg-brand text-white shadow-[0_12px_26px_-14px_rgba(8,114,71,0.8)] hover:bg-brand-600'
+            )}
+          >
+            Começar projeto
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
         </div>
 
-        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 lg:hidden">
-          <CartCount />
-          <Link href="/area-cliente" className="rounded-md p-2 text-dark hover:bg-gray-100" aria-label="Área do cliente">
-            <User className="h-5 w-5" />
-          </Link>
+        <div className="flex shrink-0 items-center gap-0.5 lg:hidden">
+          <CartCount inverted={transparentHeader} />
           <button
-            className="inline-flex items-center justify-center rounded-md p-2 text-dark hover:bg-gray-100"
+            className={cn(
+              'inline-flex h-11 w-11 items-center justify-center rounded-full transition',
+              transparentHeader
+                ? 'bg-white/10 text-white ring-1 ring-white/30 hover:bg-white/20'
+                : 'bg-white text-[#26382f] shadow-sm ring-1 ring-[#dce5de] hover:bg-[#edf2ee]'
+            )}
             onClick={() => setMobileOpen((s) => !s)}
-            aria-label="Menu"
+            aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={mobileOpen}
           >
-            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
 
       <div
         className={cn(
-          'overflow-hidden border-t bg-white transition-all duration-300 lg:hidden',
-          mobileOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+          'overflow-hidden border-t border-[#E3E8E4] bg-[#FAFBF8] transition-all duration-300 ease-out lg:hidden',
+          mobileOpen ? 'max-h-[540px] opacity-100' : 'max-h-0 opacity-0'
         )}
       >
-        <nav className="flex flex-col gap-2 px-4 py-4">
+        <nav className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-5">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-md px-3 py-2 text-sm font-medium text-dark hover:bg-gray-50"
+              className={cn(
+                'rounded-xl px-4 py-3 text-sm font-medium transition-colors',
+                pathname === link.href || (link.href !== '/' && !link.href.includes('#') && pathname.startsWith(link.href))
+                  ? 'bg-brand-50 text-brand-800'
+                  : 'text-[#425249] hover:bg-white'
+              )}
               onClick={() => setMobileOpen(false)}
             >
               {link.label}
             </Link>
           ))}
-          <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="mt-2">
-            <Button className="w-full gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#dde6df] pt-4">
+            <a
+              href="tel:+25882555736"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#d4ded6] bg-white text-sm font-semibold text-[#304038]"
+            >
+              <Phone className="h-4 w-4" />
+              82 555 736
+            </a>
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#173426] text-sm font-semibold text-white"
+            >
               <MessageCircle className="h-4 w-4" />
-              Falar no WhatsApp
-            </Button>
-          </a>
+              WhatsApp
+            </a>
+          </div>
         </nav>
       </div>
     </header>

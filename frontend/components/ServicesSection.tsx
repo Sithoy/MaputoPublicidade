@@ -105,13 +105,14 @@ export function ServicesSection() {
   }, [scrollServices]);
 
   return (
-    <section className="overflow-hidden bg-dark py-14 text-white lg:py-20">
+    <section className="overflow-hidden bg-[#f8faf8] py-14 text-dark lg:py-20">
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
         <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="text-center lg:text-left">
-            <h2 className="text-3xl font-bold text-white md:text-4xl">Serviços principais</h2>
-            <p className="mx-auto mt-3 max-w-2xl text-gray-300 lg:mx-0">
-              Produção publicitária completa, com imagens reais de cada especialidade em destaque.
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-brand-700">O próximo capítulo</p>
+            <h2 className="text-3xl font-bold tracking-tight text-[#18221d] md:text-4xl">Onde a sua marca precisa de ganhar presença?</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-[#66736c] lg:mx-0">
+              Começamos pela sua necessidade e escolhemos consigo a melhor forma de a tornar visível.
             </p>
           </div>
 
@@ -119,7 +120,7 @@ export function ServicesSection() {
             <button
               type="button"
               onClick={() => scrollServices(-1)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-white/15 bg-white/10 text-white shadow-sm transition hover:border-brand hover:bg-brand"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#d7e0d9] bg-white text-[#405047] shadow-sm transition hover:border-brand hover:bg-brand hover:text-white"
               aria-label="Serviços anteriores"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -127,7 +128,7 @@ export function ServicesSection() {
             <button
               type="button"
               onClick={() => scrollServices(1)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-white/15 bg-white/10 text-white shadow-sm transition hover:border-brand hover:bg-brand"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#d7e0d9] bg-white text-[#405047] shadow-sm transition hover:border-brand hover:bg-brand hover:text-white"
               aria-label="Próximos serviços"
             >
               <ChevronRight className="h-5 w-5" />
@@ -159,9 +160,9 @@ export function ServicesSection() {
               <Card
                 key={`${service.title}-${index}`}
                 data-service-card
-                className="group flex shrink-0 basis-[88%] snap-start flex-col overflow-hidden border-white/10 bg-white text-dark shadow-2xl shadow-black/20 transition duration-300 hover:-translate-y-1 sm:basis-[58%] md:basis-[calc((100%_-_24px)/2)] lg:basis-[calc((100%_-_72px)/4)]"
+                className="group flex shrink-0 basis-[88%] snap-start flex-col overflow-hidden rounded-2xl border-[#e0e7e1] bg-white text-dark shadow-[0_14px_40px_-28px_rgba(24,34,29,0.55)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_-25px_rgba(24,34,29,0.4)] sm:basis-[58%] md:basis-[calc((100%_-_24px)/2)] lg:basis-[calc((100%_-_72px)/4)]"
               >
-                <div className="relative aspect-video overflow-hidden bg-dark">
+                <div className="relative aspect-video overflow-hidden bg-[#e5ebe6]">
                   <Image
                     src={service.image}
                     alt={service.title}

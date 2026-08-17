@@ -10,7 +10,7 @@ export function Footer() {
   const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
   return (
-    <footer className="bg-dark text-white">
+    <footer className="bg-brand-900 text-white">
       <div className="mx-auto max-w-7xl px-4 py-12 lg:px-6">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -22,8 +22,8 @@ export function Footer() {
               className="mb-4 h-14 w-auto object-contain brightness-0 invert"
             />
             <p className="text-sm leading-relaxed text-gray-300">
-              Soluções completas em serigrafia, gráfica, impressão digital e brindes corporativos
-              para impulsionar a imagem da sua empresa.
+              Parceiro de execução e gestão de marca para empresas que valorizam consistência,
+              acompanhamento e um processo bem organizado.
             </p>
           </div>
 
@@ -62,8 +62,8 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-brand" />
-                <a href="mailto:maputopublicidade@outlook.com" className="hover:text-white">
-                  maputopublicidade@outlook.com
+                <a href="mailto:info@maputopublicidade.com" className="hover:text-white">
+                  info@maputopublicidade.com
                 </a>
               </li>
               <li className="flex items-start gap-2">
@@ -101,7 +101,7 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-white/10 bg-[#111922]">
+      <div className="border-t border-white/10 bg-[#021D14]">
         <a
           href="https://www.etios.net"
           target="_blank"

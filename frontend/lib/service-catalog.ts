@@ -56,7 +56,7 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos ligados à personalização têxtil para equipas, eventos e ações promocionais.',
     points: ['Polos', 'Bonés', 'Uniformes'],
-    image: '/images/supplied/serigrafia-bordado.png',
+    image: '/images/supplied/serigrafia-bordado.jpg',
     benefits: [
       { title: 'Acabamento resistente', text: 'Aplicações pensadas para uso frequente e lavagem regular.' },
       { title: 'Identidade consistente', text: 'Cores, posicionamento e materiais alinhados com a marca.' },
@@ -78,7 +78,7 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos gráficos para comunicação institucional, comercial e promocional.',
     points: ['Catálogos', 'Cartões', 'Folhetos'],
-    image: '/images/supplied/grafica.png',
+    image: '/images/supplied/grafica.jpg',
     benefits: [
       { title: 'Boa apresentação', text: 'Materiais com impacto visual e acabamento profissional.' },
       { title: 'Formatos variados', text: 'Produção adaptada a campanhas, escritórios, lojas e eventos.' },
@@ -100,7 +100,7 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos para promover a marca em espaços comerciais, viaturas, eventos e campanhas.',
     points: ['Rollups', 'Viaturas', 'Placas'],
-    image: '/images/supplied/impressao-digital-branding.png',
+    image: '/images/supplied/impressao-digital-branding.jpg',
     benefits: [
       { title: 'Presença forte', text: 'Peças que tornam a marca reconhecível à distância.' },
       { title: 'Aplicação versátil', text: 'Soluções para interior, exterior, eventos e circulação urbana.' },
@@ -122,7 +122,7 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos promocionais e brindes para campanhas, eventos e oferta corporativa.',
     points: ['UV', 'Brindes', 'Premium'],
-    image: '/images/supplied/impressao-uv-brindes.png',
+    image: '/images/supplied/impressao-uv-brindes.jpg',
     benefits: [
       { title: 'Aplicação em materiais diversos', text: 'Impressão em objetos rígidos, brindes e superfícies especiais.' },
       { title: 'Boa lembrança de marca', text: 'Produtos úteis que mantêm a empresa presente no dia a dia.' },
@@ -144,7 +144,7 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos e aplicações com corte ou gravação a laser para decoração, sinalização e brindes.',
     points: ['Acrílico', 'MDF', 'Precisão'],
-    image: '/images/supplied/cortes-a-laser.png',
+    image: '/images/supplied/cortes-a-laser.jpg',
     benefits: [
       { title: 'Alta precisão', text: 'Cortes detalhados para peças pequenas, letras, padrões e formas complexas.' },
       { title: 'Materiais variados', text: 'Acrílico, MDF, madeira, couro, papel, cartão e plásticos compatíveis.' },
@@ -166,7 +166,7 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos para sinalização, decoração e presença de marca em interiores e exteriores.',
     points: ['3D', 'Letras caixa', 'Interiores'],
-    image: '/images/supplied/paineis-3d.png',
+    image: '/images/supplied/paineis-3d.jpg',
     benefits: [
       { title: 'Impacto visual', text: 'Elementos com volume e acabamento que destacam a marca no espaço.' },
       { title: 'Interior e exterior', text: 'Soluções adaptadas a receções, fachadas, paredes e ambientes comerciais.' },

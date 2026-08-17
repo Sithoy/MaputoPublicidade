@@ -1,11 +1,11 @@
 import { HeroSection } from '@/components/HeroSection';
-import { ServicesSection } from '@/components/ServicesSection';
-import { FeaturedProducts } from '@/components/FeaturedProducts';
+import { TrustMetricsSection } from '@/components/TrustMetricsSection';
+import { BrandPlatformSection } from '@/components/BrandPlatformSection';
+import { BrandTouchpointsSection } from '@/components/BrandTouchpointsSection';
 import { HowItWorks } from '@/components/HowItWorks';
-import { StatsSection } from '@/components/StatsSection';
 import { PortfolioGallery } from '@/components/PortfolioGallery';
+import { WhyTrustSection } from '@/components/WhyTrustSection';
 import { PartnersSection } from '@/components/PartnersSection';
-import { PackagesSection } from '@/components/PackagesSection';
 import { CTABanner } from '@/components/CTABanner';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -15,10 +15,10 @@ const organizationSchema = {
   '@type': 'LocalBusiness',
   name: 'Maputo Publicidade',
   description:
-    'Soluções completas em serigrafia, gráfica, impressão digital, brindes corporativos e branding de viaturas em Maputo, Moçambique.',
+    'Parceiro de execução e gestão de marca para empresas em Maputo, da criação à produção, instalação e entrega.',
   url: siteUrl,
   telephone: '+25882555736',
-  email: 'maputopublicidade@outlook.com',
+  email: 'info@maputopublicidade.com',
   address: {
     '@type': 'PostalAddress',
     streetAddress: 'Rua da Resistência Nº 1550 R/C',
@@ -40,13 +40,13 @@ const organizationSchema = {
 };
 
 export const metadata = {
-  title: 'Publicidade, Gráfica e Impressão Digital em Maputo',
+  title: 'Gestão e Produção de Marca em Maputo',
   description:
-    'Soluções completas em serigrafia, gráfica, impressão digital, brindes corporativos e branding de viaturas em Maputo, Moçambique.',
+    'Há mais de 10 anos a ajudar empresas a gerir uma presença visual consistente, da criação à produção, instalação e entrega.',
   openGraph: {
-    title: 'Maputo Publicidade | Publicidade, Gráfica e Impressão Digital',
+    title: 'Maputo Publicidade | Presença de Marca em Maputo',
     description:
-      'Soluções completas em serigrafia, gráfica, impressão digital, brindes corporativos e branding de viaturas em Maputo, Moçambique.',
+      'Parceiro de execução e gestão de marca para empresas em Maputo, da primeira conversa à entrega final.',
     url: siteUrl,
     images: [`${siteUrl}/og-image.png`],
   },
@@ -60,13 +60,13 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
       <HeroSection />
-      <ServicesSection />
-      <FeaturedProducts />
-      <HowItWorks />
-      <StatsSection />
-      <PortfolioGallery limit={9} />
+      <TrustMetricsSection />
       <PartnersSection />
-      <PackagesSection />
+      <BrandPlatformSection />
+      <BrandTouchpointsSection />
+      <PortfolioGallery limit={6} />
+      <HowItWorks />
+      <WhyTrustSection />
       <CTABanner />
     </>
   );
