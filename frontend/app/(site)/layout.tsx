@@ -1,16 +1,5 @@
-import { CookieBanner } from '@/components/CookieBanner';
-import { Footer } from '@/components/Footer';
-import { Header } from '@/components/Header';
-import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { SiteFrame } from '@/components/SiteFrame';
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-1">{children}</main>
-      <Footer />
-      <WhatsAppButton />
-      <CookieBanner />
-    </div>
-  );
+  return <SiteFrame>{children}</SiteFrame>;
 }

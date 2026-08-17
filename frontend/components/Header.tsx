@@ -142,7 +142,7 @@ export function Header() {
             )}
           >
             <User className="h-[18px] w-[18px]" />
-            Área do cliente
+            Portal do cliente
           </Link>
           <Link
             href="/orcamento"

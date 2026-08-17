@@ -49,7 +49,7 @@ export function Footer() {
               <li><Link href="/sobre" className="hover:text-white">Sobre Nós</Link></li>
               <li><Link href="/sobre#contactos" className="hover:text-white">Fale Connosco</Link></li>
               <li><Link href="/orcamento" className="hover:text-white">Orçamento</Link></li>
-              <li><Link href="/area-cliente/login" className="hover:text-white">Área do Cliente</Link></li>
+              <li><Link href="/area-cliente/login" className="hover:text-white">Portal do Cliente</Link></li>
               <li><Link href="/admin/login" className="hover:text-white">Administração</Link></li>
             </ul>
           </div>

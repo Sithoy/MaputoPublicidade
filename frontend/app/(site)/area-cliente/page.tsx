@@ -1,13 +1,46 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, Clock, FileText, Package } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import type { LucideIcon } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  Banknote,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock3,
+  FileText,
+  Package,
+  Plus,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
 import { getClientOrders } from '@/lib/client-api';
 import type { Order } from '@/lib/api';
+import { cn } from '@/lib/utils';
+
+const statusLabels: Record<string, string> = {
+  received: 'Pedido recebido',
+  reviewing: 'Em análise',
+  quoted: 'Aguardando aprovação',
+  approved: 'Aprovado',
+  in_production: 'Em produção',
+  ready: 'Pronto para entrega',
+  delivered: 'Entregue',
+  cancelled: 'Cancelado',
+};
+
+const statusStyles: Record<string, string> = {
+  received: 'bg-sky-50 text-sky-700 ring-sky-200',
+  reviewing: 'bg-amber-50 text-amber-700 ring-amber-200',
+  quoted: 'bg-amber-50 text-amber-700 ring-amber-200',
+  approved: 'bg-brand-50 text-brand-700 ring-brand-200',
+  in_production: 'bg-violet-50 text-violet-700 ring-violet-200',
+  ready: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  delivered: 'bg-[#eff3f0] text-[#58685f] ring-[#dbe3dd]',
+  cancelled: 'bg-red-50 text-red-700 ring-red-200',
+};
 
 function orderLabel(order: Order) {
   if (order.items.length === 0) return 'Encomenda';
@@ -15,158 +48,317 @@ function orderLabel(order: Order) {
   return `${order.items[0].description} +${order.items.length - 1}`;
 }
 
+function formatCurrency(value: number) {
+  return `${new Intl.NumberFormat('pt-MZ', { maximumFractionDigits: 0 }).format(value)} MZN`;
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  note,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | number;
+  note: string;
+  tone: 'green' | 'amber' | 'blue';
+}) {
+  const tones = {
+    green: 'bg-brand-50 text-brand-700',
+    amber: 'bg-amber-50 text-amber-700',
+    blue: 'bg-sky-50 text-sky-700',
+  };
+
+  return (
+    <div className="rounded-2xl border border-[#dfe7e1] bg-white p-5 shadow-[0_14px_38px_-34px_rgba(6,63,43,0.5)]">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-[#6a7971]">{label}</p>
+          <p className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-dark">{value}</p>
+          <p className="mt-1 text-xs text-[#829087]">{note}</p>
+        </div>
+        <span className={cn('inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', tones[tone])}>
+          <Icon className="h-5 w-5" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="animate-pulse space-y-5" aria-label="A carregar resumo dos pedidos">
+      <div className="h-48 rounded-3xl bg-[#e2e9e3]" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="h-28 rounded-2xl bg-[#e2e9e3]" />
+        <div className="h-28 rounded-2xl bg-[#e2e9e3]" />
+        <div className="h-28 rounded-2xl bg-[#e2e9e3]" />
+      </div>
+      <div className="h-64 rounded-3xl bg-[#e2e9e3]" />
+    </div>
+  );
+}
+
 export default function ClientDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    getClientOrders()
-      .then(setOrders)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar'))
-      .finally(() => setLoading(false));
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      setOrders(await getClientOrders());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível carregar os pedidos.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
+
   const activeOrders = useMemo(
-    () => orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled'),
+    () => orders.filter((order) => order.status !== 'delivered' && order.status !== 'cancelled'),
     [orders]
   );
 
   const pendingApprovals = useMemo(
     () =>
       orders.filter(
-        (o) =>
-          o.status === 'quoted' ||
-          (o.artwork && o.artwork.status === 'pending' && o.status !== 'cancelled')
+        (order) =>
+          order.status === 'quoted' ||
+          (order.artwork?.status === 'pending' && order.status !== 'cancelled')
       ),
     [orders]
   );
 
   const paymentsDue = useMemo(
     () =>
-      orders
-        .filter((o) => o.payment_status !== 'paid' && (o.amount_due || 0) > 0)
-        .reduce((sum, o) => sum + (o.amount_due || 0), 0),
+      orders.reduce(
+        (sum, order) =>
+          order.payment_status !== 'paid' ? sum + (order.amount_due || 0) : sum,
+        0
+      ),
     [orders]
   );
 
-  const recent = useMemo(() => orders.slice(0, 5), [orders]);
+  const recentOrders = useMemo(() => orders.slice(0, 4), [orders]);
 
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <p className="text-gray-500">A carregar...</p>
-      </div>
-    );
-  }
+  if (loading) return <DashboardSkeleton />;
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
-        {error}
+      <div className="rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-700">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <h1 className="mt-4 text-xl font-semibold text-dark">Não foi possível abrir o seu resumo</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68776f]">{error}</p>
+        <button
+          type="button"
+          onClick={() => void loadOrders()}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Tentar novamente
+        </button>
       </div>
     );
   }
 
+  const needsAttention = pendingApprovals.length > 0 || paymentsDue > 0;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-dark">Dashboard</h1>
-        <p className="text-sm text-gray-500">Resumo das suas encomendas e pedidos.</p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-lg bg-brand/10 p-3 text-brand">
-              <Package className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Encomendas activas</p>
-              <p className="text-2xl font-bold text-dark">{activeOrders.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-lg bg-yellow-100 p-3 text-yellow-600">
-              <AlertCircle className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Aprovações pendentes</p>
-              <p className="text-2xl font-bold text-dark">{pendingApprovals.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-lg bg-green-100 p-3 text-green-600">
-              <Clock className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Pagamentos pendentes</p>
-              <p className="text-2xl font-bold text-dark">
-                {paymentsDue > 0 ? `${paymentsDue.toLocaleString()} MZN` : '—'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardContent className="p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-dark">Encomendas recentes</h2>
-            <Link href="/area-cliente/encomendas">
-              <Button variant="outline" size="sm">Ver todas</Button>
+    <div className="space-y-5">
+      <section className="relative overflow-hidden rounded-3xl bg-brand-900 px-6 py-8 text-white shadow-[0_24px_60px_-38px_rgba(3,42,29,0.9)] sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full border-[38px] border-white/[0.035]" />
+        <div className="pointer-events-none absolute bottom-0 right-24 h-28 w-28 rounded-full bg-brand-500/20 blur-2xl" />
+        <div className="relative max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-100 ring-1 ring-white/10">
+            <Sparkles className="h-3.5 w-3.5" />
+            Visão geral da sua marca
+          </div>
+          <h1 className="mt-5 text-balance text-3xl font-semibold leading-tight tracking-[-0.03em] sm:text-4xl">
+            Acompanhe o que está a acontecer com cada pedido.
+          </h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-white/68 sm:text-base">
+            Veja o progresso, encontre o que precisa da sua aprovação e mantenha os próximos passos claros.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/catalogo"
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-brand-900 transition hover:-translate-y-0.5 hover:bg-[#f4f0e8]"
+            >
+              <Plus className="h-4 w-4" />
+              Iniciar novo pedido
+            </Link>
+            <Link
+              href="/area-cliente/encomendas"
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/15"
+            >
+              Ver encomendas
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
+        </div>
+      </section>
 
-          {recent.length === 0 ? (
-            <div className="py-8 text-center text-gray-500">
-              <FileText className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-              <p>Ainda não tem encomendas.</p>
-              <Link href="/catalogo">
-                <Button className="mt-4">Ver catálogo</Button>
+      <section className="grid gap-4 sm:grid-cols-3" aria-label="Resumo da conta">
+        <StatCard
+          icon={Package}
+          label="Encomendas activas"
+          value={activeOrders.length}
+          note={activeOrders.length === 1 ? 'pedido em acompanhamento' : 'pedidos em acompanhamento'}
+          tone="green"
+        />
+        <StatCard
+          icon={ClipboardCheck}
+          label="Aprovações pendentes"
+          value={pendingApprovals.length}
+          note={pendingApprovals.length > 0 ? 'precisam da sua atenção' : 'nenhuma acção necessária'}
+          tone="amber"
+        />
+        <StatCard
+          icon={Banknote}
+          label="Pagamentos pendentes"
+          value={paymentsDue > 0 ? formatCurrency(paymentsDue) : 'Em dia'}
+          note={paymentsDue > 0 ? 'saldo total por regularizar' : 'sem valores pendentes'}
+          tone="blue"
+        />
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[0.92fr_1.58fr]">
+        <div className="rounded-3xl border border-[#dfe7e1] bg-[#f4f0e8] p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8d7040]">Próximos passos</p>
+              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-dark">
+                {needsAttention ? 'Precisa da sua atenção' : 'Tudo em dia por agora'}
+              </h2>
+            </div>
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#9b7535] shadow-sm">
+              {needsAttention ? <Clock3 className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+            </span>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {pendingApprovals.length > 0 ? (
+              <Link
+                href="/area-cliente/encomendas"
+                className="group flex items-center justify-between gap-4 rounded-2xl border border-[#e3dac8] bg-white/75 p-4 transition hover:bg-white"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-dark">
+                    {pendingApprovals.length} {pendingApprovals.length === 1 ? 'aprovação pendente' : 'aprovações pendentes'}
+                  </p>
+                  <p className="mt-1 text-xs text-[#7b7061]">Reveja a proposta ou prova digital.</p>
+                </div>
+                <ArrowRight className="h-4 w-4 shrink-0 text-[#a17b3b] transition group-hover:translate-x-0.5" />
+              </Link>
+            ) : null}
+
+            {paymentsDue > 0 ? (
+              <Link
+                href="/area-cliente/encomendas"
+                className="group flex items-center justify-between gap-4 rounded-2xl border border-[#e3dac8] bg-white/75 p-4 transition hover:bg-white"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-dark">Pagamento por regularizar</p>
+                  <p className="mt-1 text-xs text-[#7b7061]">Saldo total de {formatCurrency(paymentsDue)}.</p>
+                </div>
+                <ArrowRight className="h-4 w-4 shrink-0 text-[#a17b3b] transition group-hover:translate-x-0.5" />
+              </Link>
+            ) : null}
+
+            {!needsAttention ? (
+              <div className="rounded-2xl border border-[#e3dac8] bg-white/70 p-4">
+                <p className="text-sm leading-6 text-[#706858]">
+                  Quando houver uma proposta, prova digital ou pagamento para rever, ficará visível aqui.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-[#dfe7e1] bg-white p-5 shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)] sm:p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Actividade</p>
+              <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">Encomendas recentes</h2>
+            </div>
+            {recentOrders.length > 0 ? (
+              <Link
+                href="/area-cliente/encomendas"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
+              >
+                Ver todas
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : null}
+          </div>
+
+          {recentOrders.length === 0 ? (
+            <div className="flex min-h-52 flex-col items-center justify-center py-8 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+                <FileText className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-dark">O seu primeiro pedido começa aqui</h3>
+              <p className="mt-1 max-w-sm text-sm leading-6 text-[#718078]">
+                Explore o catálogo ou envie-nos o seu briefing para organizarmos a solução certa.
+              </p>
+              <Link
+                href="/catalogo"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
+              >
+                Explorar catálogo
+                <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           ) : (
-            <div className="space-y-3">
-              {recent.map((order) => (
-                <div
+            <div className="mt-5 divide-y divide-[#edf1ee]">
+              {recentOrders.map((order) => (
+                <Link
                   key={order.id}
-                  className="flex flex-col gap-2 rounded-lg border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between"
+                  href={`/area-cliente/encomendas/${order.reference}`}
+                  className="group flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div>
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="font-mono text-sm font-semibold text-brand">
-                        {order.reference}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-semibold text-brand-700">{order.reference}</span>
+                      <span
+                        className={cn(
+                          'inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset',
+                          statusStyles[order.status] || 'bg-gray-50 text-gray-700 ring-gray-200'
+                        )}
+                      >
+                        {order.status_display || statusLabels[order.status] || order.status}
                       </span>
-                      <Badge variant="outline">{order.status_display || order.status}</Badge>
                     </div>
-                    <p className="font-medium text-dark">{orderLabel(order)}</p>
-                    <p className="text-xs text-gray-500">
-                      {order.item_count} item(s) • {new Date(order.created_at).toLocaleDateString('pt-MZ')}
+                    <p className="mt-1.5 truncate text-sm font-semibold text-dark">{orderLabel(order)}</p>
+                    <p className="mt-1 text-xs text-[#7b8981]">
+                      {order.item_count ?? order.items.length} item(s) ·{' '}
+                      {new Date(order.created_at).toLocaleDateString('pt-MZ')}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-3">
                     {order.amount_due ? (
-                      <p className="text-sm font-semibold text-dark">
-                        {order.amount_due.toLocaleString()} MZN
-                      </p>
+                      <span className="text-sm font-semibold text-dark">{formatCurrency(order.amount_due)}</span>
                     ) : null}
-                    <Link href={`/area-cliente/encomendas/${order.reference}`}>
-                      <Button variant="outline" size="sm">Ver</Button>
-                    </Link>
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#f3f6f3] text-[#64736b] transition group-hover:bg-brand-50 group-hover:text-brand-700">
+                      <ArrowRight className="h-4 w-4" />
+                    </span>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

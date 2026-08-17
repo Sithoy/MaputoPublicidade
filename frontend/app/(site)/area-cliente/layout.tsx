@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import ClientAreaLayout from './ClientAreaLayout';
 
 export const metadata: Metadata = {
-  title: 'Área do Cliente',
+  title: 'Portal do Cliente',
+  description: 'Acompanhe encomendas, aprovações e pagamentos da sua empresa.',
   robots: { index: false, follow: false },
 };
 
