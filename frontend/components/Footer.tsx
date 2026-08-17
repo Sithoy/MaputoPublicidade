@@ -43,13 +43,14 @@ export function Footer() {
           <div>
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-brand">Links Rápidos</h3>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li><Link href="/sobre" className="hover:text-white">Sobre Nós</Link></li>
               <li><Link href="/catalogo" className="hover:text-white">Catálogo</Link></li>
+              <li><Link href="/servicos" className="hover:text-white">Serviços</Link></li>
               <li><Link href="/portfolio" className="hover:text-white">Portfólio</Link></li>
+              <li><Link href="/sobre" className="hover:text-white">Sobre Nós</Link></li>
+              <li><Link href="/sobre#contactos" className="hover:text-white">Fale Connosco</Link></li>
               <li><Link href="/orcamento" className="hover:text-white">Orçamento</Link></li>
               <li><Link href="/area-cliente/login" className="hover:text-white">Área do Cliente</Link></li>
               <li><Link href="/admin/login" className="hover:text-white">Administração</Link></li>
-              <li><Link href="/contactos" className="hover:text-white">Contactos</Link></li>
             </ul>
           </div>
 

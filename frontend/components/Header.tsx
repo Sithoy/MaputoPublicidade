@@ -10,12 +10,10 @@ import { getToken } from '@/lib/auth';
 import { getCart } from '@/lib/client-api';
 
 const navLinks = [
-  { href: '/', label: 'Início' },
-  { href: '/sobre', label: 'A Nossa História' },
-  { href: '/servicos', label: 'Soluções' },
-  { href: '/#plataforma', label: 'Plataforma' },
+  { href: '/catalogo', label: 'Catálogo' },
+  { href: '/servicos', label: 'Serviços' },
   { href: '/portfolio', label: 'Portfólio' },
-  { href: '/contactos', label: 'Contactos' },
+  { href: '/sobre', label: 'Sobre Nós' },
 ];
 
 const WHATSAPP_NUMBER = '25882555736';
