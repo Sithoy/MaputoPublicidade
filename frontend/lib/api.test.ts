@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { normalizePaginatedResponse, resolveServerApiOrigin } from './api';
+import {
+  normalizePaginatedResponse,
+  resolveServerApiOrigin,
+  resolveServerGetFallbackUrl,
+} from './api';
 
 describe('resolveServerApiOrigin', () => {
   it('keeps the internal Docker service address during local development', () => {
@@ -33,6 +37,22 @@ describe('resolveServerApiOrigin', () => {
         PUBLIC_CONTENT_API_ORIGIN: 'https://content.example.com/',
       })
     ).toBe('https://content.example.com');
+  });
+
+  it('provides a public GET fallback for a local-only server address', () => {
+    expect(
+      resolveServerGetFallbackUrl('/api/products/', {
+        INTERNAL_API_URL: 'http://backend:8000',
+      })
+    ).toBe('https://www.maputopublicidade.com/api/products/');
+  });
+
+  it('does not override a reachable public server address', () => {
+    expect(
+      resolveServerGetFallbackUrl('/api/products/', {
+        INTERNAL_API_URL: 'https://api.example.com',
+      })
+    ).toBeNull();
   });
 });
 

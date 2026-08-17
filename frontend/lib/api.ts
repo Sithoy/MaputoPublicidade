@@ -23,6 +23,19 @@ export function resolveServerApiOrigin(env: ApiEnvironment = process.env): strin
   return configuredOrigin || LOCAL_SERVER_API_ORIGIN;
 }
 
+export function resolveServerGetFallbackUrl(
+  path: string,
+  env: ApiEnvironment = process.env
+): string | null {
+  if (/^https?:\/\//i.test(path) || !isLocalOnlyOrigin(resolveServerApiOrigin(env))) {
+    return null;
+  }
+
+  const publicOrigin = (env.PUBLIC_CONTENT_API_ORIGIN || PUBLIC_API_ORIGIN).replace(/\/$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${publicOrigin}${cleanPath}`;
+}
+
 export function apiUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
 
@@ -36,23 +49,35 @@ export function apiUrl(path: string): string {
 const DEFAULT_FETCH_TIMEOUT_MS = 10000;
 
 export async function get<T = unknown>(path: string, options?: RequestInit): Promise<T> {
-  const controller = new AbortController();
-  const hasExternalSignal = options?.signal != null;
-  const timeoutId = hasExternalSignal
-    ? undefined
-    : setTimeout(() => controller.abort(), DEFAULT_FETCH_TIMEOUT_MS);
+  const request = async (url: string): Promise<Response> => {
+    const controller = new AbortController();
+    const hasExternalSignal = options?.signal != null;
+    const timeoutId = hasExternalSignal
+      ? undefined
+      : setTimeout(() => controller.abort(), DEFAULT_FETCH_TIMEOUT_MS);
 
+    try {
+      return await fetch(url, {
+        ...options,
+        headers: { Accept: 'application/json', ...(options?.headers || {}) },
+        signal: hasExternalSignal ? options.signal : controller.signal,
+      });
+    } finally {
+      if (!hasExternalSignal) clearTimeout(timeoutId);
+    }
+  };
+
+  let res: Response;
   try {
-    const res = await fetch(apiUrl(path), {
-      ...options,
-      headers: { Accept: 'application/json', ...(options?.headers || {}) },
-      signal: hasExternalSignal ? options.signal : controller.signal,
-    });
-    if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
-    return res.json() as Promise<T>;
-  } finally {
-    if (!hasExternalSignal) clearTimeout(timeoutId);
+    res = await request(apiUrl(path));
+  } catch (error) {
+    const fallbackUrl = typeof window === 'undefined' ? resolveServerGetFallbackUrl(path) : null;
+    if (!fallbackUrl || options?.signal?.aborted) throw error;
+    res = await request(fallbackUrl);
   }
+
+  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  return res.json() as Promise<T>;
 }
 
 export async function post<T = unknown>(
