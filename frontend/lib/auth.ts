@@ -1,6 +1,10 @@
 import { apiUrl } from './api';
 
-const AUTH_BASE = '/_allauth/app/v1';
+// Keep authentication behind our own server route. This avoids exposing the
+// backend origin to the browser and does not depend on a build-time rewrite.
+const AUTH_BASE = '/auth-api/app/v1';
+const AUTH_UNAVAILABLE_MESSAGE =
+  'Servidor de autenticacao indisponivel. Verifique a ligacao ao backend.';
 
 let accessToken: string | null = null;
 let refreshTokenValue: string | null = null;
@@ -73,18 +77,23 @@ async function readJson<T>(res: Response): Promise<T | null> {
 }
 
 function authUnavailableMessage(status: number) {
-  if (status === 404) {
-    return 'Servidor de autenticacao indisponivel. Verifique a ligacao ao backend.';
+  if (status === 404 || status >= 500) {
+    return AUTH_UNAVAILABLE_MESSAGE;
   }
   return 'Credenciais invalidas';
 }
 
 export async function login(email: string, password: string) {
-  const res = await fetch(authUrl('/auth/login'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(authUrl('/auth/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new Error(AUTH_UNAVAILABLE_MESSAGE);
+  }
   const data = await readJson<AuthResponse>(res);
   const accessTokenValue = data?.meta?.access_token || data?.data?.access_token;
   const refreshToken = data?.meta?.refresh_token || data?.data?.refresh_token;

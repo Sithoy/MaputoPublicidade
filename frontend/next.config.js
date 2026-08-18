@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
-const internalApiUrl = process.env.INTERNAL_API_URL || 'http://backend:8000';
+const internalApiUrl =
+  process.env.INTERNAL_API_URL ||
+  (process.env.VERCEL === '1'
+    ? 'https://maputo-publicidade-backend-4ppp.onrender.com'
+    : 'http://backend:8000');
 
 const nextConfig = {
   reactStrictMode: true,
