@@ -1,10 +1,4 @@
-export type ServiceIconName =
-  | 'textile'
-  | 'print'
-  | 'branding'
-  | 'promotional'
-  | 'laser'
-  | 'dimensional';
+export type ServiceIconName = 'Shirt' | 'Printer' | 'Paintbrush' | 'Gift' | 'Crosshair' | 'Box';
 
 export type MainService = {
   slug: string;
@@ -51,7 +45,7 @@ export const mainServices: MainService[] = [
   {
     slug: 'serigrafia-e-bordado',
     categorySlug: 'serigrafia-e-bordado',
-    iconName: 'textile',
+    iconName: 'Shirt',
     title: 'Serigrafia e Bordado',
     eyebrow: 'Uniformes que representam a sua marca',
     summary: 'Uniformes, polos, camisetas, bonés, coletes e sacolas com acabamento profissional.',
@@ -73,7 +67,7 @@ export const mainServices: MainService[] = [
   {
     slug: 'grafica',
     categorySlug: 'grafica',
-    iconName: 'print',
+    iconName: 'Printer',
     title: 'Gráfica',
     eyebrow: 'Impressão que comunica com qualidade',
     summary: 'Folhetos, cartazes, catálogos, brochuras, envelopes, livros e cartões de visita.',
@@ -95,7 +89,7 @@ export const mainServices: MainService[] = [
   {
     slug: 'impressao-digital-e-branding',
     categorySlug: 'impressao-digital-e-branding',
-    iconName: 'branding',
+    iconName: 'Paintbrush',
     title: 'Impressão Digital e Branding',
     eyebrow: 'Marca visível em todos os pontos de contacto',
     summary: 'Rollups, teardrops, gazebos, placas, autocolantes, viaturas, lojas e eventos.',
@@ -117,7 +111,7 @@ export const mainServices: MainService[] = [
   {
     slug: 'impressao-uv-e-brindes',
     categorySlug: 'impressao-uv-e-brindes',
-    iconName: 'promotional',
+    iconName: 'Gift',
     title: 'Impressão UV e Brindes',
     eyebrow: 'Brindes personalizados para valorizar a marca',
     summary: 'Impressão direta em diversos materiais e brindes corporativos personalizados.',
@@ -139,7 +133,7 @@ export const mainServices: MainService[] = [
   {
     slug: 'cortes-a-laser',
     categorySlug: 'cortes-a-laser',
-    iconName: 'laser',
+    iconName: 'Crosshair',
     title: 'Cortes a Laser',
     eyebrow: 'Precisão que transforma ideias em peças únicas',
     summary: 'Cortes precisos em acrílico, MDF, madeira, couro, papel e plástico para peças únicas.',
@@ -161,7 +155,7 @@ export const mainServices: MainService[] = [
   {
     slug: 'paineis-3d',
     categorySlug: 'paineis-3d',
-    iconName: 'dimensional',
+    iconName: 'Box',
     title: 'Painéis em 3D',
     eyebrow: 'Ambientes com profundidade, marca e presença',
     summary: 'Painéis decorativos, letras caixa, sinalização 3D e acabamentos para interiores e fachadas.',

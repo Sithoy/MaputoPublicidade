@@ -95,14 +95,6 @@ export function Footer() {
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 text-xs text-gray-400 md:flex-row">
           <p>© {new Date().getFullYear()} Maputo Publicidade e Serviços Lda. Todos os direitos reservados.</p>
           <div className="flex gap-4">
-            <a
-              href="https://www.flaticon.com/uicons"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-white"
-            >
-              Uicons by Flaticon
-            </a>
             <Link href="/termos" className="hover:text-white">Termos de Uso</Link>
             <Link href="/privacidade" className="hover:text-white">Privacidade</Link>
             <Link href="/politica-cookies" className="hover:text-white">Cookies</Link>

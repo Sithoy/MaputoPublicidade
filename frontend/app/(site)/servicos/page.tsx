@@ -44,8 +44,8 @@ export default function ServicesPage() {
                     quality={90}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
-                  <div className="absolute bottom-4 left-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-white text-brand-800 shadow-lg ring-1 ring-black/5">
-                    <ServiceIcon className="text-[1.55rem]" />
+                  <div className="absolute bottom-4 left-4 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-brand text-white shadow-lg shadow-brand/25">
+                    <ServiceIcon className="h-5 w-5" />
                   </div>
                 </div>
                 <CardContent className="flex flex-1 flex-col">

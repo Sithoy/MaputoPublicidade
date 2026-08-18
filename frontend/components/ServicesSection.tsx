@@ -175,8 +175,8 @@ export function ServicesSection() {
 
                 <CardContent className="flex flex-1 flex-col p-4">
                   <div className="mb-4 flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#edf2ed] text-brand-800 ring-1 ring-inset ring-brand-100/70 transition-colors duration-300 group-hover:bg-brand-100">
-                      <ServiceIcon className="text-[1.45rem]" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white shadow-lg shadow-brand/25">
+                      <ServiceIcon className="h-5 w-5" />
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold leading-snug text-dark">{service.title}</h3>
