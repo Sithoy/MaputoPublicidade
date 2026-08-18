@@ -181,8 +181,8 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
 
           <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0 max-w-3xl">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-brand text-white shadow-lg shadow-brand/30">
-                <ServiceIcon className="h-6 w-6" />
+              <div className="mb-5 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-brand-800 shadow-[0_14px_34px_-22px_rgba(8,114,71,0.8)] ring-1 ring-inset ring-brand-100">
+                <ServiceIcon className="h-11 w-11" />
               </div>
               <p className="mb-3 break-words text-xs font-semibold uppercase tracking-[0.12em] text-brand sm:text-sm sm:tracking-[0.18em]">
                 {service.eyebrow}
