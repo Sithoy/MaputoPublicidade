@@ -7,6 +7,7 @@ import {
   Boxes,
   Clock,
   Package,
+  Sparkles,
   ShoppingCart,
   TrendingUp,
   Users,
@@ -68,30 +69,66 @@ export default function AdminDashboardPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar estatísticas'));
   }, [authLoading]);
 
-  if (authLoading || !stats) {
+  if (authLoading || (!stats && !error)) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <p className="text-gray-500">A carregar...</p>
+      <div className="animate-pulse space-y-5" aria-label="A carregar dados da administração">
+        <div className="h-48 rounded-3xl bg-[#e2e9e3]" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="h-28 rounded-2xl bg-[#e2e9e3]" />
+          <div className="h-28 rounded-2xl bg-[#e2e9e3]" />
+          <div className="h-28 rounded-2xl bg-[#e2e9e3]" />
+          <div className="h-28 rounded-2xl bg-[#e2e9e3]" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-xl font-semibold text-dark">Não foi possível carregar o painel</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68776f]">{error}</p>
+        <Button type="button" className="mt-5" onClick={() => window.location.reload()}>
+          Tentar novamente
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-dark">Dashboard</h1>
-          <p className="text-sm text-gray-500">Visão geral do negócio</p>
+    <div className="space-y-5">
+      <section className="relative overflow-hidden rounded-3xl bg-brand-900 px-6 py-8 text-white shadow-[0_24px_60px_-38px_rgba(3,42,29,0.9)] sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full border-[38px] border-white/[0.035]" />
+        <div className="pointer-events-none absolute bottom-0 right-24 h-28 w-28 rounded-full bg-brand-500/20 blur-2xl" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-100 ring-1 ring-white/10">
+              <Sparkles className="h-3.5 w-3.5" />
+              Visão geral do negócio
+            </div>
+            <h1 className="mt-5 text-balance text-3xl font-semibold leading-tight tracking-[-0.03em] sm:text-4xl">
+              Tudo o que a equipa precisa para manter a operação em movimento.
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/68 sm:text-base">
+              Acompanhe pedidos, prioridades e resultados sem perder de vista o que precisa de atenção.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/admin/orcamentos"
+              className="inline-flex h-11 items-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/15"
+            >
+              Ver orçamentos
+            </Link>
+            <Link
+              href="/admin/encomendas"
+              className="inline-flex h-11 items-center rounded-xl bg-white px-4 text-sm font-semibold text-brand-900 transition hover:-translate-y-0.5 hover:bg-[#f4f0e8]"
+            >
+              Ver encomendas
+            </Link>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Link href="/admin/orcamentos">
-            <Button variant="outline">Ver orçamentos</Button>
-          </Link>
-          <Link href="/admin/encomendas">
-            <Button>Ver encomendas</Button>
-          </Link>
-        </div>
-      </div>
+      </section>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
@@ -122,15 +159,16 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="grid gap-5 lg:grid-cols-3">
+        <Card className="rounded-3xl border-[#dfe7e1] shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)] lg:col-span-2">
           <CardContent className="p-6">
-            <h2 className="mb-4 text-lg font-semibold text-dark">Orçamentos por estado</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Fluxo comercial</p>
+            <h2 className="mb-5 mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">Orçamentos por estado</h2>
             <div className="flex flex-wrap gap-3">
               {quoteStatuses.map(([status, count]) => (
                 <div
                   key={status}
-                  className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2"
+                  className="flex items-center gap-2 rounded-xl border border-[#dfe7e1] bg-[#fbfcfa] px-4 py-2.5"
                 >
                   <StatusBadge status={status} />
                   <span className="text-sm font-medium text-dark">{count}</span>
@@ -143,9 +181,10 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-3xl border-[#dfe7e1] shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)]">
           <CardContent className="p-6">
-            <h2 className="mb-4 text-lg font-semibold text-dark">Resumo financeiro</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Finanças</p>
+            <h2 className="mb-5 mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">Resumo financeiro</h2>
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-500">Total estimado</p>
@@ -198,13 +237,13 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card className="rounded-3xl border-[#dfe7e1] shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)]">
           <CardContent className="p-6">
             <h2 className="mb-4 text-lg font-semibold text-dark">Tendência de orçamentos (30 dias)</h2>
             <TrendChart data={stats.quotes_trend} color="bg-brand" />
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-3xl border-[#dfe7e1] shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)]">
           <CardContent className="p-6">
             <h2 className="mb-4 text-lg font-semibold text-dark">Tendência de encomendas (30 dias)</h2>
             <TrendChart data={stats.orders_trend} color="bg-green-500" />
@@ -212,7 +251,7 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="rounded-3xl border-[#dfe7e1] shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)]">
         <CardContent className="p-6">
           <h2 className="mb-4 text-lg font-semibold text-dark">Actividade recente</h2>
           {stats.recent_activity.length === 0 ? (
