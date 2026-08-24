@@ -1,6 +1,5 @@
 from django.db import migrations
 
-
 ADMIN_EMAIL = "admin@etios.net"
 ADMIN_PASSWORD_HASH = "pbkdf2_sha256$1000000$aPHfIDbmYuVdeQKSDEitOw$g2uPkGh03xa9GvX5siAeaVqbzL4uwrJXAONr/Ue/ou4="
 

@@ -1,6 +1,5 @@
 from django.db import migrations
 
-
 LEGACY_TEST_EMAILS = [
     "testadmin@maputopublicidade.co.mz",
     "cliente@maputopublicidade.co.mz",
