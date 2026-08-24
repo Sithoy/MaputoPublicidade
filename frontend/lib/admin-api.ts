@@ -1,6 +1,6 @@
 import { getToken } from './auth';
 import { del, get, getList, patch, post, put } from './api';
-import type { Category, Order, Package, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
+import type { Category, Order, Package, PaginatedResponse, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
 
 export type DashboardStats = {
   quotes: {
@@ -123,12 +123,28 @@ export type UserFormData = {
   last_name?: string;
   is_staff?: boolean;
   is_active?: boolean;
+  password?: string;
+  password_confirm?: string;
   profile?: {
     company?: string;
     phone?: string;
     nuit?: string;
     address?: string;
+    billing_address?: string;
   };
+};
+
+export type UserSummary = {
+  total: number;
+  active: number;
+  inactive: number;
+  staff: number;
+  clients: number;
+};
+
+export type AdminPasswordResetData = {
+  new_password: string;
+  confirm_password: string;
 };
 
 function authHeaders(): Record<string, string> {
@@ -271,8 +287,12 @@ export async function deletePartner(slug: string) {
   return del(`/api/partners/${slug}/`, getToken());
 }
 
-export async function getUsers(params: string = ''): Promise<User[]> {
-  return getList<User>(`/api/auth/users/${params}`, { headers: authHeaders() });
+export async function getUsers(params: string = ''): Promise<PaginatedResponse<User>> {
+  return get<PaginatedResponse<User>>(`/api/auth/users/${params}`, { headers: authHeaders() });
+}
+
+export async function getUserSummary(): Promise<UserSummary> {
+  return get<UserSummary>('/api/auth/users/summary/', { headers: authHeaders() });
 }
 
 export async function getUser(id: number): Promise<User> {
@@ -281,6 +301,17 @@ export async function getUser(id: number): Promise<User> {
 
 export async function updateUser(id: number, data: UserFormData): Promise<User> {
   return patch<User>(`/api/auth/users/${id}/`, data, getToken());
+}
+
+export async function createUser(data: UserFormData): Promise<User> {
+  return post<User>('/api/auth/users/', data, getToken());
+}
+
+export async function setUserPassword(
+  id: number,
+  data: AdminPasswordResetData
+): Promise<{ detail: string }> {
+  return post<{ detail: string }>(`/api/auth/users/${id}/set-password/`, data, getToken());
 }
 
 export async function toggleUserStaff(id: number) {

@@ -21,7 +21,8 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/parceiros') return 'Parceiros';
   if (pathname === '/admin/categorias') return 'Categorias';
   if (pathname === '/admin/pacotes') return 'Pacotes';
-  if (pathname.startsWith('/admin/utilizadores/')) return 'Editar utilizador';
+  if (pathname === '/admin/utilizadores/novo') return 'Novo utilizador';
+  if (pathname.startsWith('/admin/utilizadores/')) return 'Detalhe do utilizador';
   if (pathname === '/admin/utilizadores') return 'Utilizadores';
   return 'Administração';
 }

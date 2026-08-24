@@ -492,10 +492,16 @@ export type Cart = {
 
 export type User = {
   id: number;
+  username?: string;
   email: string;
   first_name?: string;
   last_name?: string;
   is_staff?: boolean;
+  is_superuser?: boolean;
   is_active?: boolean;
+  date_joined?: string;
+  last_login?: string | null;
+  order_count?: number;
+  quote_count?: number;
   profile?: UserProfile;
 };
