@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
+  ArrowRight,
   Banknote,
   Boxes,
+  CheckCircle2,
   Clock,
+  Factory,
   Package,
   Sparkles,
   ShoppingCart,
@@ -19,6 +22,7 @@ import { StatCard } from '@/components/admin/StatCard';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { getStats } from '@/lib/admin-api';
 import type { DashboardStats } from '@/lib/admin-api';
+import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 
 const statusLabels: Record<string, string> = {
   received: 'Pedido recebido',
@@ -62,6 +66,45 @@ export default function AdminDashboardPage() {
     [stats]
   );
 
+  const priorityItems = useMemo(
+    () =>
+      stats
+        ? [
+            {
+              label: 'Novos pedidos por analisar',
+              description: 'Confirmar briefing, prazo e informação do cliente.',
+              value: stats.quotes.new,
+              href: '/admin/orcamentos?status=received',
+              tone: 'bg-sky-50 text-sky-700',
+            },
+            {
+              label: 'Propostas aguardam decisão',
+              description: 'Acompanhar clientes e manter a decisão em movimento.',
+              value: stats.quotes.awaiting_approval,
+              href: '/admin/orcamentos?status=quoted',
+              tone: 'bg-amber-50 text-amber-700',
+            },
+            {
+              label: 'Trabalhos em produção',
+              description: 'Validar progresso, qualidade e possíveis bloqueios.',
+              value: stats.orders.by_status.in_production || 0,
+              href: '/admin/encomendas?status=in_production',
+              tone: 'bg-violet-50 text-violet-700',
+            },
+            {
+              label: 'Prontos para entrega',
+              description: 'Coordenar entrega ou levantamento com o cliente.',
+              value: stats.orders.by_status.ready || 0,
+              href: '/admin/encomendas?status=ready',
+              tone: 'bg-emerald-50 text-emerald-700',
+            },
+          ].filter((item) => item.value > 0)
+        : [],
+    [stats]
+  );
+
+  const actionCount = priorityItems.reduce((sum, item) => sum + item.value, 0);
+
   useEffect(() => {
     if (authLoading) return;
     getStats()
@@ -104,13 +147,15 @@ export default function AdminDashboardPage() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-100 ring-1 ring-white/10">
               <Sparkles className="h-3.5 w-3.5" />
-              Visão geral do negócio
+              Centro de trabalho da equipa
             </div>
             <h1 className="mt-5 text-balance text-3xl font-semibold leading-tight tracking-[-0.03em] sm:text-4xl">
-              Tudo o que a equipa precisa para manter a operação em movimento.
+              {actionCount > 0
+                ? `${actionCount} ${actionCount === 1 ? 'trabalho pede' : 'trabalhos pedem'} acompanhamento.`
+                : 'A operação está em dia.'}
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/68 sm:text-base">
-              Acompanhe pedidos, prioridades e resultados sem perder de vista o que precisa de atenção.
+              Comece pelo que precisa de decisão e acompanhe cada trabalho desde o pedido até à entrega.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -118,19 +163,88 @@ export default function AdminDashboardPage() {
               href="/admin/orcamentos"
               className="inline-flex h-11 items-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/15"
             >
-              Ver orçamentos
+              Rever pedidos
             </Link>
             <Link
               href="/admin/encomendas"
               className="inline-flex h-11 items-center rounded-xl bg-white px-4 text-sm font-semibold text-brand-900 transition hover:-translate-y-0.5 hover:bg-[#f4f0e8]"
             >
-              Ver encomendas
+              Acompanhar produção
             </Link>
           </div>
         </div>
       </section>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
+      <section className="grid gap-5 xl:grid-cols-[0.78fr_1.22fr]">
+        <div className="min-w-0 rounded-3xl border border-[#dfe7e1] bg-white p-5 shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)] sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">
+                Prioridades agora
+              </p>
+              <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">
+                O que mantém o fluxo em movimento
+              </h2>
+            </div>
+            <span className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl bg-brand-50 px-3 text-sm font-bold text-brand-800">
+              {actionCount}
+            </span>
+          </div>
+
+          <div className="mt-5 space-y-2.5">
+            {priorityItems.length > 0 ? (
+              priorityItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group flex items-center gap-3 rounded-2xl border border-[#e6ece7] p-3.5 transition hover:border-brand-200 hover:bg-brand-50/40"
+                >
+                  <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${item.tone}`}>
+                    {item.value}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-dark">{item.label}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-[#718078]">{item.description}</span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-[#829087] transition group-hover:translate-x-0.5 group-hover:text-brand-700" />
+                </Link>
+              ))
+            ) : (
+              <div className="flex items-start gap-3 rounded-2xl bg-brand-50 p-4">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
+                <div>
+                  <p className="text-sm font-semibold text-brand-900">Sem prioridades pendentes</p>
+                  <p className="mt-1 text-xs leading-5 text-brand-800/70">
+                    Novos pedidos e mudanças de estado aparecerão aqui.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="min-w-0 rounded-3xl border border-[#dfe7e1] bg-white p-5 shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)] sm:p-6">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f4f0e8] text-[#8d7040]">
+              <Factory className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">
+                Percurso partilhado
+              </p>
+              <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">
+                Uma linguagem comum para a equipa e o cliente
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-[#718078]">
+                A administração gere os detalhes; o cliente acompanha os mesmos momentos importantes de forma simples.
+              </p>
+            </div>
+          </div>
+          <WorkflowJourney compact className="mt-6" />
+        </div>
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

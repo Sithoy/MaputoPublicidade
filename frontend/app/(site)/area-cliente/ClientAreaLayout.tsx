@@ -6,11 +6,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowUpRight,
+  ClipboardList,
   Headphones,
   LayoutDashboard,
   LogOut,
   Menu,
-  ShoppingBag,
+  Plus,
   UserRound,
   X,
 } from 'lucide-react';
@@ -20,7 +21,7 @@ import { cn } from '@/lib/utils';
 
 const portalNav = [
   { href: '/area-cliente', label: 'Visão geral', icon: LayoutDashboard },
-  { href: '/area-cliente/encomendas', label: 'Encomendas', icon: ShoppingBag },
+  { href: '/area-cliente/encomendas', label: 'Pedidos', icon: ClipboardList },
   { href: '/area-cliente/perfil', label: 'Perfil da empresa', icon: UserRound },
 ];
 
@@ -28,8 +29,8 @@ const SUPPORT_URL =
   'https://wa.me/25882555736?text=Ol%C3%A1%21%20Preciso%20de%20ajuda%20com%20um%20pedido%20no%20Portal%20do%20Cliente.';
 
 function getPageTitle(pathname: string) {
-  if (pathname.startsWith('/area-cliente/encomendas/')) return 'Detalhe da encomenda';
-  if (pathname === '/area-cliente/encomendas') return 'Encomendas';
+  if (pathname.startsWith('/area-cliente/encomendas/')) return 'Acompanhamento do pedido';
+  if (pathname === '/area-cliente/encomendas') return 'Pedidos';
   if (pathname === '/area-cliente/perfil') return 'Perfil da empresa';
   return 'Visão geral';
 }
@@ -86,8 +87,16 @@ function PortalSidebar({
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navegação do portal">
         <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a9890]">
-          A sua conta
+          O seu trabalho
         </p>
+        <Link
+          href="/catalogo"
+          onClick={onNavigate}
+          className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-brand-800 px-3 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_-20px_rgba(6,63,43,0.9)] transition hover:bg-brand-700"
+        >
+          <Plus className="h-4 w-4" />
+          Iniciar novo pedido
+        </Link>
         {portalNav.map((item) => {
           const Icon = item.icon;
           const active =

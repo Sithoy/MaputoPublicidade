@@ -6,10 +6,10 @@ import { ArrowUpRight, Menu } from 'lucide-react';
 
 function getPageTitle(pathname: string) {
   if (pathname === '/admin') return 'Visão geral';
-  if (pathname.startsWith('/admin/encomendas/')) return 'Detalhe da encomenda';
-  if (pathname === '/admin/encomendas') return 'Encomendas';
-  if (pathname.startsWith('/admin/orcamentos/')) return 'Detalhe do orçamento';
-  if (pathname === '/admin/orcamentos') return 'Orçamentos';
+  if (pathname.startsWith('/admin/encomendas/')) return 'Acompanhamento da produção';
+  if (pathname === '/admin/encomendas') return 'Produção e entregas';
+  if (pathname.startsWith('/admin/orcamentos/')) return 'Pedido e proposta';
+  if (pathname === '/admin/orcamentos') return 'Pedidos e propostas';
   if (pathname.includes('/produtos/novo')) return 'Novo produto';
   if (pathname.includes('/produtos/') && pathname.endsWith('/editar')) return 'Editar produto';
   if (pathname === '/admin/produtos') return 'Produtos';

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import {
   approveArtwork,
   approveQuotePrice,
@@ -19,16 +20,7 @@ import {
   requestArtworkChange,
 } from '@/lib/client-api';
 import type { Order, Payment } from '@/lib/api';
-
-const statusFlow = [
-  { key: 'received', label: 'Pedido recebido' },
-  { key: 'reviewing', label: 'Em análise' },
-  { key: 'quoted', label: 'Orçamentado' },
-  { key: 'approved', label: 'Aprovado' },
-  { key: 'in_production', label: 'Em produção' },
-  { key: 'ready', label: 'Pronto para entrega' },
-  { key: 'delivered', label: 'Entregue' },
-];
+import { getClientNextAction } from '@/lib/workflow';
 
 export default function ClientOrderDetailPage() {
   const { reference } = useParams<{ reference: string }>();
@@ -132,10 +124,7 @@ export default function ClientOrderDetailPage() {
     }
   }
 
-  const currentStep = useMemo(
-    () => statusFlow.findIndex((s) => s.key === order?.status),
-    [order?.status]
-  );
+  const nextAction = useMemo(() => (order ? getClientNextAction(order) : null), [order]);
 
   if (loading) {
     return (
@@ -155,49 +144,53 @@ export default function ClientOrderDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm text-gray-500">Referência</p>
-          <h1 className="text-2xl font-bold text-dark">{order.reference}</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Acompanhamento</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-[-0.025em] text-dark">
+            Pedido {order.reference}
+          </h1>
+          <p className="mt-1 text-sm text-[#718078]">
+            Consulte o progresso, aprove decisões e mantenha todos os detalhes num só lugar.
+          </p>
         </div>
         <Badge variant="outline" className="self-start sm:self-auto">
           {order.status_display || order.status}
         </Badge>
       </div>
 
-      <Card>
-        <CardContent className="p-5">
-          <h2 className="mb-4 text-lg font-semibold text-dark">Estado da encomenda</h2>
-          <div className="relative flex justify-between">
-            {statusFlow.map((step, idx) => {
-              const completed = idx <= currentStep;
-              const isCurrent = idx === currentStep;
-              return (
-                <div key={step.key} className="flex flex-1 flex-col items-center text-center">
-                  <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
-                      completed
-                        ? isCurrent
-                          ? 'bg-brand text-white'
-                          : 'bg-green-500 text-white'
-                        : 'bg-gray-200 text-gray-500'
-                    }`}
-                  >
-                    {completed ? <Check className="h-4 w-4" /> : idx + 1}
-                  </div>
-                  <span
-                    className={`mt-2 hidden text-xs font-medium sm:block ${
-                      completed ? 'text-dark' : 'text-gray-400'
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      <section className="grid gap-4 xl:grid-cols-[1.55fr_0.65fr]">
+        <Card className="rounded-3xl border-[#dfe7e1] shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)]">
+          <CardContent className="p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">
+              Percurso do trabalho
+            </p>
+            <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">
+              Da recepção à entrega
+            </h2>
+            <WorkflowJourney status={order.status} compact className="mt-6" />
+          </CardContent>
+        </Card>
+
+        <div className="rounded-3xl border border-[#e3dac8] bg-[#f4f0e8] p-5 sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8d7040]">
+            Próximo passo
+          </p>
+          <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em] text-dark">
+            {nextAction?.label}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[#706858]">{nextAction?.description}</p>
+          <span
+            className={`mt-5 inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${
+              nextAction?.actionRequired
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-white/80 text-brand-800'
+            }`}
+          >
+            {nextAction?.actionRequired ? 'Acção necessária' : 'Acompanhamento da equipa'}
+          </span>
+        </div>
+      </section>
 
       <Card>
         <CardContent className="p-5">

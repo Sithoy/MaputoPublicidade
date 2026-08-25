@@ -19,6 +19,8 @@ import {
 import { getClientOrders } from '@/lib/client-api';
 import type { Order } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
+import { getClientNextAction, getOrderProgress } from '@/lib/workflow';
 
 const statusLabels: Record<string, string> = {
   received: 'Pedido recebido',
@@ -43,9 +45,12 @@ const statusStyles: Record<string, string> = {
 };
 
 function orderLabel(order: Order) {
-  if (order.items.length === 0) return 'Encomenda';
-  if (order.items.length === 1) return order.items[0].description;
-  return `${order.items[0].description} +${order.items.length - 1}`;
+  const items = order.items ?? [];
+  if (items.length === 1) return items[0].description;
+  if (items.length > 1) return `${items[0].description} +${items.length - 1}`;
+  if (order.item_count === 1) return '1 item solicitado';
+  if (order.item_count && order.item_count > 1) return `${order.item_count} itens solicitados`;
+  return 'Pedido de produção';
 }
 
 function formatCurrency(value: number) {
@@ -149,6 +154,16 @@ export default function ClientDashboardPage() {
 
   const recentOrders = useMemo(() => orders.slice(0, 4), [orders]);
 
+  const attentionItems = useMemo(
+    () =>
+      activeOrders
+        .map((order) => ({ order, action: getClientNextAction(order) }))
+        .filter(({ action }) => action.actionRequired),
+    [activeOrders]
+  );
+
+  const focusOrder = attentionItems[0]?.order || activeOrders[0] || null;
+
   if (loading) return <DashboardSkeleton />;
 
   if (error) {
@@ -171,7 +186,7 @@ export default function ClientDashboardPage() {
     );
   }
 
-  const needsAttention = pendingApprovals.length > 0 || paymentsDue > 0;
+  const needsAttention = attentionItems.length > 0;
 
   return (
     <div className="space-y-5">
@@ -181,13 +196,17 @@ export default function ClientDashboardPage() {
         <div className="relative max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-100 ring-1 ring-white/10">
             <Sparkles className="h-3.5 w-3.5" />
-            Visão geral da sua marca
+            O seu trabalho com a Maputo Publicidade
           </div>
           <h1 className="mt-5 text-balance text-3xl font-semibold leading-tight tracking-[-0.03em] sm:text-4xl">
-            Acompanhe o que está a acontecer com cada pedido.
+            {needsAttention
+              ? `${attentionItems.length} ${attentionItems.length === 1 ? 'decisão precisa' : 'decisões precisam'} da sua atenção.`
+              : activeOrders.length > 0
+                ? 'O seu trabalho está em movimento.'
+                : 'Tudo começa com um pedido bem definido.'}
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-white/68 sm:text-base">
-            Veja o progresso, encontre o que precisa da sua aprovação e mantenha os próximos passos claros.
+            Da primeira conversa à entrega, veja onde cada trabalho está e saiba exactamente qual é o próximo passo.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -232,6 +251,34 @@ export default function ClientDashboardPage() {
         />
       </section>
 
+      <section className="rounded-3xl border border-[#dfe7e1] bg-white p-5 shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)] sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">
+              Percurso do trabalho
+            </p>
+            <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">
+              {focusOrder ? `Onde está o pedido ${focusOrder.reference}` : 'Da ideia à entrega, sem perder o fio'}
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[#718078]">
+              {focusOrder
+                ? getClientNextAction(focusOrder).description
+                : 'Quando iniciar um pedido, poderá acompanhar aqui cada momento importante do processo.'}
+            </p>
+          </div>
+          {focusOrder ? (
+            <Link
+              href={`/area-cliente/encomendas/${focusOrder.reference}`}
+              className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
+            >
+              Abrir pedido
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          ) : null}
+        </div>
+        <WorkflowJourney status={focusOrder?.status} compact className="mt-6" />
+      </section>
+
       <section className="grid gap-5 xl:grid-cols-[0.92fr_1.58fr]">
         <div className="rounded-3xl border border-[#dfe7e1] bg-[#f4f0e8] p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
@@ -247,39 +294,29 @@ export default function ClientDashboardPage() {
           </div>
 
           <div className="mt-5 space-y-3">
-            {pendingApprovals.length > 0 ? (
+            {attentionItems.slice(0, 3).map(({ order, action }) => (
               <Link
-                href="/area-cliente/encomendas"
+                key={order.id}
+                href={`/area-cliente/encomendas/${order.reference}`}
                 className="group flex items-center justify-between gap-4 rounded-2xl border border-[#e3dac8] bg-white/75 p-4 transition hover:bg-white"
               >
-                <div>
-                  <p className="text-sm font-semibold text-dark">
-                    {pendingApprovals.length} {pendingApprovals.length === 1 ? 'aprovação pendente' : 'aprovações pendentes'}
-                  </p>
-                  <p className="mt-1 text-xs text-[#7b7061]">Reveja a proposta ou prova digital.</p>
+                <div className="min-w-0">
+                  <p className="font-mono text-[11px] font-semibold text-[#9a763b]">{order.reference}</p>
+                  <p className="mt-1 text-sm font-semibold text-dark">{action.label}</p>
+                  <p className="mt-1 text-xs leading-5 text-[#7b7061]">{action.description}</p>
                 </div>
                 <ArrowRight className="h-4 w-4 shrink-0 text-[#a17b3b] transition group-hover:translate-x-0.5" />
               </Link>
-            ) : null}
-
-            {paymentsDue > 0 ? (
-              <Link
-                href="/area-cliente/encomendas"
-                className="group flex items-center justify-between gap-4 rounded-2xl border border-[#e3dac8] bg-white/75 p-4 transition hover:bg-white"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-dark">Pagamento por regularizar</p>
-                  <p className="mt-1 text-xs text-[#7b7061]">Saldo total de {formatCurrency(paymentsDue)}.</p>
-                </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-[#a17b3b] transition group-hover:translate-x-0.5" />
-              </Link>
-            ) : null}
+            ))}
 
             {!needsAttention ? (
               <div className="rounded-2xl border border-[#e3dac8] bg-white/70 p-4">
-                <p className="text-sm leading-6 text-[#706858]">
-                  Quando houver uma proposta, prova digital ou pagamento para rever, ficará visível aqui.
-                </p>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
+                  <p className="text-sm leading-6 text-[#706858]">
+                    Não precisa de fazer nada agora. Quando houver uma proposta, prova digital ou entrega para confirmar, aparecerá aqui.
+                  </p>
+                </div>
               </div>
             ) : null}
           </div>
@@ -341,9 +378,20 @@ export default function ClientDashboardPage() {
                     </div>
                     <p className="mt-1.5 truncate text-sm font-semibold text-dark">{orderLabel(order)}</p>
                     <p className="mt-1 text-xs text-[#7b8981]">
-                      {order.item_count ?? order.items.length} item(s) ·{' '}
+                      {order.item_count ?? order.items?.length ?? 0} item(s) ·{' '}
                       {new Date(order.created_at).toLocaleDateString('pt-MZ')}
                     </p>
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[#e7ece8]" aria-hidden="true">
+                        <div
+                          className="h-full rounded-full bg-brand-600"
+                          style={{ width: `${getOrderProgress(order.status)}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] font-medium text-[#718078]">
+                        {getClientNextAction(order).label}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     {order.amount_due ? (

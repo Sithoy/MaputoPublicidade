@@ -20,11 +20,11 @@ import { removeToken } from '@/lib/auth';
 
 const navGroups = [
   {
-    label: 'Operação',
+    label: 'Fluxo comercial',
     items: [
       { href: '/admin', label: 'Visão geral', icon: BarChart3 },
-      { href: '/admin/encomendas', label: 'Encomendas', icon: Package },
-      { href: '/admin/orcamentos', label: 'Orçamentos', icon: ShoppingCart },
+      { href: '/admin/orcamentos', label: 'Pedidos e propostas', icon: ShoppingCart },
+      { href: '/admin/encomendas', label: 'Produção e entregas', icon: Package },
     ],
   },
   {
