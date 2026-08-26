@@ -31,6 +31,26 @@ class HasStaffCapability(permissions.BasePermission):
         )
 
 
+class HasAnyStaffCapability(permissions.BasePermission):
+    """Allow staff when at least one of the supplied capabilities is granted."""
+
+    message = "A sua função não tem permissão para executar esta acção."
+
+    def __init__(self, *capabilities):
+        self.capabilities = capabilities
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_staff
+            and any(
+                has_staff_capability(request.user, capability)
+                for capability in self.capabilities
+            )
+        )
+
+
 class IsOwnerOrStaff(permissions.BasePermission):
     """Allow access to staff or to the owner of the object."""
 

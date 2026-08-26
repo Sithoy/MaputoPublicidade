@@ -21,6 +21,9 @@ export type StaffCapability =
   | 'orders.export'
   | 'payments.view'
   | 'payments.manage'
+  | 'invoices.view'
+  | 'invoices.manage'
+  | 'invoices.export'
   | 'catalog.manage'
   | 'content.manage'
   | 'users.manage'
@@ -63,6 +66,7 @@ export function getDefaultAdminPath(user: User | null | undefined) {
   if (hasCapability(user, 'dashboard.view')) return '/admin';
   if (hasCapability(user, 'orders.view')) return '/admin/encomendas';
   if (hasCapability(user, 'quotes.view')) return '/admin/orcamentos';
+  if (hasCapability(user, 'invoices.view')) return '/admin/faturas';
   if (hasCapability(user, 'catalog.manage')) return '/admin/produtos';
   if (hasCapability(user, 'content.manage')) return '/admin/portfolio';
   if (hasCapability(user, 'users.manage')) return '/admin/utilizadores';
@@ -74,6 +78,7 @@ export function getRequiredCapability(pathname: string): StaffCapability | null 
   if (pathname === '/admin') return 'dashboard.view';
   if (pathname.startsWith('/admin/orcamentos')) return 'quotes.view';
   if (pathname.startsWith('/admin/encomendas')) return 'orders.view';
+  if (pathname.startsWith('/admin/faturas')) return 'invoices.view';
   if (
     pathname.startsWith('/admin/produtos') ||
     pathname.startsWith('/admin/categorias') ||

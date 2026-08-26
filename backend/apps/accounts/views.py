@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import HasStaffCapability
+from apps.core.permissions import HasAnyStaffCapability, HasStaffCapability
 
 from .roles import (
     StaffCapability,
@@ -238,3 +238,36 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class ClientOptionsView(APIView):
+    """Compact client directory for commercial and finance document forms."""
+
+    def get_permissions(self):
+        return [
+            HasAnyStaffCapability(
+                StaffCapability.MANAGE_QUOTES,
+                StaffCapability.MANAGE_INVOICES,
+            )
+        ]
+
+    def get(self, request):
+        users = (
+            User.objects.filter(is_staff=False, is_active=True)
+            .select_related("profile")
+            .order_by("first_name", "last_name", "email")
+        )
+        return Response(
+            [
+                {
+                    "id": user.id,
+                    "name": user.get_full_name() or user.email,
+                    "email": user.email,
+                    "company": user.profile.company,
+                    "phone": user.profile.phone,
+                    "nuit": user.profile.nuit,
+                    "address": user.profile.billing_address or user.profile.address,
+                }
+                for user in users
+            ]
+        )

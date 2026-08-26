@@ -347,6 +347,58 @@ export type Quote = {
   updated_at?: string;
 };
 
+export type ClientOption = {
+  id: number;
+  name: string;
+  email: string;
+  company?: string;
+  phone?: string;
+  nuit?: string;
+  address?: string;
+};
+
+export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'cancelled';
+
+export type InvoiceItem = {
+  id?: number;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total?: number;
+  position?: number;
+};
+
+export type Invoice = {
+  id: number;
+  reference: string;
+  order_reference?: string | null;
+  user_id?: number | null;
+  client_name: string;
+  client_email?: string;
+  client_phone?: string;
+  client_company?: string;
+  client_nuit?: string;
+  billing_address?: string;
+  issue_date: string;
+  due_date: string;
+  status: InvoiceStatus;
+  status_display?: string;
+  currency: string;
+  subtotal: number;
+  discount_amount: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  amount_paid: number;
+  balance_due: number;
+  notes?: string;
+  terms?: string;
+  items: InvoiceItem[];
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at?: string;
+};
+
 export type PortfolioItem = {
   id: number;
   title: string;
@@ -463,6 +515,8 @@ export type Order = {
   reference: string;
   quote?: number | null;
   quote_reference?: string;
+  invoice_reference?: string | null;
+  client_name?: string;
   user?: number;
   user_email?: string;
   user_name?: string;

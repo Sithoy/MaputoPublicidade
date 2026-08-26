@@ -7,6 +7,27 @@ from apps.quotes.models import ArtworkApproval, QuoteItem, QuoteRequest
 
 @pytest.mark.django_db
 class TestQuoteApi:
+    def test_staff_creates_priced_manual_quote(self, staff_client, client_user, product):
+        response = staff_client.post(
+            reverse("quote-manual"),
+            {
+                "user_id": client_user.id,
+                "items": [
+                    {
+                        "product_id": product.id,
+                        "description": "Cartões de visita premium",
+                        "quantity": 2,
+                        "unit_price": "750.00",
+                    }
+                ],
+            },
+            format="json",
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == QuoteRequest.STATUS_QUOTED
+        assert response.json()["final_price"] == 1500.0
+        assert response.json()["client_email"] == client_user.email
+
     def test_create_quote_anonymous(self, product, product_data):
         from rest_framework.test import APIClient
 

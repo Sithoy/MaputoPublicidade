@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Save, Upload } from 'lucide-react';
+import { ArrowLeft, Download, Printer, Save, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/Button';
@@ -163,7 +163,8 @@ export default function AdminOrderDetailPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
         <Button variant="outline" size="sm" onClick={() => router.push('/admin/orcamentos')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar
@@ -174,6 +175,14 @@ export default function AdminOrderDetailPage() {
             {quote.items.length} item(s) • {quote.items[0]?.description || 'Sem descrição'}
           </p>
         </div>
+        </div>
+        <Link
+          href={`/admin/orcamentos/${quote.reference}/imprimir`}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#CBD8D0] bg-white px-3 py-1.5 text-sm font-semibold text-dark transition hover:border-brand/40 hover:bg-brand-50"
+        >
+          <Printer className="h-4 w-4" />
+          Ver proposta
+        </Link>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}

@@ -10,8 +10,12 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin') return 'Visão geral';
   if (pathname.startsWith('/admin/encomendas/')) return 'Acompanhamento da produção';
   if (pathname === '/admin/encomendas') return 'Produção e entregas';
+  if (pathname === '/admin/orcamentos/novo') return 'Nova proposta';
   if (pathname.startsWith('/admin/orcamentos/')) return 'Pedido e proposta';
   if (pathname === '/admin/orcamentos') return 'Pedidos e propostas';
+  if (pathname.includes('/faturas/nova')) return 'Nova fatura';
+  if (pathname.startsWith('/admin/faturas/')) return 'Detalhe da fatura';
+  if (pathname === '/admin/faturas') return 'Faturas';
   if (pathname.includes('/produtos/novo')) return 'Novo produto';
   if (pathname.includes('/produtos/') && pathname.endsWith('/editar')) return 'Editar produto';
   if (pathname === '/admin/produtos') return 'Produtos';
@@ -41,7 +45,7 @@ export function AdminHeader({ user, onMenuOpen }: { user: User; onMenuOpen: () =
     .toUpperCase() || 'MP';
 
   return (
-    <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-[#dfe7e1] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+    <header className="admin-header sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-[#dfe7e1] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"

@@ -1,6 +1,6 @@
 import { getToken } from './auth';
 import { del, get, getAllPages, patch, post, put } from './api';
-import type { Category, Order, Package, PaginatedResponse, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
+import type { Category, ClientOption, Invoice, InvoiceStatus, Order, Package, PaginatedResponse, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
 
 export type DashboardStats = {
   quotes: {
@@ -164,6 +164,34 @@ export async function getQuotes(params: string = ''): Promise<Quote[]> {
 
 export async function getQuote(reference: string): Promise<AdminQuote> {
   return get<AdminQuote>(`/api/quotes/${reference}/`, { headers: authHeaders() });
+}
+
+export type DocumentLineInput = {
+  product_id?: number;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  notes?: string;
+};
+
+export type ManualQuoteInput = {
+  user_id?: number | null;
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_company?: string;
+  urgency?: 'normal' | 'urgent';
+  notes?: string;
+  internal_notes?: string;
+  items: DocumentLineInput[];
+};
+
+export async function createManualQuote(data: ManualQuoteInput): Promise<Quote> {
+  return post<Quote>('/api/quotes/manual/', data, getToken());
+}
+
+export async function getClientOptions(): Promise<ClientOption[]> {
+  return get<ClientOption[]>('/api/auth/client-options/', { headers: authHeaders() });
 }
 
 export async function updateQuoteStatus(reference: string, status: string) {
@@ -363,6 +391,40 @@ export async function convertQuoteToOrder(reference: string) {
   return post<{ order_reference: string }>(`/api/quotes/${reference}/convert-to-order/`, {}, getToken());
 }
 
+export type InvoiceInput = {
+  order_reference?: string | null;
+  user_id?: number | null;
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_company?: string;
+  client_nuit?: string;
+  billing_address?: string;
+  issue_date: string;
+  due_date: string;
+  discount_amount?: number;
+  tax_rate?: number;
+  notes?: string;
+  terms?: string;
+  items?: DocumentLineInput[];
+};
+
+export async function getInvoices(params: string = ''): Promise<Invoice[]> {
+  return getAllPages<Invoice>(`/api/invoices/${params}`, { headers: authHeaders() });
+}
+
+export async function getInvoice(reference: string): Promise<Invoice> {
+  return get<Invoice>(`/api/invoices/${reference}/`, { headers: authHeaders() });
+}
+
+export async function createInvoice(data: InvoiceInput): Promise<Invoice> {
+  return post<Invoice>('/api/invoices/', data, getToken());
+}
+
+export async function updateInvoiceStatus(reference: string, status: InvoiceStatus): Promise<Invoice> {
+  return post<Invoice>(`/api/invoices/${reference}/set-status/`, { status }, getToken());
+}
+
 export function downloadExport(path: string, filename: string) {
   const token = getToken();
   const headers: Record<string, string> = {};
@@ -395,4 +457,10 @@ export function exportOrders(format: 'csv' | 'xlsx', params: Record<string, stri
   const query = new URLSearchParams({ format, ...params }).toString();
   const ext = format === 'xlsx' ? 'xlsx' : 'csv';
   downloadExport(`/api/orders/export/?${query}`, `encomendas.${ext}`);
+}
+
+export function exportInvoices(format: 'csv' | 'xlsx', params: Record<string, string> = {}) {
+  const query = new URLSearchParams({ format, ...params }).toString();
+  const ext = format === 'xlsx' ? 'xlsx' : 'csv';
+  downloadExport(`/api/invoices/export/?${query}`, `faturas.${ext}`);
 }

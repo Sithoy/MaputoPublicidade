@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.db import transaction
 from rest_framework import serializers
 
 from apps.accounts.roles import StaffCapability, has_staff_capability
@@ -244,6 +245,82 @@ class QuoteRequestCreateSerializer(serializers.ModelSerializer):
                 total = total * Decimal("1.25")
             quote.estimated_price = total
             quote.save(update_fields=["estimated_price"])
+
+
+class ManualQuoteItemSerializer(serializers.Serializer):
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+        source="product",
+        required=False,
+        allow_null=True,
+    )
+    description = serializers.CharField(max_length=255)
+    quantity = serializers.IntegerField(min_value=1)
+    unit_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0")
+    )
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class ManualQuoteCreateSerializer(serializers.Serializer):
+    """Create a priced commercial proposal on behalf of a client."""
+
+    user_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(is_staff=False, is_active=True),
+        source="user",
+        required=False,
+        allow_null=True,
+    )
+    client_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    client_email = serializers.EmailField(required=False, allow_blank=True)
+    client_phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    client_company = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    urgency = serializers.ChoiceField(
+        choices=QuoteRequest.URGENCY_CHOICES,
+        default=QuoteRequest.URGENCY_NORMAL,
+    )
+    notes = serializers.CharField(required=False, allow_blank=True)
+    internal_notes = serializers.CharField(required=False, allow_blank=True)
+    items = ManualQuoteItemSerializer(many=True, allow_empty=False)
+
+    def validate(self, attrs):
+        user = attrs.get("user")
+        if user:
+            profile = getattr(user, "profile", None)
+            attrs["client_name"] = attrs.get("client_name") or user.get_full_name() or user.email
+            attrs["client_email"] = attrs.get("client_email") or user.email
+            attrs["client_phone"] = attrs.get("client_phone") or getattr(profile, "phone", "")
+            attrs["client_company"] = attrs.get("client_company") or getattr(profile, "company", "")
+        if not attrs.get("client_name"):
+            raise serializers.ValidationError({"client_name": "Indique o nome do cliente."})
+        if not attrs.get("client_email"):
+            raise serializers.ValidationError({"client_email": "Indique o e-mail do cliente."})
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        items_data = validated_data.pop("items")
+        total = sum(
+            item["unit_price"] * Decimal(item["quantity"])
+            for item in items_data
+        )
+        quote = QuoteRequest.objects.create(
+            **validated_data,
+            status=QuoteRequest.STATUS_QUOTED,
+            estimated_price=total,
+            final_price=total,
+        )
+        for position, item in enumerate(items_data):
+            QuoteItem.objects.create(
+                quote=quote,
+                product=item.get("product"),
+                description=item["description"],
+                quantity=item["quantity"],
+                unit_price=item["unit_price"],
+                notes=item.get("notes", ""),
+                position=position,
+            )
+        return quote
 
 
 class QuoteRequestUpdateSerializer(serializers.ModelSerializer):

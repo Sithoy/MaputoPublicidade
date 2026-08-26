@@ -63,12 +63,19 @@ class OrderListSerializer(serializers.ModelSerializer):
         max_digits=12, decimal_places=2, coerce_to_string=False, read_only=True
     )
     item_count = serializers.IntegerField(source="items.count", read_only=True)
+    client_name = serializers.CharField(source="client_name_display", read_only=True)
+    invoice_reference = serializers.SerializerMethodField()
+
+    def get_invoice_reference(self, obj):
+        return obj.invoice.reference if hasattr(obj, "invoice") else None
 
     class Meta:
         model = Order
         fields = [
             "id",
             "reference",
+            "client_name",
+            "invoice_reference",
             "status",
             "status_display",
             "final_price",
@@ -101,6 +108,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     # Staff-only: never leak internal notes to the client who owns the order.
     internal_notes = serializers.SerializerMethodField()
     activity = serializers.SerializerMethodField()
+    invoice_reference = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -109,6 +117,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "reference",
             "quote",
             "quote_reference",
+            "invoice_reference",
             "user",
             "user_email",
             "user_name",
@@ -143,6 +152,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         if obj.quote and hasattr(obj.quote, "artwork"):
             return ArtworkApprovalSerializer(obj.quote.artwork).data
         return None
+
+    def get_invoice_reference(self, obj):
+        return obj.invoice.reference if hasattr(obj, "invoice") else None
 
     def get_user_email(self, obj):
         return obj.client_email_display

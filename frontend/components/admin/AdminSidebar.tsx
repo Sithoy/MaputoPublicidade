@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Boxes,
+  FileText,
   FolderOpen,
   Handshake,
   ImageIcon,
@@ -27,6 +28,12 @@ const navGroups = [
       { href: '/admin', label: 'Visão geral', icon: BarChart3, capability: 'dashboard.view' },
       { href: '/admin/orcamentos', label: 'Pedidos e propostas', icon: ShoppingCart, capability: 'quotes.view' },
       { href: '/admin/encomendas', label: 'Produção e entregas', icon: Package, capability: 'orders.view' },
+    ],
+  },
+  {
+    label: 'Financeiro',
+    items: [
+      { href: '/admin/faturas', label: 'Faturas', icon: FileText, capability: 'invoices.view' },
     ],
   },
   {
@@ -63,7 +70,7 @@ export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: ()
   }
 
   return (
-    <aside className="flex h-full w-[280px] flex-col border-r border-[#dfe7e1] bg-white">
+    <aside className="admin-sidebar flex h-full w-[280px] flex-col border-r border-[#dfe7e1] bg-white">
       <div className="flex h-[76px] items-center border-b border-[#e6ece7] px-5">
         <Link href={homeHref} onClick={onNavigate} className="flex min-w-0 items-center gap-3">
           <Image

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Eye, FileDown, Search } from 'lucide-react';
+import { Eye, FileDown, Plus, Search } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -75,7 +75,17 @@ function AdminQuotesContent() {
           <h1 className="text-2xl font-bold text-dark">Orçamentos</h1>
           <p className="text-sm text-gray-500">Gestão de orçamentos e pedidos</p>
         </div>
-        {can('quotes.export') ? <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {can('quotes.manage') ? (
+            <Link
+              href="/admin/orcamentos/novo"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-[0_10px_24px_-12px_rgba(8,114,71,0.75)] transition hover:-translate-y-0.5 hover:bg-brand-600"
+            >
+              <Plus className="h-4 w-4" />
+              Novo orçamento
+            </Link>
+          ) : null}
+        {can('quotes.export') ? <>
           <Button variant="outline" size="sm" onClick={() => exportQuotes('csv', statusFilter ? { status: statusFilter } : {})} className="gap-2">
             <FileDown className="h-4 w-4" />
             CSV
@@ -84,7 +94,8 @@ function AdminQuotesContent() {
             <FileDown className="h-4 w-4" />
             Excel
           </Button>
-        </div> : null}
+        </> : null}
+        </div>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -142,11 +153,12 @@ function AdminQuotesContent() {
         ]}
         data={filtered}
         actions={(item) => (
-          <Link href={`/admin/orcamentos/${item.reference}`}>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Eye className="h-4 w-4" />
-              Ver
-            </Button>
+          <Link
+            href={`/admin/orcamentos/${item.reference}`}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#CBD8D0] bg-white px-3 py-1.5 text-sm font-semibold text-dark transition hover:border-brand/40 hover:bg-brand-50"
+          >
+            <Eye className="h-4 w-4" />
+            Ver
           </Link>
         )}
       />

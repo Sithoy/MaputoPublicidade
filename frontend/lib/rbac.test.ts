@@ -41,11 +41,15 @@ describe('staff RBAC helpers', () => {
     expect(
       getDefaultAdminPath(user({ role: 'content', capabilities: ['catalog.manage'] }))
     ).toBe('/admin/produtos');
+    expect(
+      getDefaultAdminPath(user({ role: 'finance', capabilities: ['invoices.view'] }))
+    ).toBe('/admin/faturas');
   });
 
   it('maps protected routes and displays the assigned role', () => {
     expect(getRequiredCapability('/admin/parceiros/novo')).toBe('content.manage');
     expect(getRequiredCapability('/admin/utilizadores/12')).toBe('users.manage');
+    expect(getRequiredCapability('/admin/faturas/FT-2026-0001')).toBe('invoices.view');
     expect(getRoleLabel(user())).toBe('Comercial');
   });
 });

@@ -25,6 +25,7 @@ from .models import ArtworkApproval, QuoteRequest
 from .serializers import (
     ArtworkApprovalSerializer,
     ArtworkProofSerializer,
+    ManualQuoteCreateSerializer,
     QuoteApprovalSerializer,
     QuoteChangeRequestSerializer,
     QuotePriceSerializer,
@@ -53,6 +54,8 @@ class QuoteRequestViewSet(
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     def get_serializer_class(self):
+        if self.action == "manual":
+            return ManualQuoteCreateSerializer
         if self.action == "create":
             return QuoteRequestCreateSerializer
         if self.action == "partial_update":
@@ -64,6 +67,8 @@ class QuoteRequestViewSet(
     def get_permissions(self):
         if self.action == "create":
             return [AllowAny()]
+        if self.action == "manual":
+            return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
         if self.action in ["approve", "request_change", "approve_price"]:
             return [
                 IsAuthenticated(),
@@ -148,6 +153,25 @@ class QuoteRequestViewSet(
         notify_quote_received(quote)
         detail = QuoteRequestDetailSerializer(quote, context={"request": request})
         return Response(detail.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"], url_path="manual")
+    def manual(self, request):
+        serializer = ManualQuoteCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        quote = serializer.save()
+        record_activity(
+            action=ActivityEvent.ACTION_CREATED,
+            quote=quote,
+            actor=request.user,
+            comment="Proposta criada pela equipa comercial.",
+        )
+        notify_quote_ready(quote)
+        return Response(
+            QuoteRequestDetailSerializer(
+                quote, context={"request": request}
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()

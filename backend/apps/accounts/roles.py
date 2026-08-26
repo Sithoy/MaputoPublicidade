@@ -31,6 +31,9 @@ class StaffCapability:
     EXPORT_ORDERS = "orders.export"
     VIEW_PAYMENTS = "payments.view"
     MANAGE_PAYMENTS = "payments.manage"
+    VIEW_INVOICES = "invoices.view"
+    MANAGE_INVOICES = "invoices.manage"
+    EXPORT_INVOICES = "invoices.export"
     MANAGE_CATALOG = "catalog.manage"
     MANAGE_CONTENT = "content.manage"
     MANAGE_USERS = "users.manage"
@@ -59,6 +62,7 @@ ROLE_CAPABILITIES = {
             StaffCapability.MANAGE_ORDERS,
             StaffCapability.EXPORT_ORDERS,
             StaffCapability.VIEW_PAYMENTS,
+            StaffCapability.VIEW_INVOICES,
         }
     ),
     StaffRole.PRODUCTION: frozenset(
@@ -79,6 +83,9 @@ ROLE_CAPABILITIES = {
             StaffCapability.EXPORT_ORDERS,
             StaffCapability.VIEW_PAYMENTS,
             StaffCapability.MANAGE_PAYMENTS,
+            StaffCapability.VIEW_INVOICES,
+            StaffCapability.MANAGE_INVOICES,
+            StaffCapability.EXPORT_INVOICES,
         }
     ),
     StaffRole.CONTENT: frozenset(

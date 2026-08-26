@@ -101,9 +101,9 @@ O acesso à Administração usa RBAC aplicado no backend. Ocultar opções no fr
 |--------|----------------------------|
 | Proprietário | Acesso total, incluindo criação e alteração de funções da equipa |
 | Administrador | Operação completa, excepto gestão das funções de outros membros da equipa |
-| Comercial | Propostas, orçamentos, conversão em encomenda e consulta de pagamentos |
+| Comercial | Criação de propostas, orçamentos, conversão em encomenda e consulta de faturas/pagamentos |
 | Produção | Consulta de propostas, provas de arte e avanço do estado de produção |
-| Finanças | Consulta comercial, exportações e gestão de pagamentos |
+| Finanças | Emissão de faturas, exportações e gestão de pagamentos |
 | Conteúdo | Produtos, categorias, pacotes, portfólio e parceiros |
 
 Os utilizadores staff existentes são migrados para **Administrador**. Superutilizadores Django são tratados como **Proprietário**.
