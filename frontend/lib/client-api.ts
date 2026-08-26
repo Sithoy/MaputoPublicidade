@@ -116,6 +116,15 @@ export async function getClientOrders(): Promise<Order[]> {
   return normalizePaginatedResponse<Order>(data);
 }
 
+export async function getClientQuotes(): Promise<Quote[]> {
+  const data = await fetchWithAuth('/api/quotes/');
+  return normalizePaginatedResponse<Quote>(data);
+}
+
+export async function getClientQuote(reference: string): Promise<Quote> {
+  return fetchWithAuth(`/api/quotes/${reference}/`) as Promise<Quote>;
+}
+
 export async function getClientOrder(reference: string): Promise<Order> {
   return fetchWithAuth(`/api/orders/${reference}/`) as Promise<Order>;
 }

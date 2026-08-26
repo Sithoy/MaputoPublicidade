@@ -16,8 +16,8 @@ import {
   RefreshCw,
   Sparkles,
 } from 'lucide-react';
-import { getClientOrders } from '@/lib/client-api';
-import type { Order } from '@/lib/api';
+import { getClientOrders, getClientQuotes } from '@/lib/client-api';
+import type { Order, Quote } from '@/lib/api';
 import { cn, formatMZN } from '@/lib/utils';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import { getClientNextAction, getOrderProgress } from '@/lib/workflow';
@@ -94,6 +94,7 @@ function DashboardSkeleton() {
 
 export default function ClientDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -101,7 +102,9 @@ export default function ClientDashboardPage() {
     setLoading(true);
     setError('');
     try {
-      setOrders(await getClientOrders());
+      const [ordersData, quotesData] = await Promise.all([getClientOrders(), getClientQuotes()]);
+      setOrders(ordersData);
+      setQuotes(quotesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar os pedidos.');
     } finally {
@@ -120,12 +123,12 @@ export default function ClientDashboardPage() {
 
   const pendingApprovals = useMemo(
     () =>
-      orders.filter(
-        (order) =>
-          order.status === 'quoted' ||
-          (order.artwork?.status === 'pending' && order.status !== 'cancelled')
+      quotes.filter(
+        (quote) =>
+          quote.status === 'quoted' ||
+          (quote.artwork?.status === 'pending' && quote.status !== 'cancelled')
       ),
-    [orders]
+    [quotes]
   );
 
   const paymentsDue = useMemo(
@@ -140,15 +143,35 @@ export default function ClientDashboardPage() {
 
   const recentOrders = useMemo(() => orders.slice(0, 4), [orders]);
 
-  const attentionItems = useMemo(
-    () =>
-      activeOrders
-        .map((order) => ({ order, action: getClientNextAction(order) }))
-        .filter(({ action }) => action.actionRequired),
-    [activeOrders]
-  );
+  const attentionItems = useMemo(() => {
+    const orderItems = activeOrders
+      .map((order) => ({ order, action: getClientNextAction(order) }))
+      .filter(({ action }) => action.actionRequired)
+      .map(({ order, action }) => ({
+        key: `order-${order.id}`,
+        reference: order.reference,
+        href: `/area-cliente/encomendas/${order.reference}`,
+        label: action.label,
+        description: action.description,
+      }));
+    const quoteItems = quotes
+      .filter((quote) => quote.status === 'quoted')
+      .map((quote) => ({
+        key: `quote-${quote.id}`,
+        reference: quote.reference,
+        href: `/area-cliente/orcamentos/${quote.reference}`,
+        label: 'Aprovar a proposta',
+        description: quote.final_price
+          ? `Proposta de ${formatMZN(quote.final_price)} aguarda a sua decisão.`
+          : 'A proposta aguarda a sua decisão.',
+      }));
+    return [...quoteItems, ...orderItems];
+  }, [activeOrders, quotes]);
 
-  const focusOrder = attentionItems[0]?.order || activeOrders[0] || null;
+  const focusOrder =
+    activeOrders.find((order) => getClientNextAction(order).actionRequired) ||
+    activeOrders[0] ||
+    null;
 
   if (loading) return <DashboardSkeleton />;
 
@@ -280,16 +303,16 @@ export default function ClientDashboardPage() {
           </div>
 
           <div className="mt-5 space-y-3">
-            {attentionItems.slice(0, 3).map(({ order, action }) => (
+            {attentionItems.slice(0, 3).map((item) => (
               <Link
-                key={order.id}
-                href={`/area-cliente/encomendas/${order.reference}`}
+                key={item.key}
+                href={item.href}
                 className="group flex items-center justify-between gap-4 rounded-2xl border border-[#e3dac8] bg-white/75 p-4 transition hover:bg-white"
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-[11px] font-semibold text-[#9a763b]">{order.reference}</p>
-                  <p className="mt-1 text-sm font-semibold text-dark">{action.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-[#7b7061]">{action.description}</p>
+                  <p className="font-mono text-[11px] font-semibold text-[#9a763b]">{item.reference}</p>
+                  <p className="mt-1 text-sm font-semibold text-dark">{item.label}</p>
+                  <p className="mt-1 text-xs leading-5 text-[#7b7061]">{item.description}</p>
                 </div>
                 <ArrowRight className="h-4 w-4 shrink-0 text-[#a17b3b] transition group-hover:translate-x-0.5" />
               </Link>

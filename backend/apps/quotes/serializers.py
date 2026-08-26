@@ -81,6 +81,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
     items = QuoteItemSerializer(many=True, read_only=True)
     artwork = serializers.SerializerMethodField()
     order_reference = serializers.SerializerMethodField()
+    price_approved_by_name = serializers.SerializerMethodField()
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
@@ -106,6 +107,9 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "status_display",
             "estimated_price",
             "final_price",
+            "price_approved_at",
+            "price_approved_by_name",
+            "price_approval_comment",
             "items",
             "artwork",
             "order_reference",
@@ -113,6 +117,11 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["reference", "user", "status", "estimated_price", "final_price"]
+
+    def get_price_approved_by_name(self, obj):
+        if obj.price_approved_by:
+            return obj.price_approved_by.get_full_name() or obj.price_approved_by.email
+        return None
 
     def get_artwork(self, obj):
         if hasattr(obj, "artwork"):
@@ -240,6 +249,13 @@ class QuoteRequestUpdateSerializer(serializers.ModelSerializer):
             "internal_notes",
             "user_id",
         ]
+
+    def validate_status(self, value):
+        if self.instance and not self.instance.can_transition_to(value):
+            raise serializers.ValidationError(
+                f"Transição inválida a partir de '{self.instance.get_status_display()}'."
+            )
+        return value
 
 
 class ArtworkApprovalSerializer(serializers.ModelSerializer):

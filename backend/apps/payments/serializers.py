@@ -57,6 +57,15 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
             "notes",
         ]
 
+    def validate(self, attrs):
+        order = self.context.get("order")
+        amount_due = order.amount_due if order is not None else None
+        if amount_due is not None and attrs["amount"] > amount_due:
+            raise serializers.ValidationError(
+                {"amount": f"O valor excede o saldo em dívida ({amount_due} MZN)."}
+            )
+        return attrs
+
 
 class PaymentInitiateSerializer(serializers.Serializer):
     order_reference = serializers.CharField(required=True)

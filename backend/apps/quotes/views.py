@@ -43,7 +43,7 @@ class QuoteRequestViewSet(
 ):
     queryset = (
         QuoteRequest.objects.all()
-        .select_related("artwork", "user")
+        .select_related("artwork", "user", "price_approved_by")
         .prefetch_related("items", "items__product", "items__product_variant")
     )
     lookup_field = "reference"
@@ -138,8 +138,31 @@ class QuoteRequestViewSet(
 
         old_status = quote.status
         new_status = serializer.validated_data["status"]
+        if not quote.can_transition_to(new_status):
+            return Response(
+                {
+                    "detail": (
+                        f"Transição inválida: de '{quote.get_status_display()}' "
+                        "não é possível avançar para o estado escolhido."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        update_fields = ["status", "updated_at"]
         quote.status = new_status
-        quote.save(update_fields=["status", "updated_at"])
+        # Staff can record a client approval given offline (e.g. by phone);
+        # stamp the same provenance the client portal would.
+        if new_status == QuoteRequest.STATUS_APPROVED and not quote.price_approved_at:
+            quote.price_approved_at = timezone.now()
+            quote.price_approved_by = request.user
+            quote.price_approval_comment = "Aprovação registada pela equipa."
+            update_fields += [
+                "price_approved_at",
+                "price_approved_by",
+                "price_approval_comment",
+            ]
+        quote.save(update_fields=update_fields)
         notify_quote_status_changed(quote, old_status)
 
         return Response(
@@ -259,6 +282,9 @@ class QuoteRequestViewSet(
     @action(detail=True, methods=["post"], url_path="approve-price")
     def approve_price(self, request, reference=None):
         quote = self.get_object()
+        serializer = QuoteApprovalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         if quote.status != QuoteRequest.STATUS_QUOTED:
             return Response(
                 {"detail": "Apenas orçamentos no estado 'Orçamentado' podem ser aprovados."},
@@ -266,7 +292,18 @@ class QuoteRequestViewSet(
             )
         old_status = quote.status
         quote.status = QuoteRequest.STATUS_APPROVED
-        quote.save(update_fields=["status", "updated_at"])
+        quote.price_approved_at = timezone.now()
+        quote.price_approved_by = request.user if request.user.is_authenticated else None
+        quote.price_approval_comment = serializer.validated_data.get("comment", "")
+        quote.save(
+            update_fields=[
+                "status",
+                "price_approved_at",
+                "price_approved_by",
+                "price_approval_comment",
+                "updated_at",
+            ]
+        )
         notify_quote_status_changed(quote, old_status)
         return Response(
             {
@@ -285,6 +322,15 @@ class QuoteRequestViewSet(
                 {
                     "detail": "Este orçamento já foi convertido numa encomenda.",
                     "order_reference": quote.order.reference,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not quote.price_approved_at:
+            return Response(
+                {
+                    "detail": "O cliente ainda não aprovou o preço deste orçamento. "
+                    "Aguarde a aprovação ou registe-a em nome do cliente."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )

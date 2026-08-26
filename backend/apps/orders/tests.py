@@ -48,3 +48,19 @@ class TestOrderApi:
         order.refresh_from_db()
         assert order.amount_paid == 500
         assert order.payment_status == Order.PAYMENT_PARTIAL
+
+    def test_payment_above_amount_due_rejected(self, staff_client, order):
+        url = reverse("order-payments", kwargs={"reference": order.reference})
+        response = staff_client.post(
+            url,
+            {"amount": "1500.00", "method": "cash", "status": "completed"},
+            format="json",
+        )
+        assert response.status_code == 400
+
+    def test_invalid_order_status_transition_rejected(self, staff_client, order):
+        url = reverse("order-set-status", kwargs={"reference": order.reference})
+        response = staff_client.post(url, {"status": "delivered"}, format="json")
+        assert response.status_code == 400
+        order.refresh_from_db()
+        assert order.status == Order.STATUS_APPROVED

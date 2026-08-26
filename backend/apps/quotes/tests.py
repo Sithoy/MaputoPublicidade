@@ -37,12 +37,45 @@ class TestQuoteApi:
         assert quoted_quote.status == QuoteRequest.STATUS_APPROVED
 
     def test_staff_converts_quote_to_order(self, staff_client, quoted_quote):
+        # Conversion is only possible after the price approval is recorded.
         url = reverse("quote-convert-to-order", kwargs={"reference": quoted_quote.reference})
+        response = staff_client.post(url)
+        assert response.status_code == 400
+        assert not Order.objects.filter(quote=quoted_quote).exists()
+
+        staff_client.post(
+            reverse("quote-approve-price", kwargs={"reference": quoted_quote.reference}),
+            {"comment": "Aprovado por telefone"},
+            format="json",
+        )
         response = staff_client.post(url)
         assert response.status_code == 201
         assert Order.objects.filter(quote=quoted_quote).exists()
         quoted_quote.refresh_from_db()
         assert quoted_quote.status == QuoteRequest.STATUS_APPROVED
+
+    def test_client_approve_price_records_provenance(self, authenticated_client, quoted_quote, client_user):
+        url = reverse("quote-approve-price", kwargs={"reference": quoted_quote.reference})
+        response = authenticated_client.post(url, {"comment": "Aceito"}, format="json")
+        assert response.status_code == 200
+        quoted_quote.refresh_from_db()
+        assert quoted_quote.price_approved_at is not None
+        assert quoted_quote.price_approved_by == client_user
+        assert quoted_quote.price_approval_comment == "Aceito"
+
+    def test_staff_set_status_approved_records_provenance(self, staff_client, quoted_quote, staff_user):
+        url = reverse("quote-set-status", kwargs={"reference": quoted_quote.reference})
+        response = staff_client.post(url, {"status": "approved"}, format="json")
+        assert response.status_code == 200
+        quoted_quote.refresh_from_db()
+        assert quoted_quote.price_approved_by == staff_user
+
+    def test_invalid_status_transition_rejected(self, staff_client, quote):
+        url = reverse("quote-set-status", kwargs={"reference": quote.reference})
+        response = staff_client.post(url, {"status": "delivered"}, format="json")
+        assert response.status_code == 400
+        quote.refresh_from_db()
+        assert quote.status == QuoteRequest.STATUS_RECEIVED
 
     def test_staff_converts_anonymous_quote_to_order(self, staff_client, product):
         quote = QuoteRequest.objects.create(
@@ -58,6 +91,13 @@ class TestQuoteApi:
             product=product,
             description="Cartão de Visita",
             quantity=1,
+        )
+        # Anonymous quotes have no portal account, so staff records the
+        # approval on the client's behalf before converting.
+        staff_client.post(
+            reverse("quote-approve-price", kwargs={"reference": quote.reference}),
+            {"comment": "Aprovado presencialmente"},
+            format="json",
         )
         url = reverse("quote-convert-to-order", kwargs={"reference": quote.reference})
         response = staff_client.post(url)

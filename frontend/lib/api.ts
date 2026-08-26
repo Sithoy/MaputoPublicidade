@@ -306,6 +306,9 @@ export type Quote = {
   internal_notes?: string;
   estimated_price?: number;
   final_price?: number;
+  price_approved_at?: string | null;
+  price_approved_by_name?: string | null;
+  price_approval_comment?: string;
   items: QuoteItem[];
   item_count?: number;
   order_reference?: string | null;

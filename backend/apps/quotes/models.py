@@ -56,6 +56,40 @@ class QuoteRequest(models.Model):
     status = models.CharField(
         "estado", max_length=30, choices=STATUS_CHOICES, default=STATUS_RECEIVED
     )
+
+    # Provenance of the client's price approval. Conversion to an order is
+    # only allowed once these are set (via the approve-price endpoint or a
+    # staff member recording approval on the client's behalf).
+    price_approved_at = models.DateTimeField("preço aprovado em", null=True, blank=True)
+    price_approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="price_approvals",
+        verbose_name="preço aprovado por",
+    )
+    price_approval_comment = models.TextField(
+        "comentário da aprovação de preço", blank=True
+    )
+
+    # Server-side guard rails for the commercial workflow.
+    ALLOWED_TRANSITIONS = {
+        STATUS_RECEIVED: {STATUS_REVIEWING, STATUS_CANCELLED},
+        STATUS_REVIEWING: {STATUS_RECEIVED, STATUS_QUOTED, STATUS_CANCELLED},
+        STATUS_QUOTED: {STATUS_REVIEWING, STATUS_APPROVED, STATUS_CANCELLED},
+        STATUS_APPROVED: {STATUS_CANCELLED},
+        STATUS_IN_PRODUCTION: {STATUS_READY, STATUS_CANCELLED},
+        STATUS_READY: {STATUS_IN_PRODUCTION, STATUS_DELIVERED, STATUS_CANCELLED},
+        STATUS_DELIVERED: set(),
+        STATUS_CANCELLED: {STATUS_RECEIVED},
+    }
+
+    def can_transition_to(self, new_status: str) -> bool:
+        return new_status == self.status or new_status in self.ALLOWED_TRANSITIONS.get(
+            self.status, set()
+        )
+
     internal_notes = models.TextField("notas internas", blank=True)
     estimated_price = models.DecimalField(
         "preço estimado", max_digits=12, decimal_places=2, null=True, blank=True

@@ -111,6 +111,16 @@ class OrderViewSet(
         serializer.is_valid(raise_exception=True)
         old_status = order.status
         new_status = serializer.validated_data["status"]
+        if not order.can_transition_to(new_status):
+            return Response(
+                {
+                    "detail": (
+                        f"Transição inválida: de '{order.get_status_display()}' "
+                        "não é possível avançar para o estado escolhido."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         order.status = new_status
         order.save(update_fields=["status", "updated_at"])
         notify_order_status_changed(order, old_status)
@@ -156,7 +166,7 @@ class OrderViewSet(
                 {"detail": "Apenas staff pode registar pagamentos."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        serializer = PaymentCreateSerializer(data=request.data)
+        serializer = PaymentCreateSerializer(data=request.data, context={"order": order})
         serializer.is_valid(raise_exception=True)
         payment = serializer.save(order=order, recorded_by=request.user)
         output = PaymentSerializer(payment)

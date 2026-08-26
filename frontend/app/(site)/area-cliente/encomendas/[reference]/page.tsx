@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Check, MessageSquare } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Check, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -13,7 +14,6 @@ import { Textarea } from '@/components/ui/Textarea';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import {
   approveArtwork,
-  approveQuotePrice,
   getClientOrder,
   getOrderPayments,
   initiatePayment,
@@ -58,20 +58,6 @@ export default function ClientOrderDetailPage() {
     if (!reference) return;
     loadOrder();
   }, [reference, loadOrder]);
-
-  async function handleApprovePrice() {
-    if (!order?.quote_reference) return;
-    setActionLoading(true);
-    try {
-      await approveQuotePrice(order.quote_reference, comment);
-      await loadOrder();
-      setComment('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao aprovar preço');
-    } finally {
-      setActionLoading(false);
-    }
-  }
 
   async function handleApproveArtwork() {
     if (!order?.quote_reference) return;
@@ -311,24 +297,22 @@ export default function ClientOrderDetailPage() {
         </CardContent>
       </Card>
 
-      {order.status === 'quoted' && (
+      {order.quote_reference && (
         <Card>
-          <CardContent className="space-y-3 p-5">
-            <h2 className="text-lg font-semibold text-dark">Aprovação do preço</h2>
-            <p className="text-sm text-gray-600">
-              O preço final desta encomenda é de{' '}
-              <strong>{order.final_price != null ? formatMZN(order.final_price) : '—'}</strong>. Aprove para prosseguir.
-            </p>
-            <Textarea
-              placeholder="Comentário opcional"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={2}
-            />
-            <Button onClick={handleApprovePrice} disabled={actionLoading} className="gap-2">
-              <Check className="h-4 w-4" />
-              {actionLoading ? 'A processar...' : 'Aprovar preço'}
-            </Button>
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-dark">Proposta original</h2>
+              <p className="mt-1 text-sm text-[#68776f]">
+                Esta encomenda começou no orçamento {order.quote_reference}.
+              </p>
+            </div>
+            <Link
+              href={`/area-cliente/orcamentos/${order.quote_reference}`}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#dfe7e1] px-4 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+            >
+              Ver orçamento
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </CardContent>
         </Card>
       )}

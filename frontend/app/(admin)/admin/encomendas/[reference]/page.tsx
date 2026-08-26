@@ -15,18 +15,11 @@ import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { createOrderPayment, getOrder, getOrderPayments, updateOrderPayment, updateOrderStatus } from '@/lib/admin-api';
 import type { Order, Payment } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/api-errors';
 import { formatMZN } from '@/lib/utils';
+import { allowedNextStatuses, orderStatusLabels, orderStatusTransitions } from '@/lib/status';
 
-const statuses = [
-  { value: 'received', label: 'Pedido recebido' },
-  { value: 'reviewing', label: 'Em análise' },
-  { value: 'quoted', label: 'Orçamentado' },
-  { value: 'approved', label: 'Aprovado' },
-  { value: 'in_production', label: 'Em produção' },
-  { value: 'ready', label: 'Pronto para entrega' },
-  { value: 'delivered', label: 'Entregue' },
-  { value: 'cancelled', label: 'Cancelado' },
-];
+const statuses = Object.entries(orderStatusLabels).map(([value, label]) => ({ value, label }));
 
 const paymentStatuses = [
   { value: 'pending', label: 'Pendente' },
@@ -71,7 +64,7 @@ export default function AdminOrderDetailPage() {
       setInternalNotes(data.internal_notes || '');
       setPayments(paymentList);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar encomenda');
+      setError(getApiErrorMessage(err, 'Erro ao carregar encomenda'));
     } finally {
       setLoading(false);
     }
@@ -89,7 +82,7 @@ export default function AdminOrderDetailPage() {
       await updateOrderStatus(reference, status);
       await loadOrder();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao actualizar estado');
+      setError(getApiErrorMessage(err, 'Erro ao actualizar estado'));
     } finally {
       setSaving(false);
     }
@@ -113,7 +106,7 @@ export default function AdminOrderDetailPage() {
       });
       await loadOrder();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao actualizar pagamento');
+      setError(getApiErrorMessage(err, 'Erro ao actualizar pagamento'));
     } finally {
       setSaving(false);
     }
@@ -136,7 +129,7 @@ export default function AdminOrderDetailPage() {
       setNewNotes('');
       await loadOrder();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao registar pagamento');
+      setError(getApiErrorMessage(err, 'Erro ao registar pagamento'));
     } finally {
       setSaving(false);
     }
@@ -237,9 +230,11 @@ export default function AdminOrderDetailPage() {
             <div>
               <Label htmlFor="status">Estado da encomenda</Label>
               <Select id="status" value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1">
-                {statuses.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
+                {statuses
+                  .filter((s) => allowedNextStatuses(order.status, orderStatusTransitions).includes(s.value))
+                  .map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
               </Select>
             </div>
           </div>

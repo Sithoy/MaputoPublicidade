@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowUpRight,
   ClipboardList,
+  FileText,
   Headphones,
   LayoutDashboard,
   LogOut,
@@ -21,6 +22,7 @@ import { cn } from '@/lib/utils';
 
 const portalNav = [
   { href: '/area-cliente', label: 'Visão geral', icon: LayoutDashboard },
+  { href: '/area-cliente/orcamentos', label: 'Orçamentos', icon: FileText },
   { href: '/area-cliente/encomendas', label: 'Pedidos', icon: ClipboardList },
   { href: '/area-cliente/perfil', label: 'Perfil da empresa', icon: UserRound },
 ];
@@ -31,6 +33,8 @@ const SUPPORT_URL =
 function getPageTitle(pathname: string) {
   if (pathname.startsWith('/area-cliente/encomendas/')) return 'Acompanhamento do pedido';
   if (pathname === '/area-cliente/encomendas') return 'Pedidos';
+  if (pathname.startsWith('/area-cliente/orcamentos/')) return 'Detalhe da proposta';
+  if (pathname === '/area-cliente/orcamentos') return 'Orçamentos';
   if (pathname === '/area-cliente/perfil') return 'Perfil da empresa';
   return 'Visão geral';
 }

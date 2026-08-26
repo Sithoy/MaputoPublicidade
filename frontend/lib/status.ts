@@ -24,3 +24,29 @@ export const orderStatusOptions = [
   { value: '', label: 'Todos os estados' },
   ...Object.entries(orderStatusLabels).map(([value, label]) => ({ value, label })),
 ];
+
+// Mirror of the backend ALLOWED_TRANSITIONS maps (quotes/orders models) so the
+// admin UI only offers transitions the API will accept.
+export const quoteStatusTransitions: Record<string, string[]> = {
+  received: ['reviewing', 'cancelled'],
+  reviewing: ['received', 'quoted', 'cancelled'],
+  quoted: ['reviewing', 'approved', 'cancelled'],
+  approved: ['cancelled'],
+  in_production: ['ready', 'cancelled'],
+  ready: ['in_production', 'delivered', 'cancelled'],
+  delivered: [],
+  cancelled: ['received'],
+};
+
+export const orderStatusTransitions: Record<string, string[]> = {
+  ...quoteStatusTransitions,
+  approved: ['in_production', 'cancelled'],
+  cancelled: ['approved'],
+};
+
+export function allowedNextStatuses(
+  current: string,
+  transitions: Record<string, string[]> = orderStatusTransitions
+): string[] {
+  return [current, ...(transitions[current] ?? [])];
+}

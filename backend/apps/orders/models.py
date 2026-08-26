@@ -80,6 +80,24 @@ class Order(models.Model):
     status = models.CharField(
         "estado", max_length=30, choices=STATUS_CHOICES, default=STATUS_RECEIVED
     )
+
+    # Server-side guard rails for the production workflow.
+    ALLOWED_TRANSITIONS = {
+        STATUS_RECEIVED: {STATUS_REVIEWING, STATUS_CANCELLED},
+        STATUS_REVIEWING: {STATUS_RECEIVED, STATUS_QUOTED, STATUS_CANCELLED},
+        STATUS_QUOTED: {STATUS_REVIEWING, STATUS_APPROVED, STATUS_CANCELLED},
+        STATUS_APPROVED: {STATUS_IN_PRODUCTION, STATUS_CANCELLED},
+        STATUS_IN_PRODUCTION: {STATUS_APPROVED, STATUS_READY, STATUS_CANCELLED},
+        STATUS_READY: {STATUS_IN_PRODUCTION, STATUS_DELIVERED, STATUS_CANCELLED},
+        STATUS_DELIVERED: set(),
+        STATUS_CANCELLED: {STATUS_APPROVED},
+    }
+
+    def can_transition_to(self, new_status: str) -> bool:
+        return new_status == self.status or new_status in self.ALLOWED_TRANSITIONS.get(
+            self.status, set()
+        )
+
     delivery_method = models.CharField(
         "método de entrega",
         max_length=20,

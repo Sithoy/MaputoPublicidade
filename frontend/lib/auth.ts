@@ -187,7 +187,14 @@ export async function fetchWithAuth(path: string, options: RequestInit = {}) {
   }
 
   if (res.status === 401) removeToken();
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  if (!res.ok) {
+    // Surface the backend's error detail (e.g. invalid status transition)
+    // instead of a bare status code.
+    const body = await readJson<{ detail?: string; non_field_errors?: string[] }>(res);
+    const message =
+      body?.detail || body?.non_field_errors?.[0] || `Request failed: ${res.status}`;
+    throw new Error(message);
+  }
   return res.json();
 }
 

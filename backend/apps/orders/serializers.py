@@ -244,6 +244,13 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
             "items",
         ]
 
+    def validate_status(self, value):
+        if self.instance and not self.instance.can_transition_to(value):
+            raise serializers.ValidationError(
+                f"Transição inválida a partir de '{self.instance.get_status_display()}'."
+            )
+        return value
+
     def update(self, instance, validated_data):
         items_data = validated_data.pop("items", None)
         for attr, value in validated_data.items():

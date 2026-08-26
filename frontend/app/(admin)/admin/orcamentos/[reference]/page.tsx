@@ -23,7 +23,8 @@ import {
   uploadArtworkProof,
 } from '@/lib/admin-api';
 import type { AdminQuote } from '@/lib/admin-api';
-import { orderStatusLabels } from '@/lib/status';
+import { getApiErrorMessage } from '@/lib/api-errors';
+import { allowedNextStatuses, orderStatusLabels, quoteStatusTransitions } from '@/lib/status';
 
 const statusOptions = Object.entries(orderStatusLabels).map(([value, label]) => ({ value, label }));
 
@@ -53,7 +54,7 @@ export default function AdminOrderDetailPage() {
         setFinalPrice(data.final_price?.toString() || '');
         setInternalNotes(data.internal_notes || '');
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar encomenda'));
+      .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar orçamento')));
   }, [authLoading, reference]);
 
   async function performStatusUpdate() {
@@ -65,7 +66,7 @@ export default function AdminOrderDetailPage() {
       await updateQuoteStatus(reference, status);
       setMessage('Estado actualizado com sucesso.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao actualizar estado');
+      setError(getApiErrorMessage(err, 'Erro ao actualizar estado'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +92,7 @@ export default function AdminOrderDetailPage() {
       });
       setMessage('Preços actualizados com sucesso.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao actualizar preços');
+      setError(getApiErrorMessage(err, 'Erro ao actualizar preços'));
     } finally {
       setLoading(false);
     }
@@ -106,7 +107,7 @@ export default function AdminOrderDetailPage() {
       await updateQuoteInternalNotes(reference, internalNotes);
       setMessage('Notas internas guardadas.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao guardar notas');
+      setError(getApiErrorMessage(err, 'Erro ao guardar notas'));
     } finally {
       setLoading(false);
     }
@@ -127,7 +128,7 @@ export default function AdminOrderDetailPage() {
       setDesignerComment('');
       getQuote(reference).then(setQuote);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao enviar prova');
+      setError(getApiErrorMessage(err, 'Erro ao enviar prova'));
     } finally {
       setLoading(false);
     }
@@ -143,7 +144,7 @@ export default function AdminOrderDetailPage() {
       setMessage(`Encomenda ${result.order_reference} criada com sucesso.`);
       getQuote(reference).then(setQuote);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao converter orçamento');
+      setError(getApiErrorMessage(err, 'Erro ao converter orçamento'));
     } finally {
       setLoading(false);
     }
@@ -279,11 +280,15 @@ export default function AdminOrderDetailPage() {
                   onChange={(e) => setStatus(e.target.value)}
                   className="mt-1"
                 >
-                  {statusOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
+                  {statusOptions
+                    .filter((opt) =>
+                      allowedNextStatuses(quote.status, quoteStatusTransitions).includes(opt.value)
+                    )
+                    .map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                 </Select>
               </div>
               <Button onClick={handleStatusUpdate} disabled={loading} className="w-full gap-2">
@@ -343,11 +348,22 @@ export default function AdminOrderDetailPage() {
               <CardContent className="space-y-3 p-6">
                 <h2 className="text-lg font-semibold text-dark">Converter em encomenda</h2>
                 <p className="text-sm text-gray-600">
-                  Crie uma encomenda a partir deste orçamento. Recomenda-se definir o preço final antes.
+                  Crie uma encomenda a partir deste orçamento. Requer preço final e aprovação do cliente.
                 </p>
+                {quote.price_approved_at ? (
+                  <p className="rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+                    Preço aprovado{quote.price_approved_by_name ? ` por ${quote.price_approved_by_name}` : ''}{' '}
+                    em {new Date(quote.price_approved_at).toLocaleString('pt-MZ')}.
+                  </p>
+                ) : (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    O cliente ainda não aprovou o preço. Se a aprovação foi dada offline,
+                    registe-a mudando o estado para &quot;Aprovado&quot;.
+                  </p>
+                )}
                 <Button
                   onClick={handleConvertToOrder}
-                  disabled={loading || !quote.final_price}
+                  disabled={loading || !quote.final_price || !quote.price_approved_at}
                   className="w-full gap-2"
                 >
                   Converter em encomenda

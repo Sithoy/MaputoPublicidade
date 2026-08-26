@@ -55,6 +55,11 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if order.amount_due is not None and amount > order.amount_due:
+            return Response(
+                {"detail": f"O valor excede o saldo em dívida ({order.amount_due} MZN)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         payment = Payment(
             order=order,
