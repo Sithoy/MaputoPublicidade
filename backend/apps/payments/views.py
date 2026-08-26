@@ -4,6 +4,10 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from apps.accounts.roles import StaffCapability, has_staff_capability
+from apps.core.activity import record_activity
+from apps.core.models import ActivityEvent
+from apps.core.permissions import IsOwnerOrStaff
 from apps.orders.models import Order
 
 from .models import Payment
@@ -15,9 +19,12 @@ from .serializers import (
 from .webhook_security import verify_webhook_signature
 
 
-def _can_access_order(request, order: Order) -> bool:
+def _can_access_order(request, order: Order, staff_capability=None) -> bool:
     if request.user.is_staff:
-        return True
+        return bool(
+            not staff_capability
+            or has_staff_capability(request.user, staff_capability)
+        )
     return order.user == request.user
 
 
@@ -26,7 +33,15 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
 
     lookup_field = "correlation_id"
     serializer_class = PaymentSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        return [
+            IsAuthenticated(),
+            IsOwnerOrStaff(
+                owner_field="order.user",
+                staff_capability=StaffCapability.VIEW_PAYMENTS,
+            ),
+        ]
 
     def get_queryset(self):
         user = self.request.user
@@ -41,7 +56,10 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         data = serializer.validated_data
 
         order = get_object_or_404(Order, reference=data["order_reference"])
-        if not _can_access_order(request, order):
+        staff_capability = (
+            StaffCapability.MANAGE_PAYMENTS if request.user.is_staff else None
+        )
+        if not _can_access_order(request, order, staff_capability):
             return Response(
                 {"detail": "Não tem permissão para pagar esta encomenda."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -84,6 +102,12 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         payment.save()
+        record_activity(
+            action=ActivityEvent.ACTION_PAYMENT_RECORDED,
+            order=order,
+            actor=request.user,
+            comment=f"{payment.amount} MZN via {payment.get_method_display()}",
+        )
         output = PaymentSerializer(payment)
         return Response(
             {"provider_response": result, "payment": output.data},

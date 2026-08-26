@@ -6,11 +6,12 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.roles import StaffCapability
 from apps.catalog.models import Package, Product, ServiceCategory
 from apps.orders.models import Order
 from apps.quotes.models import QuoteRequest
 
-from .permissions import IsStaffUser
+from .permissions import HasStaffCapability
 
 
 class HealthCheckView(APIView):
@@ -31,7 +32,9 @@ class HealthCheckView(APIView):
 class AdminStatsView(APIView):
     """Aggregated statistics for the admin dashboard."""
 
-    permission_classes = [IsStaffUser]
+
+    def get_permissions(self):
+        return [HasStaffCapability(StaffCapability.VIEW_DASHBOARD)]
 
     def get(self, request):
         now = timezone.now()

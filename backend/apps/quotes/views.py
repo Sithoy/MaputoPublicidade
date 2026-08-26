@@ -7,7 +7,10 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from apps.accounts.roles import StaffCapability
+from apps.core.activity import record_activity
 from apps.core.export_utils import export_response
+from apps.core.models import ActivityEvent
 from apps.core.notifications import (
     notify_artwork_proof_uploaded,
     notify_order_created,
@@ -15,7 +18,7 @@ from apps.core.notifications import (
     notify_quote_received,
     notify_quote_status_changed,
 )
-from apps.core.permissions import IsOwnerOrStaff, IsStaffUser
+from apps.core.permissions import HasStaffCapability, IsOwnerOrStaff
 from apps.orders.models import Order, OrderItem
 
 from .models import ArtworkApproval, QuoteRequest
@@ -61,18 +64,34 @@ class QuoteRequestViewSet(
     def get_permissions(self):
         if self.action == "create":
             return [AllowAny()]
+        if self.action in ["approve", "request_change", "approve_price"]:
+            return [
+                IsAuthenticated(),
+                IsOwnerOrStaff(
+                    owner_field="user",
+                    staff_capability=StaffCapability.MANAGE_QUOTES,
+                ),
+            ]
+        if self.action == "upload_proof":
+            return [HasStaffCapability(StaffCapability.MANAGE_ARTWORK)]
+        if self.action == "export":
+            return [HasStaffCapability(StaffCapability.EXPORT_QUOTES)]
         if self.action in [
             "set_status",
             "set_price",
-            "upload_proof",
             "convert_to_order",
             "update",
             "partial_update",
             "destroy",
-            "export",
         ]:
-            return [IsStaffUser()]
-        return [IsAuthenticated(), IsOwnerOrStaff(owner_field="user")]
+            return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
+        return [
+            IsAuthenticated(),
+            IsOwnerOrStaff(
+                owner_field="user",
+                staff_capability=StaffCapability.VIEW_QUOTES,
+            ),
+        ]
 
     def get_queryset(self):
         user = self.request.user
@@ -121,6 +140,11 @@ class QuoteRequestViewSet(
         serializer = QuoteRequestCreateSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         quote = serializer.save()
+        record_activity(
+            action=ActivityEvent.ACTION_CREATED,
+            quote=quote,
+            actor=request.user,
+        )
         notify_quote_received(quote)
         detail = QuoteRequestDetailSerializer(quote, context={"request": request})
         return Response(detail.data, status=status.HTTP_201_CREATED)
@@ -163,6 +187,13 @@ class QuoteRequestViewSet(
                 "price_approval_comment",
             ]
         quote.save(update_fields=update_fields)
+        record_activity(
+            action=ActivityEvent.ACTION_STATUS_CHANGED,
+            quote=quote,
+            actor=request.user,
+            from_status=old_status,
+            to_status=new_status,
+        )
         notify_quote_status_changed(quote, old_status)
 
         return Response(
@@ -193,6 +224,13 @@ class QuoteRequestViewSet(
         ):
             quote.status = QuoteRequest.STATUS_QUOTED
             quote.save(update_fields=["status", "updated_at"])
+            record_activity(
+                action=ActivityEvent.ACTION_STATUS_CHANGED,
+                quote=quote,
+                actor=request.user,
+                from_status=old_status,
+                to_status=quote.status,
+            )
             notify_quote_ready(quote)
         elif old_status != quote.status:
             notify_quote_status_changed(quote, old_status)
@@ -214,10 +252,24 @@ class QuoteRequestViewSet(
         serializer = ArtworkProofSerializer(artwork, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save(status=ArtworkApproval.STATUS_PENDING)
+        record_activity(
+            action=ActivityEvent.ACTION_ARTWORK_PROOF_UPLOADED,
+            quote=quote,
+            actor=request.user,
+            comment=artwork.designer_comment,
+        )
 
         old_status = quote.status
         quote.status = QuoteRequest.STATUS_QUOTED
         quote.save(update_fields=["status", "updated_at"])
+        if old_status != quote.status:
+            record_activity(
+                action=ActivityEvent.ACTION_STATUS_CHANGED,
+                quote=quote,
+                actor=request.user,
+                from_status=old_status,
+                to_status=quote.status,
+            )
         notify_artwork_proof_uploaded(quote)
         if old_status != quote.status:
             notify_quote_status_changed(quote, old_status)
@@ -241,10 +293,24 @@ class QuoteRequestViewSet(
         artwork.client_comment = serializer.validated_data.get("comment", "")
         artwork.approved_at = timezone.now()
         artwork.save()
+        record_activity(
+            action=ActivityEvent.ACTION_ARTWORK_APPROVED,
+            quote=quote,
+            actor=request.user,
+            comment=artwork.client_comment,
+        )
 
         old_status = quote.status
         quote.status = QuoteRequest.STATUS_APPROVED
         quote.save()
+        if old_status != quote.status:
+            record_activity(
+                action=ActivityEvent.ACTION_STATUS_CHANGED,
+                quote=quote,
+                actor=request.user,
+                from_status=old_status,
+                to_status=quote.status,
+            )
         notify_quote_status_changed(quote, old_status)
 
         return Response(
@@ -265,10 +331,24 @@ class QuoteRequestViewSet(
         artwork.status = ArtworkApproval.STATUS_CHANGES_REQUESTED
         artwork.requested_changes = serializer.validated_data.get("comment", "")
         artwork.save()
+        record_activity(
+            action=ActivityEvent.ACTION_ARTWORK_CHANGES_REQUESTED,
+            quote=quote,
+            actor=request.user,
+            comment=artwork.requested_changes,
+        )
 
         old_status = quote.status
         quote.status = QuoteRequest.STATUS_REVIEWING
         quote.save()
+        if old_status != quote.status:
+            record_activity(
+                action=ActivityEvent.ACTION_STATUS_CHANGED,
+                quote=quote,
+                actor=request.user,
+                from_status=old_status,
+                to_status=quote.status,
+            )
         notify_quote_status_changed(quote, old_status)
 
         return Response(
@@ -303,6 +383,14 @@ class QuoteRequestViewSet(
                 "price_approval_comment",
                 "updated_at",
             ]
+        )
+        record_activity(
+            action=ActivityEvent.ACTION_PRICE_APPROVED,
+            quote=quote,
+            actor=request.user,
+            from_status=old_status,
+            to_status=quote.status,
+            comment=quote.price_approval_comment,
         )
         notify_quote_status_changed(quote, old_status)
         return Response(
@@ -366,6 +454,19 @@ class QuoteRequestViewSet(
         old_status = quote.status
         quote.status = QuoteRequest.STATUS_APPROVED
         quote.save(update_fields=["status", "updated_at"])
+
+        record_activity(
+            action=ActivityEvent.ACTION_CONVERTED_TO_ORDER,
+            quote=quote,
+            actor=request.user,
+            comment=f"Encomenda {order.reference}",
+        )
+        record_activity(
+            action=ActivityEvent.ACTION_CREATED,
+            order=order,
+            actor=request.user,
+            comment=f"Orçamento {quote.reference}",
+        )
 
         notify_quote_status_changed(quote, old_status)
         notify_order_created(order)

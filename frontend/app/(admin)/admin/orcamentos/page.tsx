@@ -22,7 +22,7 @@ function quoteLabel(quote: Quote) {
 }
 
 function AdminQuotesContent() {
-  const { loading: authLoading } = useAdminAuth();
+  const { loading: authLoading, can } = useAdminAuth();
   const searchParams = useSearchParams();
   const urlStatus = searchParams.get('status') ?? '';
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -75,7 +75,7 @@ function AdminQuotesContent() {
           <h1 className="text-2xl font-bold text-dark">Orçamentos</h1>
           <p className="text-sm text-gray-500">Gestão de orçamentos e pedidos</p>
         </div>
-        <div className="flex gap-2">
+        {can('quotes.export') ? <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => exportQuotes('csv', statusFilter ? { status: statusFilter } : {})} className="gap-2">
             <FileDown className="h-4 w-4" />
             CSV
@@ -84,7 +84,7 @@ function AdminQuotesContent() {
             <FileDown className="h-4 w-4" />
             Excel
           </Button>
-        </div>
+        </div> : null}
       </div>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}

@@ -34,6 +34,36 @@ class TestQuoteApi:
         response = staff_client.get(url)
         assert response.json()["internal_notes"] == "Nota confidencial da equipa"
 
+    def test_approval_and_conversion_record_activity(self, authenticated_client, staff_client, quoted_quote):
+        authenticated_client.post(
+            reverse("quote-approve-price", kwargs={"reference": quoted_quote.reference}),
+            {"comment": "Aceito"},
+            format="json",
+        )
+        staff_client.post(
+            reverse("quote-convert-to-order", kwargs={"reference": quoted_quote.reference})
+        )
+        quoted_quote.refresh_from_db()
+        actions = list(quoted_quote.activity_events.values_list("action", flat=True))
+        assert "price_approved" in actions
+        assert "converted_to_order" in actions
+        order = quoted_quote.order
+        assert order.activity_events.filter(action="created").exists()
+
+    def test_activity_visible_in_detail(self, authenticated_client, quoted_quote):
+        authenticated_client.post(
+            reverse("quote-approve-price", kwargs={"reference": quoted_quote.reference}),
+            {"comment": "Aceito"},
+            format="json",
+        )
+        response = authenticated_client.get(
+            reverse("quote-detail", kwargs={"reference": quoted_quote.reference})
+        )
+        activity = response.json()["activity"]
+        assert any(event["action"] == "price_approved" for event in activity)
+        # Client-facing actor label hides individual staff names.
+        assert all(event["actor_name"] in (None, "Cliente Teste", "Equipa MP") for event in activity)
+
     def test_staff_set_price_to_quoted(self, staff_client, quote):
         url = reverse("quote-set-price", kwargs={"reference": quote.reference})
         response = staff_client.post(url, {"final_price": "1000.00"}, format="json")

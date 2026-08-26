@@ -17,29 +17,31 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { removeToken } from '@/lib/auth';
+import type { User } from '@/lib/api';
+import { getDefaultAdminPath, hasCapability, type StaffCapability } from '@/lib/rbac';
 
 const navGroups = [
   {
     label: 'Fluxo comercial',
     items: [
-      { href: '/admin', label: 'Visão geral', icon: BarChart3 },
-      { href: '/admin/orcamentos', label: 'Pedidos e propostas', icon: ShoppingCart },
-      { href: '/admin/encomendas', label: 'Produção e entregas', icon: Package },
+      { href: '/admin', label: 'Visão geral', icon: BarChart3, capability: 'dashboard.view' },
+      { href: '/admin/orcamentos', label: 'Pedidos e propostas', icon: ShoppingCart, capability: 'quotes.view' },
+      { href: '/admin/encomendas', label: 'Produção e entregas', icon: Package, capability: 'orders.view' },
     ],
   },
   {
     label: 'Conteúdo',
     items: [
-      { href: '/admin/produtos', label: 'Produtos', icon: Boxes },
-      { href: '/admin/portfolio', label: 'Portfólio', icon: ImageIcon },
-      { href: '/admin/parceiros', label: 'Parceiros', icon: Handshake },
-      { href: '/admin/categorias', label: 'Categorias', icon: FolderOpen },
-      { href: '/admin/pacotes', label: 'Pacotes', icon: Package },
+      { href: '/admin/produtos', label: 'Produtos', icon: Boxes, capability: 'catalog.manage' },
+      { href: '/admin/portfolio', label: 'Portfólio', icon: ImageIcon, capability: 'content.manage' },
+      { href: '/admin/parceiros', label: 'Parceiros', icon: Handshake, capability: 'content.manage' },
+      { href: '/admin/categorias', label: 'Categorias', icon: FolderOpen, capability: 'catalog.manage' },
+      { href: '/admin/pacotes', label: 'Pacotes', icon: Package, capability: 'catalog.manage' },
     ],
   },
   {
     label: 'Acesso',
-    items: [{ href: '/admin/utilizadores', label: 'Utilizadores', icon: Users }],
+    items: [{ href: '/admin/utilizadores', label: 'Utilizadores', icon: Users, capability: 'users.manage' }],
   },
 ];
 
@@ -49,9 +51,10 @@ function isActiveRoute(pathname: string, href: string) {
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
+export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
+  const homeHref = getDefaultAdminPath(user);
 
   function handleLogout() {
     removeToken();
@@ -62,7 +65,7 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside className="flex h-full w-[280px] flex-col border-r border-[#dfe7e1] bg-white">
       <div className="flex h-[76px] items-center border-b border-[#e6ece7] px-5">
-        <Link href="/admin" onClick={onNavigate} className="flex min-w-0 items-center gap-3">
+        <Link href={homeHref} onClick={onNavigate} className="flex min-w-0 items-center gap-3">
           <Image
             src="/logo-tight.png"
             alt="Maputo Publicidade"
@@ -81,13 +84,18 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-5" aria-label="Navegação administrativa">
-        {navGroups.map((group, groupIndex) => (
+        {navGroups.map((group, groupIndex) => {
+          const visibleItems = group.items.filter((item) =>
+            hasCapability(user, item.capability as StaffCapability)
+          );
+          if (visibleItems.length === 0) return null;
+          return (
           <div key={group.label} className={cn(groupIndex > 0 && 'mt-6')}>
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a9890]">
               {group.label}
             </p>
             <div className="space-y-1">
-              {group.items.map((item) => {
+              {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActiveRoute(pathname, item.href);
 
@@ -116,7 +124,8 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="border-t border-[#e6ece7] p-4">

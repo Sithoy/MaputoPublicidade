@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowUpRight, Menu } from 'lucide-react';
+import type { User } from '@/lib/api';
+import { getRoleLabel } from '@/lib/rbac';
 
 function getPageTitle(pathname: string) {
   if (pathname === '/admin') return 'Visão geral';
@@ -27,9 +29,16 @@ function getPageTitle(pathname: string) {
   return 'Administração';
 }
 
-export function AdminHeader({ onMenuOpen }: { onMenuOpen: () => void }) {
+export function AdminHeader({ user, onMenuOpen }: { user: User; onMenuOpen: () => void }) {
   const pathname = usePathname();
   const pageTitle = getPageTitle(pathname);
+  const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+  const initials = [user.first_name, user.last_name]
+    .filter(Boolean)
+    .map((name) => name?.[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'MP';
 
   return (
     <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-[#dfe7e1] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
@@ -61,11 +70,11 @@ export function AdminHeader({ onMenuOpen }: { onMenuOpen: () => void }) {
         <span className="hidden h-7 w-px bg-[#dfe7e1] sm:block" aria-hidden="true" />
         <div className="flex items-center gap-2.5">
           <div className="hidden text-right md:block">
-            <p className="text-sm font-semibold text-dark">Equipa MP</p>
-            <p className="text-xs text-[#829087]">Gestão interna</p>
+            <p className="max-w-44 truncate text-sm font-semibold text-dark">{displayName}</p>
+            <p className="text-xs text-[#829087]">{getRoleLabel(user)}</p>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-800 text-xs font-bold tracking-[0.06em] text-white">
-            MP
+            {initials}
           </div>
         </div>
       </div>

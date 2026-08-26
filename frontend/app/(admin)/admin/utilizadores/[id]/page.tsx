@@ -27,6 +27,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { getUser, setUserPassword, updateUser } from '@/lib/admin-api';
 import type { User } from '@/lib/api';
+import { getRoleLabel, hasCapability, STAFF_ROLE_OPTIONS } from '@/lib/rbac';
 
 function displayName(user: User) {
   return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
@@ -39,11 +40,6 @@ function initials(user: User) {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
-}
-
-function roleLabel(user: User) {
-  if (user.is_superuser) return 'Proprietário';
-  return user.is_staff ? 'Administrador' : 'Cliente';
 }
 
 function formatDate(value?: string | null, includeTime = false) {
@@ -108,16 +104,22 @@ export default function AdminUserDetailPage() {
 
     const form = new FormData(event.currentTarget);
     const canChangeRole =
-      Boolean(currentUser?.is_superuser) && !user.is_superuser && currentUser?.id !== user.id;
+      hasCapability(currentUser, 'staff.manage') && !user.is_superuser && currentUser?.id !== user.id;
     const canChangeStatus =
-      currentUser?.id !== user.id && (!user.is_staff || Boolean(currentUser?.is_superuser));
+      currentUser?.id !== user.id &&
+      (!user.is_staff || hasCapability(currentUser, 'staff.manage'));
+    const selectedRole = String(form.get('role') || user.role || 'client');
 
     try {
       const updated = await updateUser(user.id, {
         email: String(form.get('email') || '').trim(),
         first_name: String(form.get('first_name') || '').trim(),
         last_name: String(form.get('last_name') || '').trim(),
-        is_staff: canChangeRole ? String(form.get('role')) === 'admin' : user.is_staff,
+        is_staff: canChangeRole ? selectedRole !== 'client' : user.is_staff,
+        staff_role:
+          canChangeRole && selectedRole !== 'client'
+            ? (selectedRole as 'administrator' | 'commercial' | 'production' | 'finance' | 'content')
+            : undefined,
         is_active: canChangeStatus ? form.get('is_active') === 'on' : user.is_active,
         profile: {
           company: String(form.get('company') || '').trim(),
@@ -186,13 +188,14 @@ export default function AdminUserDetailPage() {
   }
 
   const canEditProfile =
-    !user.is_staff || Boolean(currentUser?.is_superuser) || currentUser?.id === user.id;
+    !user.is_staff || hasCapability(currentUser, 'staff.manage') || currentUser?.id === user.id;
   const canChangeRole =
-    Boolean(currentUser?.is_superuser) && !user.is_superuser && currentUser?.id !== user.id;
+    hasCapability(currentUser, 'staff.manage') && !user.is_superuser && currentUser?.id !== user.id;
   const canChangeStatus =
-    currentUser?.id !== user.id && (!user.is_staff || Boolean(currentUser?.is_superuser));
+    currentUser?.id !== user.id &&
+    (!user.is_staff || hasCapability(currentUser, 'staff.manage'));
   const canResetPassword =
-    !user.is_staff || Boolean(currentUser?.is_superuser) || currentUser?.id === user.id;
+    !user.is_staff || hasCapability(currentUser, 'staff.manage') || currentUser?.id === user.id;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -216,7 +219,7 @@ export default function AdminUserDetailPage() {
                 <h1 className="truncate text-2xl font-semibold tracking-[-0.03em] text-dark">
                   {displayName(user)}
                 </h1>
-                <Badge variant={user.is_staff ? 'default' : 'outline'}>{roleLabel(user)}</Badge>
+                <Badge variant={user.is_staff ? 'default' : 'outline'}>{getRoleLabel(user)}</Badge>
               </div>
               <p className="mt-0.5 truncate text-sm text-[#6a7971]">{user.email}</p>
             </div>
@@ -324,13 +327,17 @@ export default function AdminUserDetailPage() {
                   <Select
                     id="role"
                     name="role"
-                    defaultValue={user.is_staff ? 'admin' : 'client'}
+                    defaultValue={user.role || (user.is_staff ? 'administrator' : 'client')}
                     disabled={!canChangeRole}
                     className="h-11 rounded-xl border-[#cbd8d0]"
                   >
-                    {user.is_superuser ? <option value="admin">Proprietário</option> : null}
+                    {user.is_superuser ? <option value="owner">Proprietário</option> : null}
                     <option value="client">Cliente</option>
-                    <option value="admin">Administrador</option>
+                    {STAFF_ROLE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </Select>
                 </div>
                 <div className="flex items-end">

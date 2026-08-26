@@ -1,7 +1,8 @@
 from rest_framework import permissions, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
-from apps.core.permissions import IsStaffUser
+from apps.accounts.roles import StaffCapability, has_staff_capability
+from apps.core.permissions import HasStaffCapability
 
 from .models import Package, Product, ProductVariant, ServiceCategory
 from .serializers import (
@@ -21,7 +22,7 @@ class ServiceCategoryViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny()]
-        return [IsStaffUser()]
+        return [HasStaffCapability(StaffCapability.MANAGE_CATALOG)]
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -38,12 +39,16 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny()]
-        return [IsStaffUser()]
+        return [HasStaffCapability(StaffCapability.MANAGE_CATALOG)]
 
     def get_queryset(self):
         user = self.request.user
         queryset = super().get_queryset()
-        if not (user.is_authenticated and user.is_staff):
+        if not (
+            user.is_authenticated
+            and user.is_staff
+            and has_staff_capability(user, StaffCapability.MANAGE_CATALOG)
+        ):
             queryset = queryset.filter(is_active=True)
 
         category = self.request.query_params.get("category")
@@ -63,12 +68,16 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny()]
-        return [IsStaffUser()]
+        return [HasStaffCapability(StaffCapability.MANAGE_CATALOG)]
 
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
-        if not (user.is_authenticated and user.is_staff):
+        if not (
+            user.is_authenticated
+            and user.is_staff
+            and has_staff_capability(user, StaffCapability.MANAGE_CATALOG)
+        ):
             queryset = queryset.filter(is_active=True)
         product_slug = self.request.query_params.get("product")
         if product_slug:
@@ -85,11 +94,15 @@ class PackageViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny()]
-        return [IsStaffUser()]
+        return [HasStaffCapability(StaffCapability.MANAGE_CATALOG)]
 
     def get_queryset(self):
         user = self.request.user
         queryset = super().get_queryset()
-        if not (user.is_authenticated and user.is_staff):
+        if not (
+            user.is_authenticated
+            and user.is_staff
+            and has_staff_capability(user, StaffCapability.MANAGE_CATALOG)
+        ):
             queryset = queryset.filter(is_active=True)
         return queryset

@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { TestCredentialsButton } from '@/components/TestCredentialsButton';
 import { login, removeToken } from '@/lib/auth';
+import type { User } from '@/lib/api';
+import { getDefaultAdminPath } from '@/lib/rbac';
 
 const adminBenefits = [
   {
@@ -63,11 +65,11 @@ export default function AdminLoginPage() {
 
       if (!user?.is_staff) {
         removeToken();
-        setError('Esta conta não tem permissões de administrador.');
+        setError('Esta conta não tem acesso à área da equipa MP.');
         return;
       }
 
-      router.push('/admin');
+      router.push(getDefaultAdminPath(user as User));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível iniciar sessão.');
     } finally {

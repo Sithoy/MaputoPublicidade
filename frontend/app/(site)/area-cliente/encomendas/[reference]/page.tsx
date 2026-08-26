@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
+import { ActivityTimeline } from '@/components/ActivityTimeline';
 import {
   approveArtwork,
   getClientOrder,
@@ -375,6 +376,13 @@ export default function ClientOrderDetailPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      <Card>
+        <CardContent className="p-5">
+          <h2 className="mb-4 text-lg font-semibold text-dark">Histórico</h2>
+          <ActivityTimeline events={order.activity ?? []} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

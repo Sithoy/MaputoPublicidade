@@ -31,6 +31,7 @@ import {
   type UserSummary,
 } from '@/lib/admin-api';
 import type { User } from '@/lib/api';
+import { getRoleLabel, hasCapability, STAFF_ROLE_OPTIONS } from '@/lib/rbac';
 
 const PAGE_SIZE = 25;
 
@@ -45,11 +46,6 @@ function initials(user: User) {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
-}
-
-function roleLabel(user: User) {
-  if (user.is_superuser) return 'Proprietário';
-  return user.is_staff ? 'Administrador' : 'Cliente';
 }
 
 function formatDate(value?: string) {
@@ -89,7 +85,7 @@ export default function AdminUsersPage() {
     const activeRequest = ++requestId.current;
     const params = new URLSearchParams({ page: String(page), ordering: '-date_joined' });
     if (deferredSearch) params.set('search', deferredSearch);
-    if (role !== 'all') params.set('is_staff', role === 'admin' ? 'true' : 'false');
+    if (role !== 'all') params.set('role', role);
     if (status !== 'all') params.set('is_active', status === 'active' ? 'true' : 'false');
 
     setLoading(true);
@@ -177,7 +173,7 @@ export default function AdminUsersPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Total" value={summary?.total ?? '—'} subtitle="Contas registadas" icon={Users} />
         <StatCard title="Clientes" value={summary?.clients ?? '—'} subtitle="Acesso ao portal" icon={Building2} />
-        <StatCard title="Administradores" value={summary?.staff ?? '—'} subtitle="Acesso à gestão" icon={ShieldCheck} />
+        <StatCard title="Equipa MP" value={summary?.staff ?? '—'} subtitle="Acesso por função" icon={ShieldCheck} />
         <StatCard title="Contas activas" value={summary?.active ?? '—'} subtitle={`${summary?.inactive ?? 0} inactivas`} icon={UserCheck} />
       </div>
 
@@ -208,7 +204,12 @@ export default function AdminUsersPage() {
           >
             <option value="all">Todas as funções</option>
             <option value="client">Clientes</option>
-            <option value="admin">Administradores</option>
+            <option value="owner">Proprietário</option>
+            {STAFF_ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </Select>
           <Select
             aria-label="Filtrar por estado"
@@ -261,7 +262,7 @@ export default function AdminUsersPage() {
             key: 'role',
             header: 'Função',
             render: (item) => (
-              <Badge variant={item.is_staff ? 'default' : 'outline'}>{roleLabel(item)}</Badge>
+              <Badge variant={item.is_staff ? 'default' : 'outline'}>{getRoleLabel(item)}</Badge>
             ),
           },
           {
@@ -303,7 +304,7 @@ export default function AdminUsersPage() {
         actions={(item) => {
           const canChangeStatus =
             item.id !== currentUser?.id &&
-            (!item.is_staff || Boolean(currentUser?.is_superuser));
+            (!item.is_staff || hasCapability(currentUser, 'staff.manage'));
           return (
             <div className="flex min-w-[150px] items-center justify-end gap-2">
               {canChangeStatus ? (

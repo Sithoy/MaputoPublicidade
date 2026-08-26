@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { createUser } from '@/lib/admin-api';
+import { hasCapability, STAFF_ROLE_OPTIONS } from '@/lib/rbac';
 
 export default function NewAdminUserPage() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function NewAdminUserPage() {
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const canManageStaff = hasCapability(currentUser, 'staff.manage');
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,14 +39,18 @@ export default function NewAdminUserPage() {
     const form = new FormData(event.currentTarget);
     const password = String(form.get('password') || '');
     const passwordConfirm = String(form.get('password_confirm') || '');
+    const selectedRole = String(form.get('role') || 'client');
 
     try {
       const created = await createUser({
         email: String(form.get('email') || '').trim(),
         first_name: String(form.get('first_name') || '').trim(),
         last_name: String(form.get('last_name') || '').trim(),
-        is_staff:
-          Boolean(currentUser?.is_superuser) && String(form.get('role')) === 'admin',
+        is_staff: canManageStaff && selectedRole !== 'client',
+        staff_role:
+          canManageStaff && selectedRole !== 'client'
+            ? (selectedRole as 'administrator' | 'commercial' | 'production' | 'finance' | 'content')
+            : '',
         is_active: form.get('is_active') === 'on',
         password,
         password_confirm: passwordConfirm,
@@ -150,7 +156,7 @@ export default function NewAdminUserPage() {
               </div>
               <div>
                 <Label htmlFor="role">Função</Label>
-                {currentUser?.is_superuser ? (
+                {canManageStaff ? (
                   <Select
                     id="role"
                     name="role"
@@ -158,7 +164,11 @@ export default function NewAdminUserPage() {
                     className="h-11 rounded-xl border-[#cbd8d0]"
                   >
                     <option value="client">Cliente</option>
-                    <option value="admin">Administrador</option>
+                    {STAFF_ROLE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </Select>
                 ) : (
                   <div className="flex h-11 items-center rounded-xl border border-[#dfe7e1] bg-[#f7f9f7] px-3 text-sm text-[#56665d]">
@@ -297,7 +307,7 @@ export default function NewAdminUserPage() {
             Cancelar
           </Button>
           <Button type="submit" disabled={saving} className="gap-2">
-            {currentUser?.is_superuser ? (
+            {canManageStaff ? (
               <ShieldCheck className="h-4 w-4" />
             ) : (
               <Save className="h-4 w-4" />

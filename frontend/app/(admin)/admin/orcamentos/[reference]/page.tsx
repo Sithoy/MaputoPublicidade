@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   convertQuoteToOrder,
@@ -31,7 +32,9 @@ const statusOptions = Object.entries(orderStatusLabels).map(([value, label]) => 
 export default function AdminOrderDetailPage() {
   const { reference } = useParams<{ reference: string }>();
   const router = useRouter();
-  const { loading: authLoading } = useAdminAuth();
+  const { loading: authLoading, can } = useAdminAuth();
+  const canManageQuote = can('quotes.manage');
+  const canManageArtwork = can('quotes.artwork');
   const [quote, setQuote] = useState<AdminQuote | null>(null);
   const [status, setStatus] = useState('');
   const [estimatedPrice, setEstimatedPrice] = useState('');
@@ -278,6 +281,7 @@ export default function AdminOrderDetailPage() {
                   id="status"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
+                  disabled={!canManageQuote}
                   className="mt-1"
                 >
                   {statusOptions
@@ -291,10 +295,12 @@ export default function AdminOrderDetailPage() {
                     ))}
                 </Select>
               </div>
-              <Button onClick={handleStatusUpdate} disabled={loading} className="w-full gap-2">
-                <Save className="h-4 w-4" />
-                Guardar estado
-              </Button>
+              {canManageQuote ? (
+                <Button onClick={handleStatusUpdate} disabled={loading} className="w-full gap-2">
+                  <Save className="h-4 w-4" />
+                  Guardar estado
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -309,6 +315,7 @@ export default function AdminOrderDetailPage() {
                   step="0.01"
                   value={estimatedPrice}
                   onChange={(e) => setEstimatedPrice(e.target.value)}
+                  disabled={!canManageQuote}
                   className="mt-1"
                 />
               </div>
@@ -320,13 +327,16 @@ export default function AdminOrderDetailPage() {
                   step="0.01"
                   value={finalPrice}
                   onChange={(e) => setFinalPrice(e.target.value)}
+                  disabled={!canManageQuote}
                   className="mt-1"
                 />
               </div>
-              <Button onClick={handlePriceUpdate} disabled={loading} className="w-full gap-2">
-                <Save className="h-4 w-4" />
-                Guardar preços
-              </Button>
+              {canManageQuote ? (
+                <Button onClick={handlePriceUpdate} disabled={loading} className="w-full gap-2">
+                  <Save className="h-4 w-4" />
+                  Guardar preços
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -343,7 +353,7 @@ export default function AdminOrderDetailPage() {
                 </p>
               </CardContent>
             </Card>
-          ) : (
+          ) : canManageQuote ? (
             <Card>
               <CardContent className="space-y-3 p-6">
                 <h2 className="text-lg font-semibold text-dark">Converter em encomenda</h2>
@@ -373,7 +383,7 @@ export default function AdminOrderDetailPage() {
                 )}
               </CardContent>
             </Card>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -383,13 +393,16 @@ export default function AdminOrderDetailPage() {
           <Textarea
             value={internalNotes}
             onChange={(e) => setInternalNotes(e.target.value)}
+            disabled={!canManageQuote}
             placeholder="Anotações visíveis apenas para a equipa..."
             rows={4}
           />
-          <Button onClick={handleNotesUpdate} disabled={loading} className="gap-2">
-            <Save className="h-4 w-4" />
-            Guardar notas
-          </Button>
+          {canManageQuote ? (
+            <Button onClick={handleNotesUpdate} disabled={loading} className="gap-2">
+              <Save className="h-4 w-4" />
+              Guardar notas
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -419,31 +432,44 @@ export default function AdminOrderDetailPage() {
             </div>
           )}
 
-          <div>
-            <Label htmlFor="proof">Enviar nova prova</Label>
-            <Input
-              id="proof"
-              type="file"
-              accept="image/*,.pdf"
-              onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="designer_comment">Comentário do designer</Label>
-            <Textarea
-              id="designer_comment"
-              value={designerComment}
-              onChange={(e) => setDesignerComment(e.target.value)}
-              placeholder="Descreva as alterações ou confirmações..."
-              rows={3}
-              className="mt-1"
-            />
-          </div>
-          <Button onClick={handleProofUpload} disabled={loading || !proofFile} className="gap-2">
-            <Upload className="h-4 w-4" />
-            Enviar prova
-          </Button>
+          {canManageArtwork ? (
+            <>
+              <div>
+                <Label htmlFor="proof">Enviar nova prova</Label>
+                <Input
+                  id="proof"
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="designer_comment">Comentário do designer</Label>
+                <Textarea
+                  id="designer_comment"
+                  value={designerComment}
+                  onChange={(e) => setDesignerComment(e.target.value)}
+                  placeholder="Descreva as alterações ou confirmações..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+            </>
+          ) : null}
+          {canManageArtwork ? (
+            <Button onClick={handleProofUpload} disabled={loading || !proofFile} className="gap-2">
+              <Upload className="h-4 w-4" />
+              Enviar prova
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <h2 className="mb-4 text-lg font-semibold text-dark">Actividade</h2>
+          <ActivityTimeline events={quote.activity ?? []} />
         </CardContent>
       </Card>
 

@@ -24,6 +24,6 @@ admin.site.register(User, UserAdmin)
 
 @admin.register(ClientProfile)
 class ClientProfileAdmin(admin.ModelAdmin):
-    list_display = ["user", "company", "phone", "nuit", "created_at"]
+    list_display = ["user", "staff_role", "company", "phone", "nuit", "created_at"]
     search_fields = ["user__username", "user__email", "company", "phone", "nuit"]
-    list_filter = ["created_at"]
+    list_filter = ["staff_role", "created_at"]

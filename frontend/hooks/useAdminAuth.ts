@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchSession, getToken, removeToken } from '@/lib/auth';
 import type { User } from '@/lib/api';
+import { getDefaultAdminPath, hasCapability, type StaffCapability } from '@/lib/rbac';
 
 export function useAdminAuth() {
   const router = useRouter();
@@ -34,5 +35,11 @@ export function useAdminAuth() {
       });
   }, [router]);
 
-  return { user, loading, isStaff: user?.is_staff ?? false };
+  return {
+    user,
+    loading,
+    isStaff: user?.is_staff ?? false,
+    can: (capability: StaffCapability) => hasCapability(user, capability),
+    defaultPath: getDefaultAdminPath(user),
+  };
 }

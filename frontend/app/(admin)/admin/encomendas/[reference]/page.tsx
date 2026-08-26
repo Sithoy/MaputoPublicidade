@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { createOrderPayment, getOrder, getOrderPayments, updateOrderPayment, updateOrderStatus } from '@/lib/admin-api';
 import type { Order, Payment } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
@@ -30,7 +31,10 @@ const paymentStatuses = [
 export default function AdminOrderDetailPage() {
   const { reference } = useParams<{ reference: string }>();
   const router = useRouter();
-  const { loading: authLoading } = useAdminAuth();
+  const { loading: authLoading, can } = useAdminAuth();
+  const canManageOrderStatus = can('orders.manage_status');
+  const canCancelOrders = can('orders.manage');
+  const canManagePayments = can('payments.manage');
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -223,7 +227,7 @@ export default function AdminOrderDetailPage() {
         </Card>
       </div>
 
-      <Card>
+      {canManageOrderStatus ? <Card>
         <CardContent className="space-y-4 p-5">
           <h2 className="text-lg font-semibold text-dark">Actualizar estado</h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -232,6 +236,7 @@ export default function AdminOrderDetailPage() {
               <Select id="status" value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1">
                 {statuses
                   .filter((s) => allowedNextStatuses(order.status, orderStatusTransitions).includes(s.value))
+                  .filter((s) => s.value !== 'cancelled' || canCancelOrders)
                   .map((s) => (
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
@@ -243,12 +248,12 @@ export default function AdminOrderDetailPage() {
             Actualizar estado
           </Button>
         </CardContent>
-      </Card>
+      </Card> : null}
 
       <Card>
         <CardContent className="space-y-4 p-5">
           <h2 className="text-lg font-semibold text-dark">Pagamento</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          {canManagePayments ? <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="payment_status">Estado de pagamento</Label>
               <Select id="payment_status" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="mt-1">
@@ -261,11 +266,13 @@ export default function AdminOrderDetailPage() {
               <Label htmlFor="amount_paid">Valor pago (MZN)</Label>
               <Input id="amount_paid" type="number" step="0.01" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} className="mt-1" />
             </div>
-          </div>
-          <Button onClick={handlePaymentUpdate} disabled={saving} variant="outline" className="gap-2">
-            <Save className="h-4 w-4" />
-            Actualizar pagamento
-          </Button>
+          </div> : null}
+          {canManagePayments ? (
+            <Button onClick={handlePaymentUpdate} disabled={saving} variant="outline" className="gap-2">
+              <Save className="h-4 w-4" />
+              Actualizar pagamento
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -302,7 +309,7 @@ export default function AdminOrderDetailPage() {
             </div>
           )}
 
-          <form onSubmit={handleAddPayment} className="space-y-3 pt-2">
+          {canManagePayments ? <form onSubmit={handleAddPayment} className="space-y-3 pt-2">
             <h3 className="text-sm font-semibold text-dark">Registar novo pagamento</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
@@ -332,7 +339,14 @@ export default function AdminOrderDetailPage() {
               <Save className="h-4 w-4" />
               Registar pagamento
             </Button>
-          </form>
+          </form> : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-5">
+          <h2 className="mb-4 text-lg font-semibold text-dark">Actividade</h2>
+          <ActivityTimeline events={order.activity ?? []} />
         </CardContent>
       </Card>
 

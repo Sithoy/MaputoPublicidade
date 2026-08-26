@@ -22,7 +22,7 @@ function orderLabel(order: Order) {
 }
 
 function AdminOrdersContent() {
-  const { loading: authLoading } = useAdminAuth();
+  const { loading: authLoading, can } = useAdminAuth();
   const searchParams = useSearchParams();
   const urlStatus = searchParams.get('status') ?? '';
   const [orders, setOrders] = useState<Order[]>([]);
@@ -81,7 +81,7 @@ function AdminOrdersContent() {
           <h1 className="text-2xl font-bold text-dark">Encomendas</h1>
           <p className="text-sm text-gray-500">Gerir encomendas e fluxo de produção</p>
         </div>
-        <div className="flex gap-2">
+        {can('orders.export') ? <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => exportOrders('csv', statusFilter ? { status: statusFilter } : {})} className="gap-2">
             <FileDown className="h-4 w-4" />
             CSV
@@ -90,7 +90,7 @@ function AdminOrdersContent() {
             <FileDown className="h-4 w-4" />
             Excel
           </Button>
-        </div>
+        </div> : null}
       </div>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}

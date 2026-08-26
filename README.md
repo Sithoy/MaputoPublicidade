@@ -93,6 +93,21 @@ MautoPublicidade/
 
 ## Principais endpoints da API
 
+### Funções da equipa MP
+
+O acesso à Administração usa RBAC aplicado no backend. Ocultar opções no frontend é apenas uma conveniência; cada operação é também validada pela API.
+
+| Função | Responsabilidade principal |
+|--------|----------------------------|
+| Proprietário | Acesso total, incluindo criação e alteração de funções da equipa |
+| Administrador | Operação completa, excepto gestão das funções de outros membros da equipa |
+| Comercial | Propostas, orçamentos, conversão em encomenda e consulta de pagamentos |
+| Produção | Consulta de propostas, provas de arte e avanço do estado de produção |
+| Finanças | Consulta comercial, exportações e gestão de pagamentos |
+| Conteúdo | Produtos, categorias, pacotes, portfólio e parceiros |
+
+Os utilizadores staff existentes são migrados para **Administrador**. Superutilizadores Django são tratados como **Proprietário**.
+
 | Endpoint | Descrição |
 |----------|-----------|
 | `POST /api/auth/register/` | Registo de cliente |

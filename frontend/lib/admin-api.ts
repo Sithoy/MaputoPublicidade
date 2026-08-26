@@ -122,6 +122,7 @@ export type UserFormData = {
   first_name?: string;
   last_name?: string;
   is_staff?: boolean;
+  staff_role?: 'administrator' | 'commercial' | 'production' | 'finance' | 'content' | '';
   is_active?: boolean;
   password?: string;
   password_confirm?: string;
@@ -140,6 +141,7 @@ export type UserSummary = {
   inactive: number;
   staff: number;
   clients: number;
+  roles?: Record<string, number>;
 };
 
 export type AdminPasswordResetData = {

@@ -64,3 +64,10 @@ class TestOrderApi:
         assert response.status_code == 400
         order.refresh_from_db()
         assert order.status == Order.STATUS_APPROVED
+
+    def test_set_status_records_activity(self, staff_client, order):
+        url = reverse("order-set-status", kwargs={"reference": order.reference})
+        staff_client.post(url, {"status": "in_production"}, format="json")
+        event = order.activity_events.get(action="status_changed")
+        assert event.from_status == "approved"
+        assert event.to_status == "in_production"

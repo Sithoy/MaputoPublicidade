@@ -1,7 +1,8 @@
 from rest_framework import permissions, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
-from apps.core.permissions import IsStaffUser
+from apps.accounts.roles import StaffCapability, has_staff_capability
+from apps.core.permissions import HasStaffCapability
 
 from .models import Partner, PortfolioItem
 from .serializers import PartnerSerializer, PortfolioItemSerializer
@@ -18,13 +19,15 @@ class PortfolioItemViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny()]
-        return [IsStaffUser()]
+        return [HasStaffCapability(StaffCapability.MANAGE_CONTENT)]
 
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
         if self.action in ["list", "retrieve"] and not (
-            user.is_authenticated and user.is_staff
+            user.is_authenticated
+            and user.is_staff
+            and has_staff_capability(user, StaffCapability.MANAGE_CONTENT)
         ):
             queryset = queryset.filter(is_active=True)
 
@@ -43,13 +46,15 @@ class PartnerViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny()]
-        return [IsStaffUser()]
+        return [HasStaffCapability(StaffCapability.MANAGE_CONTENT)]
 
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
         if self.action in ["list", "retrieve"] and not (
-            user.is_authenticated and user.is_staff
+            user.is_authenticated
+            and user.is_staff
+            and has_staff_capability(user, StaffCapability.MANAGE_CONTENT)
         ):
             queryset = queryset.filter(is_active=True)
 

@@ -6,6 +6,12 @@ from django.utils.text import slugify
 from rest_framework import serializers
 
 from .models import ClientProfile
+from .roles import (
+    StaffRole,
+    get_role_display,
+    get_staff_capabilities,
+    get_staff_role,
+)
 
 
 class ClientProfileSerializer(serializers.ModelSerializer):
@@ -17,7 +23,11 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     profile = ClientProfileSerializer()
     is_staff = serializers.BooleanField(read_only=True)
+    is_superuser = serializers.BooleanField(read_only=True)
     is_active = serializers.BooleanField(read_only=True)
+    role = serializers.SerializerMethodField()
+    role_display = serializers.SerializerMethodField()
+    capabilities = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -28,10 +38,23 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "is_staff",
+            "is_superuser",
             "is_active",
+            "role",
+            "role_display",
+            "capabilities",
             "profile",
         ]
         read_only_fields = ["id", "username"]
+
+    def get_role(self, obj):
+        return get_staff_role(obj)
+
+    def get_role_display(self, obj):
+        return get_role_display(get_staff_role(obj))
+
+    def get_capabilities(self, obj):
+        return sorted(get_staff_capabilities(obj))
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop("profile", {})
@@ -65,6 +88,15 @@ class UserAdminSerializer(serializers.ModelSerializer):
     order_count = serializers.IntegerField(read_only=True)
     quote_count = serializers.IntegerField(read_only=True)
     email = serializers.EmailField(validators=[])
+    staff_role = serializers.ChoiceField(
+        choices=StaffRole.assignable_choices(),
+        required=False,
+        allow_blank=True,
+        write_only=True,
+    )
+    role = serializers.SerializerMethodField()
+    role_display = serializers.SerializerMethodField()
+    capabilities = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -76,6 +108,10 @@ class UserAdminSerializer(serializers.ModelSerializer):
             "last_name",
             "is_staff",
             "is_superuser",
+            "staff_role",
+            "role",
+            "role_display",
+            "capabilities",
             "is_active",
             "date_joined",
             "last_login",
@@ -89,11 +125,23 @@ class UserAdminSerializer(serializers.ModelSerializer):
             "id",
             "username",
             "is_superuser",
+            "role",
+            "role_display",
+            "capabilities",
             "date_joined",
             "last_login",
             "order_count",
             "quote_count",
         ]
+
+    def get_role(self, obj):
+        return get_staff_role(obj)
+
+    def get_role_display(self, obj):
+        return get_role_display(get_staff_role(obj))
+
+    def get_capabilities(self, obj):
+        return sorted(get_staff_capabilities(obj))
 
     def validate_email(self, value):
         email = value.strip().lower()
@@ -125,6 +173,21 @@ class UserAdminSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"password": "Use a acção de redefinição de palavra-passe."}
             )
+
+        is_staff = attrs.get(
+            "is_staff",
+            self.instance.is_staff if self.instance is not None else False,
+        )
+        existing_role = (
+            getattr(getattr(self.instance, "profile", None), "staff_role", "")
+            if self.instance is not None
+            else ""
+        )
+        staff_role = attrs.get("staff_role", existing_role)
+        if is_staff and not staff_role:
+            attrs["staff_role"] = StaffRole.ADMINISTRATOR
+        if not is_staff:
+            attrs["staff_role"] = ""
 
         return attrs
 
@@ -159,6 +222,7 @@ class UserAdminSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         profile_data = validated_data.pop("profile", {})
+        staff_role = validated_data.pop("staff_role", "")
         password = validated_data.pop("password")
         validated_data.pop("password_confirm", None)
         email = validated_data["email"]
@@ -171,7 +235,9 @@ class UserAdminSerializer(serializers.ModelSerializer):
         profile, _ = ClientProfile.objects.get_or_create(user=user)
         for attr, value in profile_data.items():
             setattr(profile, attr, value)
+        profile.staff_role = staff_role if user.is_staff else ""
         profile.save()
+        user.profile = profile
         self._sync_verified_email(user)
         user.order_count = 0
         user.quote_count = 0
@@ -180,13 +246,18 @@ class UserAdminSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         profile_data = validated_data.pop("profile", {})
+        staff_role = validated_data.pop(
+            "staff_role", getattr(getattr(instance, "profile", None), "staff_role", "")
+        )
         validated_data.pop("password", None)
         validated_data.pop("password_confirm", None)
         instance = super().update(instance, validated_data)
         profile, _ = ClientProfile.objects.get_or_create(user=instance)
         for attr, value in profile_data.items():
             setattr(profile, attr, value)
+        profile.staff_role = staff_role if instance.is_staff else ""
         profile.save()
+        instance.profile = profile
         self._sync_verified_email(instance)
         return instance
 

@@ -58,6 +58,9 @@ interface AuthResponse {
       display?: string;
       is_staff?: boolean;
       is_superuser?: boolean;
+      role?: 'owner' | 'administrator' | 'commercial' | 'production' | 'finance' | 'content' | 'client';
+      role_display?: string;
+      capabilities?: string[];
     };
     access_token?: string;
     refresh_token?: string;

@@ -4,6 +4,12 @@ from allauth.account.adapter import DefaultAccountAdapter
 from allauth.headless.adapter import DefaultHeadlessAdapter
 from django.contrib.auth import get_user_model
 
+from apps.accounts.roles import (
+    get_role_display,
+    get_staff_capabilities,
+    get_staff_role,
+)
+
 User = get_user_model()
 
 
@@ -27,4 +33,8 @@ class HeadlessAdapter(DefaultHeadlessAdapter):
         data = super().serialize_user(user)
         data["is_staff"] = getattr(user, "is_staff", False)
         data["is_superuser"] = getattr(user, "is_superuser", False)
+        role = get_staff_role(user)
+        data["role"] = role
+        data["role_display"] = get_role_display(role)
+        data["capabilities"] = sorted(get_staff_capabilities(user))
         return data

@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Textarea } from '@/components/ui/Textarea';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
+import { ActivityTimeline } from '@/components/ActivityTimeline';
 import {
   approveArtwork,
   approveQuotePrice,
@@ -265,8 +266,14 @@ export default function ClientQuoteDetailPage() {
         </Card>
       ) : null}
 
-      {quote.order_reference && (
-        <Card className="border-brand-200">
+      <Card>
+        <CardContent className="p-5">
+          <h2 className="mb-4 text-lg font-semibold text-dark">Histórico</h2>
+          <ActivityTimeline events={quote.activity ?? []} />
+        </CardContent>
+      </Card>
+
+      {quote.order_reference && (        <Card className="border-brand-200">
           <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-dark">Encomenda criada</h2>

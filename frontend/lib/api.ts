@@ -291,8 +291,7 @@ export type Package = {
   is_active?: boolean;
 };
 
-export type QuoteItem = {
-  id: number;
+export type QuoteItem = {  id: number;
   product?: number;
   product_slug?: string;
   product_name?: string;
@@ -332,6 +331,7 @@ export type Quote = {
   price_approval_comment?: string;
   items: QuoteItem[];
   item_count?: number;
+  activity?: ActivityEvent[];
   order_reference?: string | null;
   artwork?: {
     id: number;
@@ -447,6 +447,17 @@ export type OrderItem = {
   created_at?: string;
 };
 
+export type ActivityEvent = {
+  id: number;
+  action: string;
+  action_display?: string;
+  actor_name?: string | null;
+  from_status?: string;
+  to_status?: string;
+  comment?: string;
+  created_at: string;
+};
+
 export type Order = {
   id: number;
   reference: string;
@@ -471,6 +482,7 @@ export type Order = {
   items: OrderItem[];
   payments?: Payment[];
   item_count?: number;
+  activity?: ActivityEvent[];
   artwork?: {
     id: number;
     status: 'pending' | 'approved' | 'changes_requested';
@@ -522,6 +534,9 @@ export type User = {
   last_name?: string;
   is_staff?: boolean;
   is_superuser?: boolean;
+  role?: 'owner' | 'administrator' | 'commercial' | 'production' | 'finance' | 'content' | 'client';
+  role_display?: string;
+  capabilities?: string[];
   is_active?: boolean;
   date_joined?: string;
   last_login?: string | null;

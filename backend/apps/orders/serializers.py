@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.accounts.roles import StaffCapability, has_staff_capability
 from apps.accounts.serializers import ClientProfileSerializer
 from apps.catalog.models import Product, ProductVariant
 from apps.core.fields import RelativeFileField
@@ -97,6 +98,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     user_email = serializers.SerializerMethodField()
     user_name = serializers.SerializerMethodField()
     profile = serializers.SerializerMethodField()
+    # Staff-only: never leak internal notes to the client who owns the order.
+    internal_notes = serializers.SerializerMethodField()
+    activity = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -123,6 +127,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "internal_notes",
             "items",
             "artwork",
+            "activity",
             "created_at",
             "updated_at",
         ]
@@ -152,6 +157,22 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         if profile:
             return ClientProfileSerializer(profile).data
         return None
+
+    def get_internal_notes(self, obj):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated and (
+            has_staff_capability(request.user, StaffCapability.MANAGE_ORDERS)
+            or has_staff_capability(
+                request.user, StaffCapability.MANAGE_ORDER_STATUS
+            )
+        ):
+            return obj.internal_notes
+        return None
+
+    def get_activity(self, obj):
+        from apps.core.activity import serialize_activity
+
+        return serialize_activity(obj, self.context)
 
 
 class OrderItemCreateSerializer(serializers.ModelSerializer):

@@ -3,6 +3,8 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+from .roles import StaffRole
+
 
 class ClientProfile(models.Model):
     user = models.OneToOneField(
@@ -13,6 +15,13 @@ class ClientProfile(models.Model):
     nuit = models.CharField("NUIT", max_length=50, blank=True)
     address = models.TextField("endereço", blank=True)
     billing_address = models.TextField("morada de faturação", blank=True)
+    staff_role = models.CharField(
+        "função da equipa",
+        max_length=30,
+        choices=StaffRole.assignable_choices(),
+        blank=True,
+        default="",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

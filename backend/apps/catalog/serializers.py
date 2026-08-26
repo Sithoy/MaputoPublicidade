@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.accounts.roles import StaffCapability, has_staff_capability
 from apps.core.fields import PersistedImageSerializerMixin, PersistentImageField
 
 from .models import Package, Product, ProductVariant, ServiceCategory
@@ -93,7 +94,12 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
         request = self.context.get("request")
         user = getattr(request, "user", None)
         all_variants = obj.variants.all()
-        if user and user.is_authenticated and getattr(user, "is_staff", False):
+        if (
+            user
+            and user.is_authenticated
+            and getattr(user, "is_staff", False)
+            and has_staff_capability(user, StaffCapability.MANAGE_CATALOG)
+        ):
             filtered = all_variants
         else:
             filtered = [v for v in all_variants if v.is_active]

@@ -4,6 +4,11 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from apps.core.adapter import HeadlessAdapter
+from apps.orders.models import Order
+
+from .roles import StaffCapability, StaffRole, has_staff_capability
+
 
 @pytest.fixture
 def superuser(db):
@@ -177,3 +182,166 @@ class TestUserManagement:
     def test_user_deletion_is_not_available(self, staff_client, client_user):
         response = staff_client.delete(reverse("user-detail", kwargs={"pk": client_user.pk}))
         assert response.status_code == 405
+
+
+@pytest.mark.django_db
+class TestStaffRbac:
+    @staticmethod
+    def staff_client(role, suffix):
+        user = User.objects.create_user(
+            username=f"{role}-{suffix}",
+            email=f"{role}-{suffix}@example.com",
+            password="Role-Test-2026!",
+            is_staff=True,
+        )
+        user.profile.staff_role = role
+        user.profile.save(update_fields=["staff_role"])
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return user, client
+
+    def test_me_exposes_role_and_capabilities(self):
+        user, client = self.staff_client(StaffRole.COMMERCIAL, "me")
+        response = client.get(reverse("me"))
+
+        assert response.status_code == 200
+        assert response.json()["role"] == StaffRole.COMMERCIAL
+        assert StaffCapability.MANAGE_QUOTES in response.json()["capabilities"]
+        assert StaffCapability.MANAGE_PAYMENTS not in response.json()["capabilities"]
+        assert has_staff_capability(user, StaffCapability.VIEW_DASHBOARD)
+
+        session_user = HeadlessAdapter().serialize_user(user)
+        assert session_user["role"] == StaffRole.COMMERCIAL
+        assert StaffCapability.MANAGE_QUOTES in session_user["capabilities"]
+
+    def test_commercial_can_manage_quotes_but_not_catalog(self, quote):
+        _user, client = self.staff_client(StaffRole.COMMERCIAL, "quote")
+
+        quote_response = client.post(
+            reverse("quote-set-price", kwargs={"reference": quote.reference}),
+            {"final_price": "1200.00"},
+            format="json",
+        )
+        catalog_response = client.post(
+            reverse("category-list"),
+            {"name": "Restrita", "slug": "restrita"},
+            format="json",
+        )
+
+        assert quote_response.status_code == 200
+        assert catalog_response.status_code == 403
+
+    def test_production_can_advance_order_but_not_record_payment(self, order):
+        _user, client = self.staff_client(StaffRole.PRODUCTION, "order")
+        status_url = reverse("order-set-status", kwargs={"reference": order.reference})
+        payment_url = reverse("order-set-payment", kwargs={"reference": order.reference})
+
+        status_response = client.post(
+            status_url, {"status": "in_production"}, format="json"
+        )
+        payment_response = client.post(
+            payment_url,
+            {"payment_status": "partial", "amount_paid": "100.00"},
+            format="json",
+        )
+
+        assert status_response.status_code == 200
+        assert payment_response.status_code == 403
+
+    def test_production_cannot_cancel_an_order(self, order):
+        _user, client = self.staff_client(StaffRole.PRODUCTION, "cancel")
+        response = client.post(
+            reverse("order-set-status", kwargs={"reference": order.reference}),
+            {"status": "cancelled"},
+            format="json",
+        )
+
+        assert response.status_code == 403
+        order.refresh_from_db()
+        assert order.status == Order.STATUS_APPROVED
+
+    def test_finance_can_record_payment_but_not_advance_order(self, order):
+        _user, client = self.staff_client(StaffRole.FINANCE, "payment")
+        payment_url = reverse("order-set-payment", kwargs={"reference": order.reference})
+        status_url = reverse("order-set-status", kwargs={"reference": order.reference})
+
+        payment_response = client.post(
+            payment_url,
+            {"payment_status": "partial", "amount_paid": "100.00"},
+            format="json",
+        )
+        status_response = client.post(
+            status_url, {"status": "in_production"}, format="json"
+        )
+
+        assert payment_response.status_code == 200
+        assert status_response.status_code == 403
+
+    def test_content_role_can_manage_catalog_but_not_orders(self):
+        _user, client = self.staff_client(StaffRole.CONTENT, "content")
+
+        catalog_response = client.post(
+            reverse("category-list"),
+            {"name": "Nova categoria", "slug": "nova-categoria"},
+            format="json",
+        )
+        orders_response = client.get(reverse("order-list"))
+        dashboard_response = client.get(reverse("admin-stats"))
+
+        assert catalog_response.status_code == 201
+        assert orders_response.status_code == 403
+        assert dashboard_response.status_code == 403
+
+    def test_owner_can_create_staff_with_specific_role(self, superuser_client):
+        response = superuser_client.post(
+            reverse("user-list"),
+            {
+                "email": "financeiro@example.com",
+                "first_name": "Marta",
+                "last_name": "Finanças",
+                "is_staff": True,
+                "staff_role": StaffRole.FINANCE,
+                "is_active": True,
+                "password": "Finance-Temp-2026!",
+                "password_confirm": "Finance-Temp-2026!",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 201
+        assert response.json()["role"] == StaffRole.FINANCE
+        created = User.objects.get(email="financeiro@example.com")
+        assert created.profile.staff_role == StaffRole.FINANCE
+
+    def test_only_owner_can_change_an_existing_staff_role(
+        self, staff_client, superuser_client
+    ):
+        target, _client = self.staff_client(StaffRole.COMMERCIAL, "role-change")
+        url = reverse("user-detail", kwargs={"pk": target.pk})
+
+        denied = staff_client.patch(
+            url, {"staff_role": StaffRole.FINANCE}, format="json"
+        )
+        allowed = superuser_client.patch(
+            url, {"staff_role": StaffRole.FINANCE}, format="json"
+        )
+
+        assert denied.status_code == 403
+        assert allowed.status_code == 200
+        assert allowed.json()["role"] == StaffRole.FINANCE
+
+    def test_finance_cannot_read_internal_order_notes(self, order):
+        order.internal_notes = "Informação reservada da produção"
+        order.save(update_fields=["internal_notes"])
+        _finance, finance_client = self.staff_client(StaffRole.FINANCE, "notes")
+        _production, production_client = self.staff_client(
+            StaffRole.PRODUCTION, "notes"
+        )
+        url = reverse("order-detail", kwargs={"reference": order.reference})
+
+        finance_response = finance_client.get(url)
+        production_response = production_client.get(url)
+
+        assert finance_response.status_code == 200
+        assert finance_response.json()["internal_notes"] is None
+        assert production_response.json()["internal_notes"] == order.internal_notes

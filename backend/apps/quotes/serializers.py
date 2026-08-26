@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
+from apps.accounts.roles import StaffCapability, has_staff_capability
 from apps.catalog.models import Product, ProductVariant
 from apps.core.fields import RelativeFileField
 
@@ -84,6 +85,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
     price_approved_by_name = serializers.SerializerMethodField()
     # Staff-only: never leak internal notes to the client who owns the quote.
     internal_notes = serializers.SerializerMethodField()
+    activity = serializers.SerializerMethodField()
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
@@ -115,6 +117,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "items",
             "artwork",
             "order_reference",
+            "activity",
             "created_at",
             "updated_at",
         ]
@@ -127,9 +130,17 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
 
     def get_internal_notes(self, obj):
         request = self.context.get("request")
-        if request and request.user.is_authenticated and request.user.is_staff:
+        if request and request.user.is_authenticated and (
+            has_staff_capability(request.user, StaffCapability.MANAGE_QUOTES)
+            or has_staff_capability(request.user, StaffCapability.MANAGE_ARTWORK)
+        ):
             return obj.internal_notes
         return None
+
+    def get_activity(self, obj):
+        from apps.core.activity import serialize_activity
+
+        return serialize_activity(obj, self.context)
 
     def get_artwork(self, obj):
         if hasattr(obj, "artwork"):
