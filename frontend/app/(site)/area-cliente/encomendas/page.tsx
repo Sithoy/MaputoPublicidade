@@ -10,17 +10,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import type { Order } from '@/lib/api';
 import { getClientNextAction, getOrderProgress } from '@/lib/workflow';
-
-const statusLabels: Record<string, string> = {
-  received: 'Pedido recebido',
-  reviewing: 'Em análise',
-  quoted: 'Orçamentado',
-  approved: 'Aprovado',
-  in_production: 'Em produção',
-  ready: 'Pronto para entrega',
-  delivered: 'Entregue',
-  cancelled: 'Cancelado',
-};
+import { clientOrderStatusLabels } from '@/lib/status';
+import { formatMZN } from '@/lib/utils';
 
 function orderLabel(order: Order) {
   const items = order.items ?? [];
@@ -139,7 +130,7 @@ export default function ClientOrdersPage() {
                         <span className="font-mono text-xs font-semibold text-brand-700">
                           {order.reference}
                         </span>
-                        <Badge variant="outline">{statusLabels[order.status] || order.status}</Badge>
+                        <Badge variant="outline">{clientOrderStatusLabels[order.status] || order.status}</Badge>
                         {nextAction.actionRequired ? (
                           <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
                             Acção necessária
@@ -168,7 +159,7 @@ export default function ClientOrdersPage() {
                         <p className="text-sm font-semibold text-dark">{nextAction.label}</p>
                         <p className="mt-1 text-xs text-[#718078]">
                           {order.amount_due
-                            ? `${order.amount_due.toLocaleString()} MZN por regularizar`
+                            ? `${formatMZN(order.amount_due)} por regularizar`
                             : 'Sem saldo pendente'}
                         </p>
                       </div>

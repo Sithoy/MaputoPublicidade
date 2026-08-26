@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Eye, FileDown, Search } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/Button';
@@ -11,18 +12,8 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { exportQuotes, getQuotes } from '@/lib/admin-api';
 import type { Quote } from '@/lib/api';
-
-const statusOptions = [
-  { value: '', label: 'Todos os estados' },
-  { value: 'received', label: 'Recebido' },
-  { value: 'reviewing', label: 'Em revisão' },
-  { value: 'quoted', label: 'Orçamentado' },
-  { value: 'approved', label: 'Aprovado' },
-  { value: 'in_production', label: 'Em produção' },
-  { value: 'ready', label: 'Pronto' },
-  { value: 'delivered', label: 'Entregue' },
-  { value: 'cancelled', label: 'Cancelado' },
-];
+import { orderStatusLabels, orderStatusOptions } from '@/lib/status';
+import { formatMZN } from '@/lib/utils';
 
 function quoteLabel(quote: Quote) {
   if (quote.items.length === 0) return 'Orçamento';
@@ -30,13 +21,20 @@ function quoteLabel(quote: Quote) {
   return `${quote.items[0].description} +${quote.items.length - 1}`;
 }
 
-export default function AdminQuotesPage() {
+function AdminQuotesContent() {
   const { loading: authLoading } = useAdminAuth();
+  const searchParams = useSearchParams();
+  const urlStatus = searchParams.get('status') ?? '';
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [filtered, setFiltered] = useState<Quote[]>([]);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(urlStatus);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+
+  // Keep the filter in sync with ?status= links (e.g. from the dashboard).
+  useEffect(() => {
+    setStatusFilter(urlStatus && orderStatusLabels[urlStatus] ? urlStatus : '');
+  }, [urlStatus]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -103,7 +101,7 @@ export default function AdminQuotesPage() {
             />
           </div>
           <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            {statusOptions.map((opt) => (
+            {orderStatusOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
@@ -134,7 +132,7 @@ export default function AdminQuotesPage() {
             key: 'estimated_price',
             header: 'Preço estimado',
             render: (item) =>
-              item.estimated_price ? `${item.estimated_price.toLocaleString()} MZN` : '-',
+              item.estimated_price ? formatMZN(item.estimated_price) : '-',
           },
           {
             key: 'created_at',
@@ -153,5 +151,19 @@ export default function AdminQuotesPage() {
         )}
       />
     </div>
+  );
+}
+
+export default function AdminQuotesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <p className="text-gray-500">A carregar...</p>
+        </div>
+      }
+    >
+      <AdminQuotesContent />
+    </Suspense>
   );
 }

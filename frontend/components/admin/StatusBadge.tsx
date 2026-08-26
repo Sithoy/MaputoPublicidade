@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
+import { orderStatusLabels } from '@/lib/status';
 
 const statusStyles: Record<string, string> = {
   received: 'bg-gray-100 text-gray-700',
@@ -14,14 +15,7 @@ const statusStyles: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  received: 'Pedido recebido',
-  reviewing: 'Em análise',
-  quoted: 'Orçamentado',
-  approved: 'Aprovado',
-  in_production: 'Em produção',
-  ready: 'Pronto para entrega',
-  delivered: 'Entregue',
-  cancelled: 'Cancelado',
+  ...orderStatusLabels,
   pending: 'Pendente',
 };
 

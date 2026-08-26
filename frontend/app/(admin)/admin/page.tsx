@@ -23,17 +23,7 @@ import { StatusBadge } from '@/components/admin/StatusBadge';
 import { getStats } from '@/lib/admin-api';
 import type { DashboardStats } from '@/lib/admin-api';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
-
-const statusLabels: Record<string, string> = {
-  received: 'Pedido recebido',
-  reviewing: 'Em análise',
-  quoted: 'Orçamentado',
-  approved: 'Aprovado',
-  in_production: 'Em produção',
-  ready: 'Pronto',
-  delivered: 'Entregue',
-  cancelled: 'Cancelado',
-};
+import { formatMZN } from '@/lib/utils';
 
 function TrendChart({ data, color }: { data: { date: string; count: number }[]; color: string }) {
   const max = Math.max(...data.map((d) => d.count), 1);
@@ -303,19 +293,19 @@ export default function AdminDashboardPage() {
               <div>
                 <p className="text-sm text-gray-500">Total estimado</p>
                 <p className="text-2xl font-bold text-dark">
-                  {stats.revenue.estimated_total.toLocaleString()} MZN
+                  {formatMZN(stats.revenue.estimated_total)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Valor final</p>
                 <p className="text-2xl font-bold text-dark">
-                  {stats.revenue.final_total.toLocaleString()} MZN
+                  {formatMZN(stats.revenue.final_total)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Valor pago</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {stats.revenue.paid_total.toLocaleString()} MZN
+                  {formatMZN(stats.revenue.paid_total)}
                 </p>
               </div>
             </div>
@@ -338,7 +328,7 @@ export default function AdminDashboardPage() {
         />
         <StatCard
           title="Em dívida"
-          value={`${stats.orders.amount_due_sum.toLocaleString()} MZN`}
+          value={formatMZN(stats.orders.amount_due_sum)}
           subtitle="Total em encomendas"
           icon={TrendingUp}
         />

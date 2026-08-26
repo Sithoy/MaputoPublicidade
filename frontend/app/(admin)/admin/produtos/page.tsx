@@ -11,6 +11,7 @@ import { DataTable } from '@/components/admin/DataTable';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { deleteProduct, getProducts, updateProduct } from '@/lib/admin-api';
 import type { Product } from '@/lib/api';
+import { formatMZN } from '@/lib/utils';
 
 export default function AdminProductsPage() {
   const { loading: authLoading } = useAdminAuth();
@@ -119,7 +120,7 @@ export default function AdminProductsPage() {
             render: (item) => {
               const price = item.starting_price || item.base_price;
               const label = item.has_variants ? 'Desde ' : '';
-              return price ? `${label}${price.toLocaleString()} MZN` : '-';
+              return price ? `${label}${formatMZN(price)}` : '-';
             },
           },
           {

@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   convertQuoteToOrder,
@@ -22,17 +23,9 @@ import {
   uploadArtworkProof,
 } from '@/lib/admin-api';
 import type { AdminQuote } from '@/lib/admin-api';
+import { orderStatusLabels } from '@/lib/status';
 
-const statusOptions = [
-  { value: 'received', label: 'Pedido recebido' },
-  { value: 'reviewing', label: 'Em análise' },
-  { value: 'quoted', label: 'Orçamentado' },
-  { value: 'approved', label: 'Aprovado' },
-  { value: 'in_production', label: 'Em produção' },
-  { value: 'ready', label: 'Pronto para entrega' },
-  { value: 'delivered', label: 'Entregue' },
-  { value: 'cancelled', label: 'Cancelado' },
-];
+const statusOptions = Object.entries(orderStatusLabels).map(([value, label]) => ({ value, label }));
 
 export default function AdminOrderDetailPage() {
   const { reference } = useParams<{ reference: string }>();
@@ -48,6 +41,7 @@ export default function AdminOrderDetailPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   useEffect(() => {
     if (authLoading || !reference) return;
@@ -62,7 +56,7 @@ export default function AdminOrderDetailPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar encomenda'));
   }, [authLoading, reference]);
 
-  async function handleStatusUpdate() {
+  async function performStatusUpdate() {
     if (!reference) return;
     setLoading(true);
     setError('');
@@ -75,6 +69,14 @@ export default function AdminOrderDetailPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleStatusUpdate() {
+    if (status === 'cancelled' && quote?.status !== 'cancelled') {
+      setConfirmCancel(true);
+      return;
+    }
+    void performStatusUpdate();
   }
 
   async function handlePriceUpdate() {
@@ -428,6 +430,19 @@ export default function AdminOrderDetailPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmCancel}
+        title="Cancelar orçamento"
+        message={`Tem a certeza que pretende cancelar o orçamento ${quote.reference}?`}
+        confirmText="Cancelar orçamento"
+        destructive
+        onConfirm={() => {
+          setConfirmCancel(false);
+          void performStatusUpdate();
+        }}
+        onCancel={() => setConfirmCancel(false)}
+      />
     </div>
   );
 }

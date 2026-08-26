@@ -9,6 +9,12 @@ const AUTH_UNAVAILABLE_MESSAGE =
 let accessToken: string | null = null;
 let refreshTokenValue: string | null = null;
 
+// Cache the session briefly so navigating between guarded pages does not
+// trigger a /auth/session request per page mount. Cleared on any token change.
+const SESSION_CACHE_TTL_MS = 60_000;
+let sessionCache: { data: AuthResponse; expiresAt: number } | null = null;
+let sessionPromise: Promise<AuthResponse> | null = null;
+
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   return accessToken || localStorage.getItem('mp_access_token');
@@ -21,6 +27,7 @@ export function getRefreshToken(): string | null {
 
 export function setToken(token: string | null) {
   accessToken = token;
+  sessionCache = null;
   if (typeof window === 'undefined') return;
   if (token) localStorage.setItem('mp_access_token', token);
   else localStorage.removeItem('mp_access_token');
@@ -36,6 +43,7 @@ export function setRefreshToken(token: string | null) {
 export function removeToken() {
   accessToken = null;
   refreshTokenValue = null;
+  sessionCache = null;
   if (typeof window === 'undefined') return;
   localStorage.removeItem('mp_access_token');
   localStorage.removeItem('mp_refresh_token');
@@ -184,14 +192,31 @@ export async function fetchWithAuth(path: string, options: RequestInit = {}) {
 }
 
 export async function fetchSession() {
-  const token = getToken();
-  const res = await fetch(authUrl('/auth/session'), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  const data = await readJson<AuthResponse>(res);
-  if (!res.ok || !data) {
-    removeToken();
-    throw new Error('Sessao invalida');
+  if (sessionCache && sessionCache.expiresAt > Date.now()) {
+    return sessionCache.data;
+  }
+
+  if (!sessionPromise) {
+    sessionPromise = (async () => {
+      const token = getToken();
+      const res = await fetch(authUrl('/auth/session'), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await readJson<AuthResponse>(res);
+      if (!res.ok || !data) {
+        removeToken();
+        throw new Error('Sessao invalida');
+      }
+      return data;
+    })().finally(() => {
+      sessionPromise = null;
+    });
+  }
+
+  const data = await sessionPromise;
+  // Only cache if the session still belongs to the current token.
+  if (getToken()) {
+    sessionCache = { data, expiresAt: Date.now() + SESSION_CACHE_TTL_MS };
   }
   return data;
 }

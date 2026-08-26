@@ -21,6 +21,7 @@ import {
 } from '@/lib/client-api';
 import type { Order, Payment } from '@/lib/api';
 import { getClientNextAction } from '@/lib/workflow';
+import { formatMZN } from '@/lib/utils';
 
 export default function ClientOrderDetailPage() {
   const { reference } = useParams<{ reference: string }>();
@@ -227,16 +228,16 @@ export default function ClientOrderDetailPage() {
           <h2 className="text-lg font-semibold text-dark">Pagamento</h2>
           <p>
             <span className="font-medium text-dark">Preço final:</span>{' '}
-            {order.final_price ? `${order.final_price.toLocaleString()} MZN` : 'Ainda não definido'}
+            {order.final_price ? formatMZN(order.final_price) : 'Ainda não definido'}
           </p>
           <p>
             <span className="font-medium text-dark">Valor pago:</span>{' '}
-            {(order.amount_paid || 0).toLocaleString()} MZN
+            {formatMZN(order.amount_paid || 0)}
           </p>
           <p>
             <span className="font-medium text-dark">Em dívida:</span>{' '}
             <span className="font-bold text-brand">
-              {(order.amount_due || 0).toLocaleString()} MZN
+              {formatMZN(order.amount_due || 0)}
             </span>
           </p>
           <p>
@@ -259,7 +260,7 @@ export default function ClientOrderDetailPage() {
                     <tr key={payment.id} className="border-b border-gray-50 last:border-0">
                       <td className="py-2">{new Date(payment.created_at).toLocaleDateString('pt-MZ')}</td>
                       <td className="py-2">{payment.method_display || payment.method}</td>
-                      <td className="py-2 font-medium text-dark">{payment.amount.toLocaleString()} MZN</td>
+                      <td className="py-2 font-medium text-dark">{formatMZN(payment.amount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -296,7 +297,7 @@ export default function ClientOrderDetailPage() {
                   <Input
                     id="pay-amount"
                     type="number"
-                    placeholder={`Em dívida: ${(order.amount_due || 0).toLocaleString()} MZN`}
+                    placeholder={`Em dívida: ${formatMZN(order.amount_due || 0)}`}
                     value={payAmount}
                     onChange={(e) => setPayAmount(e.target.value)}
                   />
@@ -316,7 +317,7 @@ export default function ClientOrderDetailPage() {
             <h2 className="text-lg font-semibold text-dark">Aprovação do preço</h2>
             <p className="text-sm text-gray-600">
               O preço final desta encomenda é de{' '}
-              <strong>{order.final_price?.toLocaleString()} MZN</strong>. Aprove para prosseguir.
+              <strong>{order.final_price != null ? formatMZN(order.final_price) : '—'}</strong>. Aprove para prosseguir.
             </p>
             <Textarea
               placeholder="Comentário opcional"

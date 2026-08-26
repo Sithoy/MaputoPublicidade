@@ -1,26 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Edit, FileDown, Search } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { DataTable } from '@/components/admin/DataTable';
 import { exportOrders, getOrders } from '@/lib/admin-api';
 import type { Order } from '@/lib/api';
-
-const statusLabels: Record<string, string> = {
-  received: 'Pedido recebido',
-  reviewing: 'Em análise',
-  quoted: 'Orçamentado',
-  approved: 'Aprovado',
-  in_production: 'Em produção',
-  ready: 'Pronto para entrega',
-  delivered: 'Entregue',
-  cancelled: 'Cancelado',
-};
+import { orderStatusLabels, orderStatusOptions } from '@/lib/status';
+import { formatMZN } from '@/lib/utils';
 
 function orderLabel(order: Order) {
   if (order.items.length === 0) return 'Encomenda';
@@ -28,10 +21,13 @@ function orderLabel(order: Order) {
   return `${order.items[0].description} +${order.items.length - 1}`;
 }
 
-export default function AdminOrdersPage() {
+function AdminOrdersContent() {
   const { loading: authLoading } = useAdminAuth();
+  const searchParams = useSearchParams();
+  const urlStatus = searchParams.get('status') ?? '';
   const [orders, setOrders] = useState<Order[]>([]);
   const [filtered, setFiltered] = useState<Order[]>([]);
+  const [statusFilter, setStatusFilter] = useState(urlStatus);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
 
@@ -40,8 +36,14 @@ export default function AdminOrdersPage() {
     loadOrders();
   }, [authLoading]);
 
+  // Keep the filter in sync with ?status= links (e.g. from the dashboard).
+  useEffect(() => {
+    setStatusFilter(urlStatus && orderStatusLabels[urlStatus] ? urlStatus : '');
+  }, [urlStatus]);
+
   useEffect(() => {
     let data = [...orders];
+    if (statusFilter) data = data.filter((o) => o.status === statusFilter);
     if (search.trim()) {
       const term = search.toLowerCase();
       data = data.filter(
@@ -52,7 +54,7 @@ export default function AdminOrdersPage() {
       );
     }
     setFiltered(data);
-  }, [orders, search]);
+  }, [orders, statusFilter, search]);
 
   async function loadOrders() {
     try {
@@ -80,11 +82,11 @@ export default function AdminOrdersPage() {
           <p className="text-sm text-gray-500">Gerir encomendas e fluxo de produção</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => exportOrders('csv')} className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => exportOrders('csv', statusFilter ? { status: statusFilter } : {})} className="gap-2">
             <FileDown className="h-4 w-4" />
             CSV
           </Button>
-          <Button variant="outline" size="sm" onClick={() => exportOrders('xlsx')} className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => exportOrders('xlsx', statusFilter ? { status: statusFilter } : {})} className="gap-2">
             <FileDown className="h-4 w-4" />
             Excel
           </Button>
@@ -94,8 +96,8 @@ export default function AdminOrdersPage() {
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       <Card>
-        <CardContent className="p-4">
-          <div className="relative">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Pesquisar por referência, produto ou cliente..."
@@ -104,6 +106,13 @@ export default function AdminOrdersPage() {
               className="pl-10"
             />
           </div>
+          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            {orderStatusOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
         </CardContent>
       </Card>
 
@@ -119,7 +128,7 @@ export default function AdminOrdersPage() {
           {
             key: 'status',
             header: 'Estado',
-            render: (item) => statusLabels[item.status] || item.status,
+            render: (item) => orderStatusLabels[item.status] || item.status,
           },
           {
             key: 'payment_status',
@@ -129,7 +138,7 @@ export default function AdminOrdersPage() {
           {
             key: 'final_price',
             header: 'Preço final',
-            render: (item) => (item.final_price ? `${item.final_price.toLocaleString()} MZN` : '-'),
+            render: (item) => (item.final_price ? formatMZN(item.final_price) : '-'),
           },
         ]}
         data={filtered}
@@ -143,5 +152,19 @@ export default function AdminOrdersPage() {
         )}
       />
     </div>
+  );
+}
+
+export default function AdminOrdersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <p className="text-gray-500">A carregar...</p>
+        </div>
+      }
+    >
+      <AdminOrdersContent />
+    </Suspense>
   );
 }

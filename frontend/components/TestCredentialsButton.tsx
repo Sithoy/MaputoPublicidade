@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, ChevronDown, Loader2 } from 'lucide-react';
 
-import { ENABLE_TEST_CREDENTIALS, TEST_ACCOUNTS, type TestRole } from '@/lib/test-accounts';
+import { ENABLE_TEST_CREDENTIALS, TEST_ACCOUNTS, type TestAccount, type TestRole } from '@/lib/test-accounts';
 import { login } from '@/lib/auth';
 
 interface Props {
@@ -17,18 +17,17 @@ export function TestCredentialsButton({ currentPage }: Props) {
   const [loadingRole, setLoadingRole] = useState<TestRole | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  if (!ENABLE_TEST_CREDENTIALS) return null;
+  if (!ENABLE_TEST_CREDENTIALS || TEST_ACCOUNTS.length === 0) return null;
 
-  async function enterAs(role: TestRole) {
-    const account = TEST_ACCOUNTS[role];
-    const target = role === 'admin' ? '/admin' : '/area-cliente';
-    setLoadingRole(role);
+  async function enterAs(account: TestAccount) {
+    const target = account.role === 'admin' ? '/admin' : '/area-cliente';
+    setLoadingRole(account.role);
     setMessage(null);
 
     try {
       const data = await login(account.email, account.password);
       const user = data.data?.user;
-      const hasExpectedRole = role === 'admin' ? user?.is_staff : !user?.is_staff;
+      const hasExpectedRole = account.role === 'admin' ? user?.is_staff : !user?.is_staff;
 
       if (!hasExpectedRole) {
         throw new Error('Conta encontrada, mas com permissao diferente da esperada.');
@@ -66,16 +65,15 @@ export function TestCredentialsButton({ currentPage }: Props) {
 
       {open && (
         <div className="mt-2 grid gap-2">
-          {(Object.keys(TEST_ACCOUNTS) as TestRole[]).map((role) => {
-            const account = TEST_ACCOUNTS[role];
-            const isLoading = loadingRole === role;
-            const isCurrentPage = role === currentPage;
+          {TEST_ACCOUNTS.map((account) => {
+            const isLoading = loadingRole === account.role;
+            const isCurrentPage = account.role === currentPage;
 
             return (
               <button
-                key={role}
+                key={account.role}
                 type="button"
-                onClick={() => enterAs(role)}
+                onClick={() => enterAs(account)}
                 disabled={loadingRole !== null}
                 className="flex w-full items-center justify-between gap-3 rounded-md border border-gray-200 bg-white px-3 py-2 text-left transition hover:border-brand hover:bg-white disabled:cursor-wait disabled:opacity-70"
               >

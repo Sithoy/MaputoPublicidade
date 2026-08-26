@@ -18,20 +18,10 @@ import {
 } from 'lucide-react';
 import { getClientOrders } from '@/lib/client-api';
 import type { Order } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, formatMZN } from '@/lib/utils';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import { getClientNextAction, getOrderProgress } from '@/lib/workflow';
-
-const statusLabels: Record<string, string> = {
-  received: 'Pedido recebido',
-  reviewing: 'Em análise',
-  quoted: 'Aguardando aprovação',
-  approved: 'Aprovado',
-  in_production: 'Em produção',
-  ready: 'Pronto para entrega',
-  delivered: 'Entregue',
-  cancelled: 'Cancelado',
-};
+import { clientOrderStatusLabels } from '@/lib/status';
 
 const statusStyles: Record<string, string> = {
   received: 'bg-sky-50 text-sky-700 ring-sky-200',
@@ -51,10 +41,6 @@ function orderLabel(order: Order) {
   if (order.item_count === 1) return '1 item solicitado';
   if (order.item_count && order.item_count > 1) return `${order.item_count} itens solicitados`;
   return 'Pedido de produção';
-}
-
-function formatCurrency(value: number) {
-  return `${new Intl.NumberFormat('pt-MZ', { maximumFractionDigits: 0 }).format(value)} MZN`;
 }
 
 function StatCard({
@@ -245,7 +231,7 @@ export default function ClientDashboardPage() {
         <StatCard
           icon={Banknote}
           label="Pagamentos pendentes"
-          value={paymentsDue > 0 ? formatCurrency(paymentsDue) : 'Em dia'}
+          value={paymentsDue > 0 ? formatMZN(paymentsDue) : 'Em dia'}
           note={paymentsDue > 0 ? 'saldo total por regularizar' : 'sem valores pendentes'}
           tone="blue"
         />
@@ -373,7 +359,7 @@ export default function ClientDashboardPage() {
                           statusStyles[order.status] || 'bg-gray-50 text-gray-700 ring-gray-200'
                         )}
                       >
-                        {order.status_display || statusLabels[order.status] || order.status}
+                        {order.status_display || clientOrderStatusLabels[order.status] || order.status}
                       </span>
                     </div>
                     <p className="mt-1.5 truncate text-sm font-semibold text-dark">{orderLabel(order)}</p>
@@ -395,7 +381,7 @@ export default function ClientDashboardPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     {order.amount_due ? (
-                      <span className="text-sm font-semibold text-dark">{formatCurrency(order.amount_due)}</span>
+                      <span className="text-sm font-semibold text-dark">{formatMZN(order.amount_due)}</span>
                     ) : null}
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#f3f6f3] text-[#64736b] transition group-hover:bg-brand-50 group-hover:text-brand-700">
                       <ArrowRight className="h-4 w-4" />

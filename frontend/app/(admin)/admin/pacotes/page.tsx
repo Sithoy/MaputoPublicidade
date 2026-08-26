@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { ImageUploader } from '@/components/admin/ImageUploader';
 import { createPackage, deletePackage, getPackages, updatePackage } from '@/lib/admin-api';
 import type { Package } from '@/lib/api';
+import { formatMZN } from '@/lib/utils';
 
 export default function AdminPackagesPage() {
   const { loading: authLoading } = useAdminAuth();
@@ -224,7 +225,7 @@ export default function AdminPackagesPage() {
           {
             key: 'price',
             header: 'Preço',
-            render: (item) => `${item.price.toLocaleString()} MZN`,
+            render: (item) => formatMZN(item.price),
           },
           {
             key: 'is_active',

@@ -12,8 +12,10 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { createOrderPayment, getOrder, getOrderPayments, updateOrderPayment, updateOrderStatus } from '@/lib/admin-api';
 import type { Order, Payment } from '@/lib/api';
+import { formatMZN } from '@/lib/utils';
 
 const statuses = [
   { value: 'received', label: 'Pedido recebido' },
@@ -51,6 +53,7 @@ export default function AdminOrderDetailPage() {
   const [newMethod, setNewMethod] = useState('cash');
   const [newReference, setNewReference] = useState('');
   const [newNotes, setNewNotes] = useState('');
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!reference) return;
@@ -79,7 +82,7 @@ export default function AdminOrderDetailPage() {
     loadOrder();
   }, [authLoading, reference, loadOrder]);
 
-  async function handleStatusUpdate() {
+  async function performStatusUpdate() {
     if (!reference) return;
     setSaving(true);
     try {
@@ -90,6 +93,14 @@ export default function AdminOrderDetailPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleStatusUpdate() {
+    if (status === 'cancelled' && order?.status !== 'cancelled') {
+      setConfirmCancel(true);
+      return;
+    }
+    void performStatusUpdate();
   }
 
   async function handlePaymentUpdate() {
@@ -212,8 +223,8 @@ export default function AdminOrderDetailPage() {
               </table>
             </div>
             <div className="pt-2 text-sm">
-              <p><span className="font-medium text-dark">Preço final:</span> {order.final_price ? `${order.final_price.toLocaleString()} MZN` : '—'}</p>
-              <p><span className="font-medium text-dark">Em dívida:</span> {order.amount_due ? `${order.amount_due.toLocaleString()} MZN` : '—'}</p>
+              <p><span className="font-medium text-dark">Preço final:</span> {order.final_price ? formatMZN(order.final_price) : '—'}</p>
+              <p><span className="font-medium text-dark">Em dívida:</span> {order.amount_due ? formatMZN(order.amount_due) : '—'}</p>
             </div>
           </CardContent>
         </Card>
@@ -287,7 +298,7 @@ export default function AdminOrderDetailPage() {
                       <td className="py-3">{new Date(payment.created_at).toLocaleDateString('pt-MZ')}</td>
                       <td className="py-3">{payment.method_display || payment.method}</td>
                       <td className="py-3">{payment.reference_code || '—'}</td>
-                      <td className="py-3 font-medium text-dark">{payment.amount.toLocaleString()} MZN</td>
+                      <td className="py-3 font-medium text-dark">{formatMZN(payment.amount)}</td>
                       <td className="py-3">{payment.status_display || payment.status}</td>
                     </tr>
                   ))}
@@ -329,6 +340,19 @@ export default function AdminOrderDetailPage() {
           </form>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmCancel}
+        title="Cancelar encomenda"
+        message={`Tem a certeza que pretende cancelar a encomenda ${order.reference}? Esta acção interrompe o trabalho em curso.`}
+        confirmText="Cancelar encomenda"
+        destructive
+        onConfirm={() => {
+          setConfirmCancel(false);
+          void performStatusUpdate();
+        }}
+        onCancel={() => setConfirmCancel(false)}
+      />
     </div>
   );
 }
