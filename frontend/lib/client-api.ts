@@ -1,11 +1,27 @@
 import { fetchWithAuth } from './auth';
-import { normalizePaginatedResponse } from './api';
 import type { Cart, CartItem, Order, Payment, Quote, User, UserProfile } from './api';
 
 function emitCartUpdate() {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('cart-updated'));
   }
+}
+
+const MAX_PAGES = 100; // safety bound against malformed `next` links
+
+/** Fetch every page of a paginated endpoint (authenticated). */
+async function fetchAllPages<T>(path: string): Promise<T[]> {
+  const collected: T[] = [];
+  let next: string | null = path;
+  let pages = 0;
+  while (next && pages < MAX_PAGES) {
+    const data = await fetchWithAuth(next);
+    if (Array.isArray(data)) return collected.concat(data as T[]);
+    collected.push(...((data.results as T[]) ?? []));
+    next = (data.next as string | null) ?? null;
+    pages += 1;
+  }
+  return collected;
 }
 
 export async function getMe(): Promise<User> {
@@ -112,13 +128,11 @@ export async function createQuoteFromCart(_cart: Cart, contact: {
 }
 
 export async function getClientOrders(): Promise<Order[]> {
-  const data = await fetchWithAuth('/api/orders/');
-  return normalizePaginatedResponse<Order>(data);
+  return fetchAllPages<Order>('/api/orders/');
 }
 
 export async function getClientQuotes(): Promise<Quote[]> {
-  const data = await fetchWithAuth('/api/quotes/');
-  return normalizePaginatedResponse<Quote>(data);
+  return fetchAllPages<Quote>('/api/quotes/');
 }
 
 export async function getClientQuote(reference: string): Promise<Quote> {
@@ -130,8 +144,7 @@ export async function getClientOrder(reference: string): Promise<Order> {
 }
 
 export async function getOrderPayments(reference: string): Promise<Payment[]> {
-  const data = await fetchWithAuth(`/api/orders/${reference}/payments/`);
-  return normalizePaginatedResponse<Payment>(data);
+  return fetchAllPages<Payment>(`/api/orders/${reference}/payments/`);
 }
 
 export type PaymentData = {

@@ -82,6 +82,8 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
     artwork = serializers.SerializerMethodField()
     order_reference = serializers.SerializerMethodField()
     price_approved_by_name = serializers.SerializerMethodField()
+    # Staff-only: never leak internal notes to the client who owns the quote.
+    internal_notes = serializers.SerializerMethodField()
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
@@ -121,6 +123,12 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
     def get_price_approved_by_name(self, obj):
         if obj.price_approved_by:
             return obj.price_approved_by.get_full_name() or obj.price_approved_by.email
+        return None
+
+    def get_internal_notes(self, obj):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated and request.user.is_staff:
+            return obj.internal_notes
         return None
 
     def get_artwork(self, obj):

@@ -22,6 +22,18 @@ class TestQuoteApi:
         assert response.status_code == 200
         assert response.json()["reference"] == quote.reference
 
+    def test_internal_notes_hidden_from_client(self, authenticated_client, staff_client, quote):
+        quote.internal_notes = "Nota confidencial da equipa"
+        quote.save(update_fields=["internal_notes"])
+        url = reverse("quote-detail", kwargs={"reference": quote.reference})
+
+        response = authenticated_client.get(url)
+        assert response.status_code == 200
+        assert response.json()["internal_notes"] is None
+
+        response = staff_client.get(url)
+        assert response.json()["internal_notes"] == "Nota confidencial da equipa"
+
     def test_staff_set_price_to_quoted(self, staff_client, quote):
         url = reverse("quote-set-price", kwargs={"reference": quote.reference})
         response = staff_client.post(url, {"final_price": "1000.00"}, format="json")

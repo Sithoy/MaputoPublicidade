@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   get,
+  getAllPages,
   normalizePaginatedResponse,
   resolveServerApiOrigin,
   resolveServerGetFallbackUrl,
@@ -114,5 +115,53 @@ describe('normalizePaginatedResponse', () => {
     expect(normalizePaginatedResponse(null)).toEqual([]);
     expect(normalizePaginatedResponse(undefined)).toEqual([]);
     expect(normalizePaginatedResponse({ count: 0 })).toEqual([]);
+  });
+});
+
+describe('getAllPages', () => {
+  it('follows next links until every page is collected', async () => {
+    vi.stubGlobal('window', undefined);
+    vi.stubEnv('INTERNAL_API_URL', 'https://api.example.com');
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            count: 3,
+            next: 'https://api.example.com/api/items/?page=2',
+            results: [{ id: 1 }, { id: 2 }],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ count: 3, next: null, results: [{ id: 3 }] }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getAllPages<{ id: number }>('/api/items/')).resolves.toEqual([
+      { id: 1 },
+      { id: 2 },
+      { id: 3 },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns the array as-is when the endpoint is not paginated', async () => {
+    vi.stubGlobal('window', undefined);
+    vi.stubEnv('INTERNAL_API_URL', 'https://api.example.com');
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(JSON.stringify([{ id: 1 }]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getAllPages<{ id: number }>('/api/items/')).resolves.toEqual([{ id: 1 }]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

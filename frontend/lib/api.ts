@@ -212,6 +212,27 @@ export async function getList<T>(path: string, options?: RequestInit): Promise<T
   return normalizePaginatedResponse<T>(data);
 }
 
+const MAX_PAGES = 100; // safety bound against malformed `next` links
+
+/**
+ * Fetch every page of a paginated endpoint. DRF only returns the first page
+ * by default, which silently hides older records once a list grows past the
+ * page size.
+ */
+export async function getAllPages<T>(path: string, options?: RequestInit): Promise<T[]> {
+  const collected: T[] = [];
+  let next: string | null = path;
+  let pages = 0;
+  while (next && pages < MAX_PAGES) {
+    const data: PaginatedResponse<T> | T[] = await get<PaginatedResponse<T> | T[]>(next, options);
+    if (Array.isArray(data)) return collected.concat(data);
+    collected.push(...(data.results ?? []));
+    next = data.next ?? null;
+    pages += 1;
+  }
+  return collected;
+}
+
 export type ProductVariant = {
   id: number;
   name: string;
@@ -303,7 +324,7 @@ export type Quote = {
   urgency?: string;
   urgency_display?: string;
   notes?: string;
-  internal_notes?: string;
+  internal_notes?: string | null;
   estimated_price?: number;
   final_price?: number;
   price_approved_at?: string | null;
@@ -446,7 +467,7 @@ export type Order = {
   delivery_method?: 'pickup' | 'delivery';
   delivery_method_display?: string;
   delivery_address?: string;
-  internal_notes?: string;
+  internal_notes?: string | null;
   items: OrderItem[];
   payments?: Payment[];
   item_count?: number;
