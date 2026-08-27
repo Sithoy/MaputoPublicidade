@@ -436,6 +436,10 @@ export async function createInvoice(data: InvoiceInput): Promise<Invoice> {
   return post<Invoice>('/api/invoices/', data, getToken());
 }
 
+export async function updateInvoice(reference: string, data: Partial<InvoiceInput>): Promise<Invoice> {
+  return patch<Invoice>(`/api/invoices/${reference}/`, data, getToken());
+}
+
 export async function updateInvoiceStatus(reference: string, status: InvoiceStatus): Promise<Invoice> {
   return post<Invoice>(`/api/invoices/${reference}/set-status/`, { status }, getToken());
 }

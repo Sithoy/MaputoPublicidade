@@ -139,3 +139,38 @@ def test_invoice_pdf_download(staff_client, order):
     assert response.status_code == 200
     assert response["Content-Type"] == "application/pdf"
     assert b"".join(response.streaming_content).startswith(b"%PDF")
+
+
+@pytest.mark.django_db
+def test_draft_invoice_can_be_edited(staff_client, order):
+    create = staff_client.post(
+        reverse("invoice-list"), {"order_reference": order.reference}, format="json"
+    )
+    reference = create.json()["reference"]
+
+    response = staff_client.patch(
+        reverse("invoice-detail", kwargs={"reference": reference}),
+        {
+            "client_nuit": "400999888",
+            "items": [
+                {"description": "Item corrigido", "quantity": "1.00", "unit_price": "750.00"}
+            ],
+        },
+        format="json",
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["client_nuit"] == "400999888"
+    assert response.json()["total"] == 750.0
+
+    # Issued invoices are frozen.
+    staff_client.post(
+        reverse("invoice-set-status", kwargs={"reference": reference}),
+        {"status": "issued"},
+        format="json",
+    )
+    locked = staff_client.patch(
+        reverse("invoice-detail", kwargs={"reference": reference}),
+        {"client_nuit": "111111111"},
+        format="json",
+    )
+    assert locked.status_code == 400
