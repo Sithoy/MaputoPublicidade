@@ -41,12 +41,16 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
   const hasSupplementaryInformation = Boolean(invoice.notes || invoice.terms);
 
   return (
-    <article className="invoice-document print-document overflow-hidden rounded-[26px] border border-[#dbe4de] bg-white shadow-[0_22px_70px_-42px_rgba(6,63,43,0.45)]">
-      <div className="h-2 bg-brand-800" />
+    <article className="invoice-document print-document relative isolate flex min-h-[1080px] flex-col overflow-hidden rounded-[26px] border border-[#dbe4de] bg-white shadow-[0_22px_70px_-42px_rgba(6,63,43,0.45)]">
+      <div aria-hidden="true" className="invoice-brand-top pointer-events-none absolute inset-x-0 top-0 hidden h-44 overflow-hidden sm:block">
+        <div className="absolute right-0 top-0 h-40 w-[62%] bg-[#022D22] [clip-path:polygon(10%_0,100%_0,100%_88%,82%_67%,49%_76%,24%_70%,16%_45%)]" />
+        <div className="absolute right-0 top-0 h-36 w-[55%] bg-[#087B57] [clip-path:polygon(12%_0,100%_0,100%_76%,80%_61%,48%_68%,26%_62%,18%_38%)]" />
+        <div className="absolute right-0 top-0 h-1.5 w-40 bg-[#D6A842]" />
+      </div>
 
-      <header className="px-7 pb-7 pt-8 sm:px-11 sm:pb-9 sm:pt-10">
+      <header className="relative z-10 px-7 pb-7 pt-8 sm:min-h-[176px] sm:px-11 sm:pb-8 sm:pt-10">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
-          <div className="max-w-sm">
+          <div className="max-w-sm sm:-mt-4">
             <Image
               src="/logo-tight.png"
               alt="Maputo Publicidade"
@@ -64,20 +68,19 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
             </div>
           </div>
 
-          <div className="sm:max-w-sm sm:text-right">
-            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-700">Fatura proforma</p>
-            <h2 className="mt-2 text-[30px] font-semibold tracking-[-0.035em] text-dark sm:text-[34px]">
+          <div className="sm:-mt-5 sm:max-w-sm sm:text-right sm:text-white">
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-700 sm:text-white/85">Fatura proforma</p>
+            <h2 className="mt-2 text-[30px] font-semibold tracking-[-0.035em] text-dark sm:text-[34px] sm:text-white">
               {invoice.reference}
             </h2>
-            <p className="mt-2 text-sm text-[#718078]">Documento comercial</p>
-            <div className="document-status mt-4 inline-flex">
+            <div className="document-status mt-4 inline-flex rounded-full bg-white/95 p-0.5 shadow-sm">
               <StatusBadge status={invoice.status} label={invoice.status_display} />
             </div>
           </div>
         </div>
       </header>
 
-      <section className="invoice-meta-grid grid border-y border-[#dfe7e1] bg-[#f4f7f4] px-7 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+      <section className="invoice-meta-grid relative z-10 mx-7 grid overflow-hidden rounded-xl border border-[#dfe7e1] bg-[#f4f7f4] px-4 sm:mx-11 sm:grid-cols-2 sm:px-0 lg:grid-cols-4">
         <MetaItem icon={CalendarDays} label="Emissão">
           {formatDate(invoice.issue_date)}
         </MetaItem>
@@ -98,8 +101,8 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
         </MetaItem>
       </section>
 
-      <div className="space-y-9 px-7 py-9 sm:px-11 sm:py-10">
-        <section className="invoice-party-card grid gap-6 rounded-2xl border border-[#e0e8e2] bg-[#fbfcfa] p-6 sm:grid-cols-[1fr_auto] sm:items-start sm:p-7">
+      <div className="invoice-document-body flex-1 space-y-9 px-7 py-9 sm:px-11 sm:py-10">
+        <section className="invoice-party-card grid gap-6 rounded-xl border border-[#e0e8e2] border-l-4 border-l-[#D6A842] bg-[#fbfcfa] p-6 sm:grid-cols-[1fr_auto] sm:items-start sm:p-7">
           <div>
             <div className="flex items-center gap-2 text-brand-700">
               <Building2 className="h-4 w-4" aria-hidden="true" />
@@ -121,16 +124,20 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
         <div className="invoice-items-table overflow-x-auto">
           <table className="w-full min-w-[640px] table-fixed text-sm">
             <thead>
-              <tr className="bg-brand-800 text-left text-[10px] font-bold uppercase tracking-[0.13em] text-white">
-                <th className="w-[58%] rounded-l-xl px-5 py-3.5">Descrição</th>
-                <th className="w-[10%] px-3 py-3.5 text-right">Qtd.</th>
+              <tr className="bg-[#087B57] text-left text-[10px] font-bold uppercase tracking-[0.13em] text-white">
+                <th className="w-[8%] border-r border-white/30 px-3 py-3.5 text-center">Nº</th>
+                <th className="w-[50%] border-r border-white/30 px-5 py-3.5">Descrição</th>
+                <th className="w-[10%] border-r border-white/30 px-3 py-3.5 text-right">Qtd.</th>
                 <th className="w-[16%] px-3 py-3.5 text-right">Preço unit.</th>
-                <th className="w-[16%] rounded-r-xl px-5 py-3.5 text-right">Total</th>
+                <th className="w-[16%] border-l border-white/30 px-5 py-3.5 text-right">Total</th>
               </tr>
             </thead>
             <tbody>
               {invoice.items.map((item, index) => (
-                <tr key={item.id ?? `${item.description}-${index}`} className="border-b border-[#e6ece8] last:border-b-0">
+                <tr key={item.id ?? `${item.description}-${index}`} className="border-b border-[#e6ece8] odd:bg-white even:bg-[#f7f9f7] last:border-b-0">
+                  <td className="border-r border-[#e6ece8] px-3 py-4 text-center text-xs font-semibold tabular-nums text-[#7b8981]">
+                    {String(index + 1).padStart(2, '0')}
+                  </td>
                   <td className="px-5 py-4 font-medium leading-5 text-[#27372f]">{item.description}</td>
                   <td className="px-3 py-4 text-right tabular-nums text-[#617068]">
                     {Number(item.quantity).toLocaleString('pt-MZ')}
@@ -163,7 +170,7 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
             </div>
           ) : null}
 
-          <dl className={`totals-block overflow-hidden rounded-2xl border border-[#dce5df] bg-[#f7faf8] ${hasSupplementaryInformation ? '' : 'ml-auto w-full max-w-[360px]'}`}>
+          <dl className={`totals-block overflow-hidden rounded-xl border border-[#dce5df] bg-[#f7faf8] ${hasSupplementaryInformation ? '' : 'ml-auto w-full max-w-[360px]'}`}>
             <div className="space-y-3 px-5 py-5 text-sm">
               <div className="flex justify-between gap-4">
                 <dt className="text-[#65736b]">Subtotal</dt>
@@ -186,7 +193,7 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
                 </div>
               ) : null}
             </div>
-            <div className="flex items-end justify-between gap-4 bg-brand-800 px-5 py-5 text-white">
+            <div className="flex items-end justify-between gap-4 border-l-4 border-l-[#D6A842] bg-[#087B57] px-5 py-5 text-white">
               <dt>
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/65">Total</span>
                 <span className="mt-1 block text-sm font-medium text-white/80">Valor da fatura</span>
@@ -203,9 +210,16 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
         </div>
       </div>
 
-      <footer className="invoice-document-footer flex flex-col gap-2 border-t border-[#e1e8e3] bg-[#fbfcfa] px-7 py-5 text-xs text-[#718078] sm:flex-row sm:items-center sm:justify-between sm:px-11">
-        <p className="font-medium text-[#44544c]">Obrigado pela sua confiança.</p>
-        <p>{companyProfile.email}</p>
+      <footer className="invoice-document-footer relative mt-auto min-h-28 overflow-hidden bg-[#022D22] px-7 py-7 text-xs text-white sm:px-11">
+        <div aria-hidden="true" className="absolute inset-y-0 left-0 w-[70%] bg-[#087B57] [clip-path:polygon(0_0,88%_18%,100%_100%,0_100%)]" />
+        <div aria-hidden="true" className="absolute left-0 top-0 h-1.5 w-[72%] bg-[#D6A842] [clip-path:polygon(0_0,96%_0,100%_100%,0_100%)]" />
+        <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="font-semibold">Obrigado pela sua confiança.</p>
+            <p className="mt-2 text-white/70">{companyProfile.phone} · {companyProfile.email}</p>
+          </div>
+          <p className="max-w-xs text-white/70 sm:text-right">{companyProfile.address}</p>
+        </div>
       </footer>
     </article>
   );

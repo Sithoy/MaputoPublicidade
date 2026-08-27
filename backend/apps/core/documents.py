@@ -23,11 +23,14 @@ from reportlab.platypus import (
 )
 
 BRAND = colors.HexColor("#063F2B")
+BRAND_DARK = colors.HexColor("#022D22")
+BRAND_BRIGHT = colors.HexColor("#087B57")
 BRAND_LIGHT = colors.HexColor("#EAF3EE")
 PAPER_TINT = colors.HexColor("#F6F8F5")
 INK = colors.HexColor("#17211D")
 GREY_TEXT = colors.HexColor("#5B6B62")
 GREY_LINE = colors.HexColor("#D9E2DC")
+ACCENT = colors.HexColor("#D6A842")
 GOLD_LIGHT = colors.HexColor("#FFF7E7")
 GOLD_TEXT = colors.HexColor("#8A6828")
 
@@ -103,12 +106,12 @@ def _styles():
             spaceBefore=6, spaceAfter=3,
         ),
         "invoice_type": ParagraphStyle(
-            "invoice_type", fontName="Helvetica-Bold", fontSize=9,
-            textColor=BRAND, alignment=TA_RIGHT, leading=11,
+            "invoice_type", fontName="Helvetica-Bold", fontSize=9.5,
+            textColor=colors.white, alignment=TA_RIGHT, leading=12,
         ),
         "invoice_ref": ParagraphStyle(
             "invoice_ref", fontName="Helvetica-Bold", fontSize=18,
-            textColor=INK, alignment=TA_RIGHT, leading=22,
+            textColor=colors.white, alignment=TA_RIGHT, leading=22,
         ),
         "meta_label": ParagraphStyle(
             "meta_label", fontName="Helvetica-Bold", fontSize=6.8,
@@ -143,6 +146,98 @@ def _footer(canvas, doc, company):
     canvas.drawRightString(
         width - PAGE_MARGIN_X, y, f"Página {canvas.getPageNumber()}"
     )
+    canvas.restoreState()
+
+
+def _invoice_page(canvas, doc, company, reference=None):
+    """Draw the branded page furniture behind an invoice's flowables."""
+    canvas.saveState()
+    width, height = A4
+
+    # Layered top-right ribbons frame the invoice identity.
+    top_shadow = canvas.beginPath()
+    top_shadow.moveTo(74 * mm, height)
+    top_shadow.lineTo(width, height)
+    top_shadow.lineTo(width, height - 42 * mm)
+    top_shadow.curveTo(
+        width - 24 * mm,
+        height - 31 * mm,
+        width - 58 * mm,
+        height - 38 * mm,
+        width - 91 * mm,
+        height - 36 * mm,
+    )
+    top_shadow.curveTo(94 * mm, height - 35 * mm, 91 * mm, height - 14 * mm, 74 * mm, height)
+    top_shadow.close()
+    canvas.setFillColor(BRAND_DARK)
+    canvas.drawPath(top_shadow, fill=1, stroke=0)
+
+    top_ribbon = canvas.beginPath()
+    top_ribbon.moveTo(87 * mm, height)
+    top_ribbon.lineTo(width, height)
+    top_ribbon.lineTo(width, height - 34 * mm)
+    top_ribbon.curveTo(
+        width - 27 * mm,
+        height - 25 * mm,
+        width - 57 * mm,
+        height - 31 * mm,
+        width - 83 * mm,
+        height - 29 * mm,
+    )
+    top_ribbon.curveTo(105 * mm, height - 28 * mm, 103 * mm, height - 10 * mm, 87 * mm, height)
+    top_ribbon.close()
+    canvas.setFillColor(BRAND_BRIGHT)
+    canvas.drawPath(top_ribbon, fill=1, stroke=0)
+
+    canvas.setFillColor(ACCENT)
+    canvas.rect(width - 42 * mm, height - 2.2 * mm, 42 * mm, 2.2 * mm, fill=1, stroke=0)
+
+    if reference and canvas.getPageNumber() > 1:
+        canvas.setFillColor(colors.white)
+        canvas.setFont("Helvetica-Bold", 8.5)
+        canvas.drawRightString(
+            width - PAGE_MARGIN_X,
+            height - 9 * mm,
+            f"{reference}  |  CONTINUAÇÃO",
+        )
+
+    # Bottom waves carry contact information and anchor the page visually.
+    bottom_shadow = canvas.beginPath()
+    bottom_shadow.moveTo(0, 0)
+    bottom_shadow.lineTo(width, 0)
+    bottom_shadow.lineTo(width, 34 * mm)
+    bottom_shadow.curveTo(width - 37 * mm, 43 * mm, width - 72 * mm, 20 * mm, 0, 25 * mm)
+    bottom_shadow.close()
+    canvas.setFillColor(BRAND_DARK)
+    canvas.drawPath(bottom_shadow, fill=1, stroke=0)
+
+    bottom_ribbon = canvas.beginPath()
+    bottom_ribbon.moveTo(0, 0)
+    bottom_ribbon.lineTo(width, 0)
+    bottom_ribbon.lineTo(width, 27 * mm)
+    bottom_ribbon.curveTo(width - 38 * mm, 36 * mm, width - 77 * mm, 14 * mm, 0, 20 * mm)
+    bottom_ribbon.close()
+    canvas.setFillColor(BRAND_BRIGHT)
+    canvas.drawPath(bottom_ribbon, fill=1, stroke=0)
+
+    accent_wave = canvas.beginPath()
+    accent_wave.moveTo(0, 20 * mm)
+    accent_wave.curveTo(width - 78 * mm, 14 * mm, width - 39 * mm, 36 * mm, width, 27 * mm)
+    accent_wave.lineTo(width, 28.4 * mm)
+    accent_wave.curveTo(width - 39 * mm, 37.4 * mm, width - 78 * mm, 15.4 * mm, 0, 21.4 * mm)
+    accent_wave.close()
+    canvas.setFillColor(ACCENT)
+    canvas.drawPath(accent_wave, fill=1, stroke=0)
+
+    canvas.setFont("Helvetica", 7.5)
+    canvas.setFillColor(colors.white)
+    contact = "  |  ".join(
+        part
+        for part in [company["phone"], company["email"], company["address"]]
+        if part
+    )
+    canvas.drawString(PAGE_MARGIN_X, 8 * mm, contact)
+    canvas.drawRightString(width - PAGE_MARGIN_X, 8 * mm, f"Página {canvas.getPageNumber()}")
     canvas.restoreState()
 
 
@@ -205,8 +300,6 @@ def _invoice_header_block(styles, reference, company):
         Paragraph("FATURA PROFORMA", styles["invoice_type"]),
         Spacer(1, 1.5 * mm),
         Paragraph(reference, styles["invoice_ref"]),
-        Spacer(1, 1.5 * mm),
-        Paragraph("DOCUMENTO COMERCIAL", styles["meta"]),
     ]
 
     table = Table([[left, right]], colWidths=[105 * mm, 73 * mm])
@@ -216,10 +309,8 @@ def _invoice_header_block(styles, reference, company):
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 5 * mm),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5 * mm),
-                ("LINEABOVE", (0, 0), (-1, 0), 3, BRAND),
-                ("LINEBELOW", (0, 0), (-1, -1), 0.6, GREY_LINE),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4 * mm),
             ]
         )
     )
@@ -298,6 +389,7 @@ def _invoice_client_card(styles, invoice):
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 11),
                 ("ALIGN", (1, 0), (1, 0), "RIGHT"),
                 ("BOX", (0, 0), (-1, -1), 0.5, GREY_LINE),
+                ("LINEBEFORE", (0, 0), (0, 0), 3, ACCENT),
             ]
         )
     )
@@ -311,29 +403,32 @@ def _client_block(styles, title, lines):
 
 
 def _items_table(styles, rows):
-    data = [["Descrição", "Qtd.", "Preço unit.", "Total"]]
+    data = [["Nº", "Descrição", "Qtd.", "Preço unit.", "Total"]]
     for row in rows:
         data.append(row)
     table = Table(
         data,
-        colWidths=[92 * mm, 18 * mm, 34 * mm, 34 * mm],
+        colWidths=[12 * mm, 80 * mm, 18 * mm, 34 * mm, 34 * mm],
         repeatRows=1,
     )
     table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, 0), BRAND),
+                ("BACKGROUND", (0, 0), (-1, 0), BRAND_BRIGHT),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                 ("FONTSIZE", (0, 0), (-1, 0), 8.5),
                 ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
                 ("FONTSIZE", (0, 1), (-1, -1), 9),
                 ("TEXTCOLOR", (0, 1), (-1, -1), INK),
-                ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+                ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("TOPPADDING", (0, 0), (-1, -1), 7),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
                 ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#FBFCFA")]),
+                ("LINEAFTER", (0, 0), (-2, 0), 0.8, colors.white),
+                ("LINEAFTER", (0, 1), (0, -1), 0.35, GREY_LINE),
                 ("LINEBELOW", (0, 1), (-1, -2), 0.4, GREY_LINE),
                 ("LINEBELOW", (0, -1), (-1, -1), 0.8, BRAND),
             ]
@@ -357,7 +452,7 @@ def _totals_table(rows, emphasize=-1):
         ("FONTNAME", (0, emphasize), (-1, emphasize), "Helvetica-Bold"),
         ("FONTSIZE", (0, emphasize), (-1, emphasize), 11.5),
         ("TEXTCOLOR", (0, emphasize), (-1, emphasize), colors.white),
-        ("BACKGROUND", (0, emphasize), (-1, emphasize), BRAND),
+        ("BACKGROUND", (0, emphasize), (-1, emphasize), BRAND_BRIGHT),
         ("TOPPADDING", (0, emphasize), (-1, emphasize), 8),
         ("BOTTOMPADDING", (0, emphasize), (-1, emphasize), 8),
     ]
@@ -421,19 +516,32 @@ def _invoice_summary_block(styles, invoice, totals_rows, total_row_index):
     return table
 
 
-def _build(filename, company, story, footer_extra_note=None):
+def _build(
+    filename,
+    company,
+    story,
+    footer_extra_note=None,
+    page_decorator=None,
+    top_margin=PAGE_MARGIN_TOP,
+    bottom_margin=PAGE_MARGIN_BOTTOM,
+):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
         leftMargin=PAGE_MARGIN_X,
         rightMargin=PAGE_MARGIN_X,
-        topMargin=PAGE_MARGIN_TOP,
-        bottomMargin=PAGE_MARGIN_BOTTOM,
+        topMargin=top_margin,
+        bottomMargin=bottom_margin,
         title=filename,
         author=company["legal_name"],
     )
-    doc.build(story, onFirstPage=lambda c, d: _footer(c, d, company), onLaterPages=lambda c, d: _footer(c, d, company))
+    decorate = page_decorator or _footer
+    doc.build(
+        story,
+        onFirstPage=lambda c, d: decorate(c, d, company),
+        onLaterPages=lambda c, d: decorate(c, d, company),
+    )
     return buffer.getvalue()
 
 
@@ -463,7 +571,7 @@ def build_quote_pdf(quote) -> bytes:
     rows = []
     items_subtotal = Decimal("0")
     has_unit_prices = True
-    for item in quote.items.all():
+    for index, item in enumerate(quote.items.all(), start=1):
         unit = item.unit_price
         if unit is None:
             has_unit_prices = False
@@ -475,6 +583,7 @@ def build_quote_pdf(quote) -> bytes:
             details = f"{details}<br/><font size='8' color='#5B6B62'>{specs}</font>"
         rows.append(
             [
+                f"{index:02d}",
                 Paragraph(details, styles["body"]),
                 _quantity(item.quantity),
                 _money(unit) if unit is not None else "A definir",
@@ -518,9 +627,10 @@ def build_invoice_pdf(invoice) -> bytes:
     ]
 
     rows = []
-    for item in invoice.items.all():
+    for index, item in enumerate(invoice.items.all(), start=1):
         rows.append(
             [
+                f"{index:02d}",
                 Paragraph(item.description, styles["body"]),
                 _quantity(item.quantity),
                 _money(item.unit_price),
@@ -550,4 +660,16 @@ def build_invoice_pdf(invoice) -> bytes:
         )
     )
 
-    return _build(f"Fatura-{invoice.reference}", company, story)
+    return _build(
+        f"Fatura-{invoice.reference}",
+        company,
+        story,
+        page_decorator=lambda canvas, doc, company: _invoice_page(
+            canvas,
+            doc,
+            company,
+            invoice.reference,
+        ),
+        top_margin=16 * mm,
+        bottom_margin=34 * mm,
+    )

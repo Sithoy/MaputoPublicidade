@@ -99,6 +99,7 @@
   .invoice-document {
     color: #17211d !important;
     font-size: 10pt;
+    min-height: 273mm !important;
   }
 
   .invoice-document header {
@@ -108,7 +109,7 @@
     padding-bottom: 7mm !important;
   }
 
-  .invoice-document > div.space-y-9 {
+  .invoice-document-body {
     padding-left: 0 !important;
     padding-right: 0 !important;
     padding-top: 8mm !important;
@@ -135,9 +136,8 @@
   }
 
   .invoice-document-footer {
-    margin-top: 3mm;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    padding-left: 8mm !important;
+    padding-right: 8mm !important;
   }
 
   .print-document table tr,
