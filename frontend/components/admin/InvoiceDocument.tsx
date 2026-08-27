@@ -1,0 +1,212 @@
+import Image from 'next/image';
+import Link from 'next/link';
+import type { ReactNode } from 'react';
+import { Building2, CalendarDays, CircleDollarSign, FileText } from 'lucide-react';
+import { StatusBadge } from '@/components/admin/StatusBadge';
+import type { Invoice } from '@/lib/api';
+import { companyProfile } from '@/lib/company';
+import { formatMZN } from '@/lib/utils';
+
+type InvoiceDocumentProps = {
+  invoice: Invoice;
+};
+
+function formatDate(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString('pt-MZ');
+}
+
+function MetaItem({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: typeof CalendarDays;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 gap-3 px-5 py-4 first:pl-0 last:pr-0 sm:border-r sm:border-[#dfe7e1] sm:first:pl-5 sm:last:border-r-0 sm:last:pr-5">
+      <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-brand-700 shadow-[0_1px_3px_rgba(23,33,29,0.08)]">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#718078]">{label}</p>
+        <div className="mt-1 truncate text-sm font-semibold text-dark">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
+  const hasSupplementaryInformation = Boolean(invoice.notes || invoice.terms);
+
+  return (
+    <article className="invoice-document print-document overflow-hidden rounded-[26px] border border-[#dbe4de] bg-white shadow-[0_22px_70px_-42px_rgba(6,63,43,0.45)]">
+      <div className="h-2 bg-brand-800" />
+
+      <header className="px-7 pb-7 pt-8 sm:px-11 sm:pb-9 sm:pt-10">
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-sm">
+            <Image
+              src="/logo-tight.png"
+              alt="Maputo Publicidade"
+              width={190}
+              height={72}
+              className="h-[58px] w-auto object-contain"
+              priority
+            />
+            <div className="mt-4 space-y-0.5 text-[13px] leading-5 text-[#65736b]">
+              <p className="font-semibold text-[#34453d]">{companyProfile.legalName}</p>
+              {companyProfile.nuit ? <p>NUIT {companyProfile.nuit}</p> : null}
+              <p>{companyProfile.address}</p>
+              <p>{companyProfile.email}</p>
+              {companyProfile.phone ? <p>{companyProfile.phone}</p> : null}
+            </div>
+          </div>
+
+          <div className="sm:max-w-sm sm:text-right">
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-brand-700">Fatura proforma</p>
+            <h2 className="mt-2 text-[30px] font-semibold tracking-[-0.035em] text-dark sm:text-[34px]">
+              {invoice.reference}
+            </h2>
+            <p className="mt-2 text-sm text-[#718078]">Documento comercial</p>
+            <div className="document-status mt-4 inline-flex">
+              <StatusBadge status={invoice.status} label={invoice.status_display} />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section className="invoice-meta-grid grid border-y border-[#dfe7e1] bg-[#f4f7f4] px-7 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+        <MetaItem icon={CalendarDays} label="Emissão">
+          {formatDate(invoice.issue_date)}
+        </MetaItem>
+        <MetaItem icon={CalendarDays} label="Vencimento">
+          {formatDate(invoice.due_date)}
+        </MetaItem>
+        <MetaItem icon={FileText} label="Referência">
+          {invoice.order_reference ? (
+            <Link className="text-brand-700 hover:underline" href={`/admin/encomendas/${invoice.order_reference}`}>
+              {invoice.order_reference}
+            </Link>
+          ) : (
+            invoice.reference
+          )}
+        </MetaItem>
+        <MetaItem icon={CircleDollarSign} label="Moeda">
+          {invoice.currency}
+        </MetaItem>
+      </section>
+
+      <div className="space-y-9 px-7 py-9 sm:px-11 sm:py-10">
+        <section className="invoice-party-card grid gap-6 rounded-2xl border border-[#e0e8e2] bg-[#fbfcfa] p-6 sm:grid-cols-[1fr_auto] sm:items-start sm:p-7">
+          <div>
+            <div className="flex items-center gap-2 text-brand-700">
+              <Building2 className="h-4 w-4" aria-hidden="true" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em]">Faturado a</p>
+            </div>
+            <p className="mt-3 text-xl font-semibold tracking-[-0.02em] text-dark">
+              {invoice.client_company || invoice.client_name}
+            </p>
+            {invoice.client_company ? <p className="mt-1 text-sm font-medium text-[#526159]">{invoice.client_name}</p> : null}
+          </div>
+          <div className="space-y-1 text-sm leading-5 text-[#65736b] sm:max-w-xs sm:text-right">
+            {invoice.client_nuit ? <p><span className="font-medium text-[#44544c]">NUIT</span> {invoice.client_nuit}</p> : null}
+            {invoice.billing_address ? <p className="whitespace-pre-line">{invoice.billing_address}</p> : null}
+            {invoice.client_email ? <p>{invoice.client_email}</p> : null}
+            {invoice.client_phone ? <p>{invoice.client_phone}</p> : null}
+          </div>
+        </section>
+
+        <div className="invoice-items-table overflow-x-auto">
+          <table className="w-full min-w-[640px] table-fixed text-sm">
+            <thead>
+              <tr className="bg-brand-800 text-left text-[10px] font-bold uppercase tracking-[0.13em] text-white">
+                <th className="w-[58%] rounded-l-xl px-5 py-3.5">Descrição</th>
+                <th className="w-[10%] px-3 py-3.5 text-right">Qtd.</th>
+                <th className="w-[16%] px-3 py-3.5 text-right">Preço unit.</th>
+                <th className="w-[16%] rounded-r-xl px-5 py-3.5 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoice.items.map((item, index) => (
+                <tr key={item.id ?? `${item.description}-${index}`} className="border-b border-[#e6ece8] last:border-b-0">
+                  <td className="px-5 py-4 font-medium leading-5 text-[#27372f]">{item.description}</td>
+                  <td className="px-3 py-4 text-right tabular-nums text-[#617068]">
+                    {Number(item.quantity).toLocaleString('pt-MZ')}
+                  </td>
+                  <td className="px-3 py-4 text-right tabular-nums text-[#617068]">{formatMZN(item.unit_price)}</td>
+                  <td className="px-5 py-4 text-right font-semibold tabular-nums text-dark">
+                    {formatMZN(item.line_total ?? item.quantity * item.unit_price)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className={`grid gap-8 ${hasSupplementaryInformation ? 'lg:grid-cols-[1fr_360px]' : ''}`}>
+          {hasSupplementaryInformation ? (
+            <div className="invoice-notes grid content-start gap-6 sm:grid-cols-2 lg:grid-cols-1">
+              {invoice.terms ? (
+                <section>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-700">Condições de pagamento</p>
+                  <p className="mt-2 max-w-xl whitespace-pre-line text-sm leading-6 text-[#65736b]">{invoice.terms}</p>
+                </section>
+              ) : null}
+              {invoice.notes ? (
+                <section>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-700">Observações</p>
+                  <p className="mt-2 max-w-xl whitespace-pre-line text-sm leading-6 text-[#65736b]">{invoice.notes}</p>
+                </section>
+              ) : null}
+            </div>
+          ) : null}
+
+          <dl className={`totals-block overflow-hidden rounded-2xl border border-[#dce5df] bg-[#f7faf8] ${hasSupplementaryInformation ? '' : 'ml-auto w-full max-w-[360px]'}`}>
+            <div className="space-y-3 px-5 py-5 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-[#65736b]">Subtotal</dt>
+                <dd className="font-semibold tabular-nums text-dark">{formatMZN(invoice.subtotal)}</dd>
+              </div>
+              {invoice.discount_amount > 0 ? (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[#65736b]">Desconto</dt>
+                  <dd className="font-semibold tabular-nums text-dark">− {formatMZN(invoice.discount_amount)}</dd>
+                </div>
+              ) : null}
+              <div className="flex justify-between gap-4">
+                <dt className="text-[#65736b]">IVA ({Number(invoice.tax_rate).toLocaleString('pt-MZ')}%)</dt>
+                <dd className="font-semibold tabular-nums text-dark">{formatMZN(invoice.tax_amount)}</dd>
+              </div>
+              {invoice.amount_paid > 0 ? (
+                <div className="flex justify-between gap-4 text-brand-700">
+                  <dt>Valor pago</dt>
+                  <dd className="font-semibold tabular-nums">{formatMZN(invoice.amount_paid)}</dd>
+                </div>
+              ) : null}
+            </div>
+            <div className="flex items-end justify-between gap-4 bg-brand-800 px-5 py-5 text-white">
+              <dt>
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/65">Total</span>
+                <span className="mt-1 block text-sm font-medium text-white/80">Valor da fatura</span>
+              </dt>
+              <dd className="text-xl font-semibold tabular-nums tracking-[-0.02em]">{formatMZN(invoice.total)}</dd>
+            </div>
+            {invoice.balance_due > 0 ? (
+              <div className="flex justify-between gap-4 border-t border-[#dce5df] bg-[#fffaf0] px-5 py-3 text-sm text-[#8a6828]">
+                <dt className="font-medium">Saldo por liquidar</dt>
+                <dd className="font-bold tabular-nums">{formatMZN(invoice.balance_due)}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
+      </div>
+
+      <footer className="invoice-document-footer flex flex-col gap-2 border-t border-[#e1e8e3] bg-[#fbfcfa] px-7 py-5 text-xs text-[#718078] sm:flex-row sm:items-center sm:justify-between sm:px-11">
+        <p className="font-medium text-[#44544c]">Obrigado pela sua confiança.</p>
+        <p>{companyProfile.email}</p>
+      </footer>
+    </article>
+  );
+}

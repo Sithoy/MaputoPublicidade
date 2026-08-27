@@ -24,8 +24,12 @@ from reportlab.platypus import (
 
 BRAND = colors.HexColor("#063F2B")
 BRAND_LIGHT = colors.HexColor("#EAF3EE")
+PAPER_TINT = colors.HexColor("#F6F8F5")
+INK = colors.HexColor("#17211D")
 GREY_TEXT = colors.HexColor("#5B6B62")
 GREY_LINE = colors.HexColor("#D9E2DC")
+GOLD_LIGHT = colors.HexColor("#FFF7E7")
+GOLD_TEXT = colors.HexColor("#8A6828")
 
 PAGE_MARGIN_X = 16 * mm
 PAGE_MARGIN_TOP = 16 * mm
@@ -90,6 +94,26 @@ def _styles():
             "section", fontName="Helvetica-Bold", fontSize=9, textColor=BRAND,
             spaceBefore=6, spaceAfter=3,
         ),
+        "invoice_type": ParagraphStyle(
+            "invoice_type", fontName="Helvetica-Bold", fontSize=9,
+            textColor=BRAND, alignment=TA_RIGHT, leading=11,
+        ),
+        "invoice_ref": ParagraphStyle(
+            "invoice_ref", fontName="Helvetica-Bold", fontSize=18,
+            textColor=INK, alignment=TA_RIGHT, leading=22,
+        ),
+        "meta_label": ParagraphStyle(
+            "meta_label", fontName="Helvetica-Bold", fontSize=6.8,
+            textColor=GREY_TEXT, leading=8,
+        ),
+        "meta_value": ParagraphStyle(
+            "meta_value", fontName="Helvetica-Bold", fontSize=9,
+            textColor=INK, leading=12,
+        ),
+        "client_name": ParagraphStyle(
+            "client_name", fontName="Helvetica-Bold", fontSize=12,
+            textColor=INK, leading=15,
+        ),
     }
 
 
@@ -146,6 +170,132 @@ def _header_block(styles, doc_title, reference, meta_rows, company):
     return table
 
 
+def _invoice_header_block(styles, reference, company):
+    left = []
+    logo_path = company.get("logo_path")
+    try:
+        if logo_path:
+            left.append(
+                Image(
+                    str(logo_path),
+                    width=44 * mm,
+                    height=16 * mm,
+                    kind="proportional",
+                )
+            )
+    except Exception:
+        pass
+    left.append(Spacer(1, 2.5 * mm))
+    left.append(Paragraph(company["legal_name"], styles["body"]))
+    if company.get("nuit"):
+        left.append(Paragraph(f"NUIT {company['nuit']}", styles["small"]))
+    left.append(Paragraph(company["address"], styles["small"]))
+    if company.get("email"):
+        left.append(Paragraph(company["email"], styles["small"]))
+
+    right = [
+        Paragraph("FATURA PROFORMA", styles["invoice_type"]),
+        Spacer(1, 1.5 * mm),
+        Paragraph(reference, styles["invoice_ref"]),
+        Spacer(1, 1.5 * mm),
+        Paragraph("DOCUMENTO COMERCIAL", styles["meta"]),
+    ]
+
+    table = Table([[left, right]], colWidths=[105 * mm, 73 * mm])
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 5 * mm),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5 * mm),
+                ("LINEABOVE", (0, 0), (-1, 0), 3, BRAND),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.6, GREY_LINE),
+            ]
+        )
+    )
+    return table
+
+
+def _invoice_meta_strip(styles, invoice):
+    order_reference = invoice.order.reference if invoice.order else invoice.reference
+    cells = [
+        ("EMISSÃO", _date(invoice.issue_date)),
+        ("VENCIMENTO", _date(invoice.due_date)),
+        ("REFERÊNCIA", order_reference),
+        ("MOEDA", invoice.currency),
+    ]
+    data = [
+        [
+            [
+                Paragraph(label, styles["meta_label"]),
+                Spacer(1, 1.2 * mm),
+                Paragraph(value, styles["meta_value"]),
+            ]
+            for label, value in cells
+        ]
+    ]
+    table = Table(data, colWidths=[44.5 * mm] * 4)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), PAPER_TINT),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 9),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+                ("BOX", (0, 0), (-1, -1), 0.5, GREY_LINE),
+                ("LINEAFTER", (0, 0), (-2, -1), 0.5, GREY_LINE),
+            ]
+        )
+    )
+    return table
+
+
+def _invoice_client_card(styles, invoice):
+    client_identity = [
+        Paragraph("FATURADO A", styles["label"]),
+        Spacer(1, 1.5 * mm),
+        Paragraph(
+            invoice.client_company or invoice.client_name,
+            styles["client_name"],
+        ),
+    ]
+    if invoice.client_company:
+        client_identity.append(Paragraph(invoice.client_name, styles["body"]))
+
+    client_details = [
+        value
+        for value in [
+            f"NUIT {invoice.client_nuit}" if invoice.client_nuit else None,
+            invoice.billing_address or None,
+            invoice.client_email,
+            invoice.client_phone,
+        ]
+        if value
+    ]
+    details = [Paragraph(value, styles["small"]) for value in client_details]
+
+    table = Table([[client_identity, details]], colWidths=[94 * mm, 84 * mm])
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FBFCFA")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                ("TOPPADDING", (0, 0), (-1, -1), 11),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 11),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                ("BOX", (0, 0), (-1, -1), 0.5, GREY_LINE),
+            ]
+        )
+    )
+    return table
+
+
 def _client_block(styles, title, lines):
     content = [Paragraph(title.upper(), styles["label"])]
     content += [Paragraph(line, styles["body"]) for line in lines if line]
@@ -170,10 +320,12 @@ def _items_table(styles, rows):
                 ("FONTSIZE", (0, 0), (-1, 0), 8.5),
                 ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
                 ("FONTSIZE", (0, 1), (-1, -1), 9),
+                ("TEXTCOLOR", (0, 1), (-1, -1), INK),
                 ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#FBFCFA")]),
                 ("LINEBELOW", (0, 1), (-1, -2), 0.4, GREY_LINE),
                 ("LINEBELOW", (0, -1), (-1, -1), 0.8, BRAND),
             ]
@@ -196,10 +348,18 @@ def _totals_table(rows, emphasize=-1):
     style += [
         ("FONTNAME", (0, emphasize), (-1, emphasize), "Helvetica-Bold"),
         ("FONTSIZE", (0, emphasize), (-1, emphasize), 11.5),
-        ("TEXTCOLOR", (0, emphasize), (-1, emphasize), BRAND),
-        ("BACKGROUND", (0, emphasize), (-1, emphasize), BRAND_LIGHT),
-        ("LINEABOVE", (0, emphasize), (-1, emphasize), 0.8, BRAND),
+        ("TEXTCOLOR", (0, emphasize), (-1, emphasize), colors.white),
+        ("BACKGROUND", (0, emphasize), (-1, emphasize), BRAND),
+        ("TOPPADDING", (0, emphasize), (-1, emphasize), 8),
+        ("BOTTOMPADDING", (0, emphasize), (-1, emphasize), 8),
     ]
+    for index, row in enumerate(rows):
+        if row[0] == "Em dívida":
+            style += [
+                ("BACKGROUND", (0, index), (-1, index), GOLD_LIGHT),
+                ("TEXTCOLOR", (0, index), (-1, index), GOLD_TEXT),
+                ("FONTNAME", (0, index), (-1, index), "Helvetica-Bold"),
+            ]
     table.setStyle(TableStyle(style))
     return table
 
@@ -291,29 +451,14 @@ def build_invoice_pdf(invoice) -> bytes:
     company = settings.COMPANY_PROFILE
     styles = _styles()
 
-    meta = [
-        f"Emissão: {_date(invoice.issue_date)}",
-        f"Vencimento: {_date(invoice.due_date)}",
-        f"Estado: {invoice.get_status_display()}",
-    ]
-    if invoice.order:
-        meta.append(f"Encomenda: {invoice.order.reference}")
-
     story = [
-        _header_block(styles, "FATURA PROFORMA", invoice.reference, meta, company),
-        Spacer(1, 7 * mm),
+        _invoice_header_block(styles, invoice.reference, company),
+        Spacer(1, 5 * mm),
+        _invoice_meta_strip(styles, invoice),
+        Spacer(1, 5 * mm),
+        _invoice_client_card(styles, invoice),
+        Spacer(1, 6 * mm),
     ]
-
-    client_lines = [
-        invoice.client_company or invoice.client_name,
-        invoice.client_name if invoice.client_company else None,
-        f"NUIT: {invoice.client_nuit}" if invoice.client_nuit else None,
-        invoice.billing_address or None,
-        invoice.client_email,
-        invoice.client_phone,
-    ]
-    story += _client_block(styles, "Faturado a", client_lines)
-    story.append(Spacer(1, 6 * mm))
 
     rows = []
     for item in invoice.items.all():
@@ -350,5 +495,18 @@ def build_invoice_pdf(invoice) -> bytes:
         story.append(Spacer(1, 3 * mm))
         story.append(Paragraph("OBSERVAÇÕES", styles["section"]))
         story.append(Paragraph(invoice.notes.replace("\n", "<br/>"), styles["small"]))
+
+    story.append(Spacer(1, 5 * mm))
+    story.append(
+        Paragraph(
+            "Obrigado pela sua confiança.",
+            ParagraphStyle(
+                "invoice_thanks",
+                parent=styles["small"],
+                fontName="Helvetica-Bold",
+                textColor=INK,
+            ),
+        )
+    )
 
     return _build(f"Fatura-{invoice.reference}", company, story)

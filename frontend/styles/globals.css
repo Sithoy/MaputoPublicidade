@@ -96,6 +96,50 @@
     box-shadow: none !important;
   }
 
+  .invoice-document {
+    color: #17211d !important;
+    font-size: 10pt;
+  }
+
+  .invoice-document header {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 8mm !important;
+    padding-bottom: 7mm !important;
+  }
+
+  .invoice-document > div.space-y-9 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 8mm !important;
+    padding-bottom: 7mm !important;
+  }
+
+  .invoice-meta-grid {
+    padding-left: 4mm !important;
+    padding-right: 4mm !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .invoice-party-card,
+  .totals-block {
+    border-radius: 3mm !important;
+  }
+
+  .invoice-items-table {
+    overflow: visible !important;
+  }
+
+  .invoice-items-table table {
+    min-width: 0 !important;
+  }
+
+  .invoice-document-footer {
+    margin-top: 3mm;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
   .print-document table tr,
   .print-document section,
   .print-document .totals-block {
