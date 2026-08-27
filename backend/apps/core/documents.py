@@ -14,7 +14,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import (
+    BaseDocTemplate,
+    Frame,
     Image,
+    PageTemplate,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -524,24 +527,71 @@ def _build(
     page_decorator=None,
     top_margin=PAGE_MARGIN_TOP,
     bottom_margin=PAGE_MARGIN_BOTTOM,
+    later_top_margin=None,
 ):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        leftMargin=PAGE_MARGIN_X,
-        rightMargin=PAGE_MARGIN_X,
-        topMargin=top_margin,
-        bottomMargin=bottom_margin,
-        title=filename,
-        author=company["legal_name"],
-    )
     decorate = page_decorator or _footer
-    doc.build(
-        story,
-        onFirstPage=lambda c, d: decorate(c, d, company),
-        onLaterPages=lambda c, d: decorate(c, d, company),
-    )
+
+    if later_top_margin is None:
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            leftMargin=PAGE_MARGIN_X,
+            rightMargin=PAGE_MARGIN_X,
+            topMargin=top_margin,
+            bottomMargin=bottom_margin,
+            title=filename,
+            author=company["legal_name"],
+        )
+        doc.build(
+            story,
+            onFirstPage=lambda c, d: decorate(c, d, company),
+            onLaterPages=lambda c, d: decorate(c, d, company),
+        )
+    else:
+        page_width, page_height = A4
+        frame_width = page_width - (2 * PAGE_MARGIN_X)
+
+        def make_frame(frame_id, frame_top_margin):
+            return Frame(
+                PAGE_MARGIN_X,
+                bottom_margin,
+                frame_width,
+                page_height - frame_top_margin - bottom_margin,
+                id=frame_id,
+                leftPadding=0,
+                rightPadding=0,
+                topPadding=0,
+                bottomPadding=0,
+            )
+
+        doc = BaseDocTemplate(
+            buffer,
+            pagesize=A4,
+            leftMargin=PAGE_MARGIN_X,
+            rightMargin=PAGE_MARGIN_X,
+            topMargin=top_margin,
+            bottomMargin=bottom_margin,
+            title=filename,
+            author=company["legal_name"],
+        )
+        doc.addPageTemplates(
+            [
+                PageTemplate(
+                    id="InvoiceFirst",
+                    frames=[make_frame("invoice-first", top_margin)],
+                    onPage=lambda c, d: decorate(c, d, company),
+                    autoNextPageTemplate="InvoiceContinuation",
+                ),
+                PageTemplate(
+                    id="InvoiceContinuation",
+                    frames=[make_frame("invoice-continuation", later_top_margin)],
+                    onPage=lambda c, d: decorate(c, d, company),
+                ),
+            ]
+        )
+        doc.build(story)
+
     return buffer.getvalue()
 
 
@@ -671,5 +721,6 @@ def build_invoice_pdf(invoice) -> bytes:
             invoice.reference,
         ),
         top_margin=16 * mm,
-        bottom_margin=34 * mm,
+        bottom_margin=44 * mm,
+        later_top_margin=43 * mm,
     )
