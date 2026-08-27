@@ -234,12 +234,7 @@ def _invoice_page(canvas, doc, company, reference=None):
 
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(colors.white)
-    contact = "  |  ".join(
-        part
-        for part in [company["phone"], company["email"], company["address"]]
-        if part
-    )
-    canvas.drawString(PAGE_MARGIN_X, 8 * mm, contact)
+    canvas.drawString(PAGE_MARGIN_X, 8 * mm, company.get("email", ""))
     canvas.drawRightString(width - PAGE_MARGIN_X, 8 * mm, f"Página {canvas.getPageNumber()}")
     canvas.restoreState()
 
@@ -298,6 +293,8 @@ def _invoice_header_block(styles, reference, company):
     left.append(Paragraph(company["address"], styles["small"]))
     if company.get("email"):
         left.append(Paragraph(company["email"], styles["small"]))
+    if company.get("phone"):
+        left.append(Paragraph(company["phone"], styles["small"]))
 
     right = [
         Paragraph("FATURA PROFORMA", styles["invoice_type"]),
@@ -470,12 +467,29 @@ def _totals_table(rows, emphasize=-1):
     return table
 
 
-def _invoice_summary_block(styles, invoice, totals_rows, total_row_index):
+def _invoice_summary_block(styles, invoice, totals_rows, total_row_index, company):
     terms = invoice.terms or DEFAULT_INVOICE_TERMS
     details = [
         Paragraph("CONDIÇÕES DE PAGAMENTO", styles["section"]),
         Paragraph(terms.replace("\n", "<br/>"), styles["small"]),
     ]
+
+    bank_details = [
+        ("Banco", company.get("bank_name")),
+        ("N.º de conta", company.get("bank_account")),
+        ("NIB", company.get("bank_nib")),
+    ]
+    bank_lines = [
+        f"<b>{label}:</b> {value}" for label, value in bank_details if value
+    ]
+    if bank_lines:
+        details.extend(
+            [
+                Spacer(1, 2 * mm),
+                Paragraph("DADOS BANCÁRIOS", styles["section"]),
+                Paragraph("<br/>".join(bank_lines), styles["small"]),
+            ]
+        )
 
     if invoice.notes:
         details.extend(
@@ -707,6 +721,7 @@ def build_invoice_pdf(invoice) -> bytes:
             invoice,
             totals_rows,
             total_row_index,
+            company,
         )
     )
 

@@ -172,12 +172,21 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Company identity used on generated documents (proposals, invoices).
 COMPANY_PROFILE = {
     "legal_name": os.getenv(
-        "COMPANY_LEGAL_NAME", "Maputo Publicidade e Serviços, Lda"
+        "COMPANY_LEGAL_NAME", "Maputo Publicidade & Serviços, Lda"
     ),
-    "nuit": os.getenv("COMPANY_NUIT", ""),
-    "address": os.getenv("COMPANY_ADDRESS", "Maputo, Moçambique"),
+    "nuit": os.getenv("COMPANY_NUIT", "400558272"),
+    "address": os.getenv(
+        "COMPANY_ADDRESS",
+        "Rua da Resistência N.º 1550, R/C, Maputo, Moçambique",
+    ),
     "email": os.getenv("COMPANY_EMAIL", "info@maputopublicidade.com"),
-    "phone": os.getenv("COMPANY_PHONE", ""),
+    "phone": os.getenv(
+        "COMPANY_PHONE",
+        "+258 21 41 66 03 · +258 82 55 55 736 · +258 84 74 12 838",
+    ),
+    "bank_name": os.getenv("COMPANY_BANK_NAME", "BCI"),
+    "bank_account": os.getenv("COMPANY_BANK_ACCOUNT", "10 83 25 624 10001"),
+    "bank_nib": os.getenv("COMPANY_BANK_NIB", "0008 00000 8325 624 10195"),
     "logo_path": BASE_DIR / "static" / "documents" / "logo.png",
 }
 

@@ -38,7 +38,12 @@ function MetaItem({
 }
 
 export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
-  const hasSupplementaryInformation = Boolean(invoice.notes || invoice.terms);
+  const hasSupplementaryInformation = Boolean(
+    invoice.notes ||
+      invoice.terms ||
+      companyProfile.bankAccount ||
+      companyProfile.bankNib,
+  );
 
   return (
     <article className="invoice-document print-document relative isolate flex min-h-[1080px] flex-col overflow-hidden rounded-[26px] border border-[#dbe4de] bg-white shadow-[0_22px_70px_-42px_rgba(6,63,43,0.45)]">
@@ -155,6 +160,31 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
         <div className={`grid gap-8 ${hasSupplementaryInformation ? 'lg:grid-cols-[1fr_360px]' : ''}`}>
           {hasSupplementaryInformation ? (
             <div className="invoice-notes grid content-start gap-6 sm:grid-cols-2 lg:grid-cols-1">
+              {companyProfile.bankAccount || companyProfile.bankNib ? (
+                <section>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-700">Dados bancários</p>
+                  <dl className="mt-2 grid max-w-xl gap-x-3 gap-y-1 text-sm leading-6 text-[#65736b] sm:grid-cols-[auto_1fr]">
+                    {companyProfile.bankName ? (
+                      <>
+                        <dt className="font-medium text-[#44544c]">Banco</dt>
+                        <dd>{companyProfile.bankName}</dd>
+                      </>
+                    ) : null}
+                    {companyProfile.bankAccount ? (
+                      <>
+                        <dt className="font-medium text-[#44544c]">N.º de conta</dt>
+                        <dd className="tabular-nums">{companyProfile.bankAccount}</dd>
+                      </>
+                    ) : null}
+                    {companyProfile.bankNib ? (
+                      <>
+                        <dt className="font-medium text-[#44544c]">NIB</dt>
+                        <dd className="tabular-nums">{companyProfile.bankNib}</dd>
+                      </>
+                    ) : null}
+                  </dl>
+                </section>
+              ) : null}
               {invoice.terms ? (
                 <section>
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-700">Condições de pagamento</p>
@@ -216,7 +246,7 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
         <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="font-semibold">Obrigado pela sua confiança.</p>
-            <p className="mt-2 text-white/70">{companyProfile.phone} · {companyProfile.email}</p>
+            <p className="mt-2 text-white/70">{companyProfile.email}</p>
           </div>
           <p className="max-w-xs text-white/70 sm:text-right">{companyProfile.address}</p>
         </div>
