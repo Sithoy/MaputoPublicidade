@@ -24,7 +24,7 @@ import { TestCredentialsButton } from '@/components/TestCredentialsButton';
 import { login } from '@/lib/auth';
 
 const WHATSAPP_URL =
-  'https://wa.me/25882555736?text=Ol%C3%A1%21%20Preciso%20de%20ajuda%20com%20o%20Portal%20do%20Cliente.';
+  'https://wa.me/25882555736?text=Ol%C3%A1%21%20Preciso%20de%20ajuda%20com%20o%20BrandDesk.';
 
 const portalBenefits = [
   {
@@ -98,14 +98,14 @@ function ClientLoginForm() {
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-brand-800 shadow-sm">
             <ShieldCheck className="h-4 w-4" />
-            Portal do Cliente
+            BrandDesk by Maputo Publicidade
           </div>
 
           <h1 className="mt-6 max-w-xl text-balance text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-dark sm:text-5xl lg:text-[3.55rem]">
-            A sua marca, organizada num só lugar.
+            O trabalho da sua marca, organizado num só lugar.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-7 text-[#5d6d65] sm:text-lg">
-            Acompanhe pedidos, aprove propostas e mantenha a comunicação com a nossa equipa mais simples, clara e próxima.
+            Peça, aprove e acompanhe materiais de marca sem perder ficheiros, decisões ou contexto pelo caminho.
           </p>
 
           <div className="mt-9 hidden gap-3 sm:grid sm:grid-cols-3 lg:max-w-2xl">
@@ -216,7 +216,7 @@ function ClientLoginForm() {
               </div>
 
               <Button type="submit" disabled={loading} className="h-12 w-full gap-2 rounded-xl text-base">
-                {loading ? 'A entrar...' : 'Entrar no portal'}
+                {loading ? 'A entrar...' : 'Entrar no BrandDesk'}
                 {loading ? null : <ArrowRight className="h-4 w-4" />}
               </Button>
             </form>
@@ -226,7 +226,7 @@ function ClientLoginForm() {
             </div>
 
             <div className="mt-6 border-t border-[#e7ece8] pt-6 text-center">
-              <p className="text-sm text-[#68776f]">Ainda não tem acesso ao portal?</p>
+              <p className="text-sm text-[#68776f]">Ainda não tem acesso ao BrandDesk?</p>
               <Link
                 href="/sobre#contactos"
                 className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"

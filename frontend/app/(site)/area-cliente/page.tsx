@@ -40,7 +40,7 @@ function orderLabel(order: Order) {
   if (items.length > 1) return `${items[0].description} +${items.length - 1}`;
   if (order.item_count === 1) return '1 item solicitado';
   if (order.item_count && order.item_count > 1) return `${order.item_count} itens solicitados`;
-  return 'Pedido de produção';
+  return 'Projeto de marca';
 }
 
 function StatCard({
@@ -155,7 +155,7 @@ export default function ClientDashboardPage() {
         description: action.description,
       }));
     const quoteItems = quotes
-      .filter((quote) => quote.status === 'quoted')
+      .filter((quote) => quote.status === 'quoted' && !quote.price_approved_at)
       .map((quote) => ({
         key: `quote-${quote.id}`,
         reference: quote.reference,
@@ -205,7 +205,7 @@ export default function ClientDashboardPage() {
         <div className="relative max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-100 ring-1 ring-white/10">
             <Sparkles className="h-3.5 w-3.5" />
-            O seu trabalho com a Maputo Publicidade
+            BrandDesk by Maputo Publicidade
           </div>
           <h1 className="mt-5 text-balance text-3xl font-semibold leading-tight tracking-[-0.03em] sm:text-4xl">
             {needsAttention
@@ -215,21 +215,21 @@ export default function ClientDashboardPage() {
                 : 'Tudo começa com um pedido bem definido.'}
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-white/68 sm:text-base">
-            Da primeira conversa à entrega, veja onde cada trabalho está e saiba exactamente qual é o próximo passo.
+            Pedidos, decisões e materiais da sua marca, com um próximo passo claro para todos.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href="/catalogo"
+              href="/area-cliente/novo-pedido"
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-brand-900 transition hover:-translate-y-0.5 hover:bg-[#f4f0e8]"
             >
               <Plus className="h-4 w-4" />
-              Iniciar novo pedido
+              Novo pedido
             </Link>
             <Link
               href="/area-cliente/encomendas"
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/15"
             >
-              Ver encomendas
+              Ver projetos
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -239,9 +239,9 @@ export default function ClientDashboardPage() {
       <section className="grid gap-4 sm:grid-cols-3" aria-label="Resumo da conta">
         <StatCard
           icon={Package}
-          label="Encomendas activas"
+          label="Projetos ativos"
           value={activeOrders.length}
-          note={activeOrders.length === 1 ? 'pedido em acompanhamento' : 'pedidos em acompanhamento'}
+          note={activeOrders.length === 1 ? 'projeto em acompanhamento' : 'projetos em acompanhamento'}
           tone="green"
         />
         <StatCard
@@ -267,7 +267,7 @@ export default function ClientDashboardPage() {
               Percurso do trabalho
             </p>
             <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">
-              {focusOrder ? `Onde está o pedido ${focusOrder.reference}` : 'Da ideia à entrega, sem perder o fio'}
+              {focusOrder ? `Onde está o projeto ${focusOrder.reference}` : 'Da ideia à entrega, sem perder o fio'}
             </h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-[#718078]">
               {focusOrder
@@ -280,7 +280,7 @@ export default function ClientDashboardPage() {
               href={`/area-cliente/encomendas/${focusOrder.reference}`}
               className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
             >
-              Abrir pedido
+              Abrir projeto
               <ArrowRight className="h-4 w-4" />
             </Link>
           ) : null}
@@ -335,7 +335,7 @@ export default function ClientDashboardPage() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Actividade</p>
-              <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">Encomendas recentes</h2>
+              <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">Projetos recentes</h2>
             </div>
             {recentOrders.length > 0 ? (
               <Link
@@ -353,15 +353,15 @@ export default function ClientDashboardPage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
                 <FileText className="h-6 w-6" />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-dark">O seu primeiro pedido começa aqui</h3>
+              <h3 className="mt-4 text-base font-semibold text-dark">O seu primeiro projeto começa aqui</h3>
               <p className="mt-1 max-w-sm text-sm leading-6 text-[#718078]">
-                Explore o catálogo ou envie-nos o seu briefing para organizarmos a solução certa.
+                Diga-nos o objetivo e organizamos consigo os materiais, prazos e aprovações.
               </p>
               <Link
-                href="/catalogo"
+                href="/area-cliente/novo-pedido"
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
               >
-                Explorar catálogo
+                Criar novo projeto
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

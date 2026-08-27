@@ -6,14 +6,16 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowUpRight,
-  ClipboardList,
+  BadgeCheck,
+  Building2,
   FileText,
+  FolderKanban,
   Headphones,
   LayoutDashboard,
+  LibraryBig,
   LogOut,
   Menu,
   Plus,
-  UserRound,
   X,
 } from 'lucide-react';
 import { useClientAuth } from '@/hooks/useClientAuth';
@@ -22,20 +24,25 @@ import { cn } from '@/lib/utils';
 
 const portalNav = [
   { href: '/area-cliente', label: 'Visão geral', icon: LayoutDashboard },
-  { href: '/area-cliente/orcamentos', label: 'Orçamentos', icon: FileText },
-  { href: '/area-cliente/encomendas', label: 'Pedidos', icon: ClipboardList },
-  { href: '/area-cliente/perfil', label: 'Perfil da empresa', icon: UserRound },
+  { href: '/area-cliente/encomendas', label: 'Projetos', icon: FolderKanban },
+  { href: '/area-cliente/aprovacoes', label: 'Aprovações', icon: BadgeCheck },
+  { href: '/area-cliente/orcamentos', label: 'Propostas', icon: FileText },
+  { href: '/area-cliente/marca', label: 'Biblioteca da marca', icon: LibraryBig },
+  { href: '/area-cliente/perfil', label: 'Conta empresarial', icon: Building2 },
 ];
 
 const SUPPORT_URL =
-  'https://wa.me/25882555736?text=Ol%C3%A1%21%20Preciso%20de%20ajuda%20com%20um%20pedido%20no%20Portal%20do%20Cliente.';
+  'https://wa.me/25882555736?text=Ol%C3%A1%21%20Preciso%20de%20ajuda%20com%20um%20projeto%20no%20BrandDesk.';
 
 function getPageTitle(pathname: string) {
+  if (pathname === '/area-cliente/novo-pedido') return 'Novo pedido';
   if (pathname.startsWith('/area-cliente/encomendas/')) return 'Acompanhamento do pedido';
-  if (pathname === '/area-cliente/encomendas') return 'Pedidos';
+  if (pathname === '/area-cliente/encomendas') return 'Projetos';
+  if (pathname === '/area-cliente/aprovacoes') return 'Aprovações';
   if (pathname.startsWith('/area-cliente/orcamentos/')) return 'Detalhe da proposta';
-  if (pathname === '/area-cliente/orcamentos') return 'Orçamentos';
-  if (pathname === '/area-cliente/perfil') return 'Perfil da empresa';
+  if (pathname === '/area-cliente/orcamentos') return 'Propostas';
+  if (pathname === '/area-cliente/marca') return 'Biblioteca da marca';
+  if (pathname === '/area-cliente/perfil') return 'Conta empresarial';
   return 'Visão geral';
 }
 
@@ -69,10 +76,13 @@ function PortalSidebar({
             priority
           />
           <span className="h-8 w-px bg-[#dfe7e1]" aria-hidden="true" />
-          <span className="text-[10px] font-semibold uppercase leading-4 tracking-[0.14em] text-brand-800">
-            Portal do
-            <br />
-            Cliente
+          <span className="min-w-0 leading-none">
+            <span className="block text-[15px] font-extrabold tracking-[-0.035em] text-brand-900">
+              BrandDesk
+            </span>
+            <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.17em] text-[#849188]">
+              by Maputo Publicidade
+            </span>
           </span>
         </Link>
       </div>
@@ -91,15 +101,15 @@ function PortalSidebar({
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navegação do portal">
         <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a9890]">
-          O seu trabalho
+          Espaço da sua marca
         </p>
         <Link
-          href="/catalogo"
+          href="/area-cliente/novo-pedido"
           onClick={onNavigate}
           className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-brand-800 px-3 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_-20px_rgba(6,63,43,0.9)] transition hover:bg-brand-700"
         >
           <Plus className="h-4 w-4" />
-          Iniciar novo pedido
+          Novo pedido
         </Link>
         {portalNav.map((item) => {
           const Icon = item.icon;
@@ -131,9 +141,9 @@ function PortalSidebar({
       <div className="border-t border-[#e6ece7] p-4">
         <div className="rounded-2xl bg-brand-900 p-4 text-white">
           <Headphones className="h-5 w-5 text-brand-200" />
-          <p className="mt-3 text-sm font-semibold">Precisa de ajuda?</p>
+          <p className="mt-3 text-sm font-semibold">Equipa BrandDesk</p>
           <p className="mt-1 text-xs leading-5 text-white/65">
-            Fale directamente com a nossa equipa sobre o seu pedido.
+            Fale diretamente com quem acompanha os seus projetos.
           </p>
           <a
             href={SUPPORT_URL}
@@ -141,7 +151,7 @@ function PortalSidebar({
             rel="noopener noreferrer"
             className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-white hover:text-brand-100"
           >
-            Falar com a equipa
+            Pedir apoio
             <ArrowUpRight className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -182,7 +192,7 @@ function PortalLoading() {
           </div>
         </div>
       </div>
-      <span className="sr-only">A carregar o Portal do Cliente...</span>
+      <span className="sr-only">A carregar o BrandDesk...</span>
     </div>
   );
 }
@@ -216,7 +226,7 @@ export default function ClientAreaLayout({ children }: { children: React.ReactNo
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f4f7f4] text-dark">
+    <div className="flex min-h-screen bg-[#f3f6f2] text-dark">
       <div className="sticky top-0 hidden h-screen shrink-0 lg:block">
         <PortalSidebar {...sidebarProps} />
       </div>
@@ -234,7 +244,7 @@ export default function ClientAreaLayout({ children }: { children: React.ReactNo
             </button>
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-brand-700">
-                Portal do Cliente
+                BrandDesk
               </p>
               <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-dark">{pageTitle}</h1>
             </div>

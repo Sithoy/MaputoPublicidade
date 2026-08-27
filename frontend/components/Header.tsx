@@ -142,7 +142,7 @@ export function Header() {
             )}
           >
             <User className="h-[18px] w-[18px]" />
-            Portal do cliente
+            BrandDesk
           </Link>
           <Link
             href="/orcamento"
@@ -198,6 +198,27 @@ export function Header() {
               {link.label}
             </Link>
           ))}
+          <Link
+            href="/area-cliente"
+            className={cn(
+              'flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors',
+              pathname.startsWith('/area-cliente')
+                ? 'bg-brand-50 text-brand-800'
+                : 'text-[#425249] hover:bg-white'
+            )}
+            onClick={() => setMobileOpen(false)}
+          >
+            <User className="h-4 w-4" />
+            BrandDesk
+          </Link>
+          <Link
+            href="/orcamento"
+            className="mt-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-600"
+            onClick={() => setMobileOpen(false)}
+          >
+            Começar projeto
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
           <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#dde6df] pt-4">
             <a
               href="tel:+25882555736"

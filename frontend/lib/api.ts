@@ -344,6 +344,8 @@ export type Quote = {
     client_comment?: string;
     requested_changes?: string;
     approved_at?: string;
+    created_at?: string;
+    updated_at?: string;
   } | null;
   created_at: string;
   updated_at?: string;
@@ -548,6 +550,8 @@ export type Order = {
     client_comment?: string;
     requested_changes?: string;
     approved_at?: string;
+    created_at?: string;
+    updated_at?: string;
   } | null;
   created_at: string;
   updated_at?: string;

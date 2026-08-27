@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, Check, MessageSquare } from 'lucide-react';
+import { ArrowRight, Check, MessageSquare, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -134,17 +134,24 @@ export default function ClientOrderDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Acompanhamento</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Projeto de marca</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-[-0.025em] text-dark">
-            Pedido {order.reference}
+            Projeto {order.reference}
           </h1>
           <p className="mt-1 text-sm text-[#718078]">
             Consulte o progresso, aprove decisões e mantenha todos os detalhes num só lugar.
           </p>
         </div>
-        <Badge variant="outline" className="self-start sm:self-auto">
-          {order.status_display || order.status}
-        </Badge>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Badge variant="outline">{order.status_display || order.status}</Badge>
+          <Link
+            href={`/area-cliente/novo-pedido?repetir=${encodeURIComponent(order.reference)}`}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#d7e1da] bg-white px-3 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+          >
+            <RefreshCcw className="h-4 w-4" />
+            Repetir
+          </Link>
+        </div>
       </div>
 
       <section className="grid gap-4 xl:grid-cols-[1.55fr_0.65fr]">
@@ -182,7 +189,7 @@ export default function ClientOrderDetailPage() {
 
       <Card>
         <CardContent className="p-5">
-          <h2 className="mb-4 text-lg font-semibold text-dark">Itens do pedido</h2>
+          <h2 className="mb-4 text-lg font-semibold text-dark">Materiais do projeto</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b text-left text-gray-500">

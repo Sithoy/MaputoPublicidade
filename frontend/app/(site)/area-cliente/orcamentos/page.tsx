@@ -93,18 +93,18 @@ export default function ClientQuotesPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Propostas</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-[-0.025em] text-dark">Orçamentos</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Decisões comerciais</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-[-0.025em] text-dark">Propostas</h1>
           <p className="mt-1 text-sm text-[#718078]">
             Reveja as propostas da equipa e aprove para darmos início à produção.
           </p>
         </div>
         <Link
-          href="/catalogo"
+          href="/area-cliente/novo-pedido"
           className="inline-flex h-11 items-center justify-center gap-2 self-start rounded-xl bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand-600"
         >
           <Plus className="h-4 w-4" />
-          Iniciar novo pedido
+          Novo pedido
         </Link>
       </div>
 

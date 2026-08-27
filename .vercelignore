@@ -2,6 +2,7 @@
 .agents
 .vscode
 .tmp*
+output
 backend
 MaputoPublicidade
 frontend/node_modules
