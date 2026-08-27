@@ -115,6 +115,8 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "price_approved_at",
             "price_approved_by_name",
             "price_approval_comment",
+            "valid_until",
+            "terms",
             "items",
             "artwork",
             "order_reference",
@@ -344,6 +346,8 @@ class QuoteRequestUpdateSerializer(serializers.ModelSerializer):
             "final_price",
             "internal_notes",
             "user_id",
+            "valid_until",
+            "terms",
         ]
 
     def validate_status(self, value):

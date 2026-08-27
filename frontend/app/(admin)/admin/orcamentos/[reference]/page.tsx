@@ -17,7 +17,9 @@ import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   convertQuoteToOrder,
+  downloadQuotePdf,
   getQuote,
+  updateQuoteDocument,
   updateQuoteInternalNotes,
   updateQuotePrice,
   updateQuoteStatus,
@@ -46,6 +48,8 @@ export default function AdminOrderDetailPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [validUntil, setValidUntil] = useState('');
+  const [terms, setTerms] = useState('');
 
   useEffect(() => {
     if (authLoading || !reference) return;
@@ -56,9 +60,29 @@ export default function AdminOrderDetailPage() {
         setEstimatedPrice(data.estimated_price?.toString() || '');
         setFinalPrice(data.final_price?.toString() || '');
         setInternalNotes(data.internal_notes || '');
+        setValidUntil(data.valid_until || '');
+        setTerms(data.terms || '');
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar orçamento')));
   }, [authLoading, reference]);
+
+  async function handleDocumentUpdate() {
+    if (!reference) return;
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      await updateQuoteDocument(reference, {
+        valid_until: validUntil || null,
+        terms,
+      });
+      setMessage('Dados do documento guardados.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Erro ao guardar documento'));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function performStatusUpdate() {
     if (!reference) return;
@@ -176,6 +200,7 @@ export default function AdminOrderDetailPage() {
           </p>
         </div>
         </div>
+        <div className="flex items-center gap-2">
         <Link
           href={`/admin/orcamentos/${quote.reference}/imprimir`}
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#CBD8D0] bg-white px-3 py-1.5 text-sm font-semibold text-dark transition hover:border-brand/40 hover:bg-brand-50"
@@ -183,6 +208,20 @@ export default function AdminOrderDetailPage() {
           <Printer className="h-4 w-4" />
           Ver proposta
         </Link>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() =>
+            downloadQuotePdf(quote.reference).catch((err) =>
+              setError(getApiErrorMessage(err, 'Erro ao descarregar PDF'))
+            )
+          }
+        >
+          <Download className="h-4 w-4" />
+          PDF
+        </Button>
+        </div>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -344,6 +383,44 @@ export default function AdminOrderDetailPage() {
                 <Button onClick={handlePriceUpdate} disabled={loading} className="w-full gap-2">
                   <Save className="h-4 w-4" />
                   Guardar preços
+                </Button>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-4 p-6">
+              <h2 className="text-lg font-semibold text-dark">Documento da proposta</h2>
+              <div>
+                <Label htmlFor="valid_until">Válida até</Label>
+                <Input
+                  id="valid_until"
+                  type="date"
+                  value={validUntil}
+                  onChange={(e) => setValidUntil(e.target.value)}
+                  className="mt-1"
+                  disabled={!canManageQuote}
+                />
+              </div>
+              <div>
+                <Label htmlFor="terms">Condições</Label>
+                <Textarea
+                  id="terms"
+                  value={terms}
+                  onChange={(e) => setTerms(e.target.value)}
+                  placeholder="Condições apresentadas na proposta (pagamento, prazos, validade)..."
+                  rows={3}
+                  className="mt-1"
+                  disabled={!canManageQuote}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Se vazio, a proposta usa as condições padrão.
+                </p>
+              </div>
+              {canManageQuote ? (
+                <Button onClick={handleDocumentUpdate} disabled={loading} variant="outline" className="w-full gap-2">
+                  <Save className="h-4 w-4" />
+                  Guardar documento
                 </Button>
               ) : null}
             </CardContent>

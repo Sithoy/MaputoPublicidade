@@ -123,3 +123,19 @@ def test_document_client_options(staff_client, client_user):
     response = staff_client.get(reverse("client-options"))
     assert response.status_code == 200
     assert response.json()[0]["email"] == client_user.email
+
+
+@pytest.mark.django_db
+def test_invoice_pdf_download(staff_client, order):
+    create = staff_client.post(
+        reverse("invoice-list"), {"order_reference": order.reference}, format="json"
+    )
+    assert create.status_code == 201, create.json()
+    reference = create.json()["reference"]
+
+    response = staff_client.get(
+        reverse("invoice-pdf", kwargs={"reference": reference})
+    )
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
+    assert b"".join(response.streaming_content).startswith(b"%PDF")

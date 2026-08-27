@@ -1,9 +1,13 @@
+from io import BytesIO
+
+from django.http import FileResponse
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 
 from apps.accounts.roles import StaffCapability
+from apps.core.documents import build_invoice_pdf
 from apps.core.export_utils import export_response
 from apps.core.permissions import HasStaffCapability
 
@@ -68,6 +72,16 @@ class InvoiceViewSet(
             update_fields.append("recorded_amount_paid")
         invoice.save(update_fields=update_fields)
         return Response(InvoiceSerializer(invoice, context={"request": request}).data)
+
+    @action(detail=True, methods=["get"], url_path="pdf")
+    def pdf(self, request, reference=None):
+        invoice = self.get_object()
+        content = build_invoice_pdf(invoice)
+        response = FileResponse(BytesIO(content), content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="Fatura-{invoice.reference}.pdf"'
+        )
+        return response
 
     @action(detail=False, methods=["get"], url_path="export")
     def export(self, request):

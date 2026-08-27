@@ -70,6 +70,11 @@
     margin: 12mm;
   }
 
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   body {
     background: #fff !important;
   }
@@ -89,5 +94,15 @@
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+  }
+
+  .print-document table tr,
+  .print-document section,
+  .print-document .totals-block {
+    break-inside: avoid;
+  }
+
+  .print-document thead {
+    display: table-header-group;
   }
 }

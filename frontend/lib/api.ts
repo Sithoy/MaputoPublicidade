@@ -329,6 +329,8 @@ export type Quote = {
   price_approved_at?: string | null;
   price_approved_by_name?: string | null;
   price_approval_comment?: string;
+  valid_until?: string | null;
+  terms?: string;
   items: QuoteItem[];
   item_count?: number;
   activity?: ActivityEvent[];

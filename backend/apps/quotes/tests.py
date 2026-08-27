@@ -185,3 +185,19 @@ class TestQuoteApi:
         assert response.status_code == 200
         quote.refresh_from_db()
         assert quote.artwork.status == ArtworkApproval.STATUS_APPROVED
+
+    def test_quote_pdf_download(self, authenticated_client, quote):
+        response = authenticated_client.get(
+            reverse("quote-pdf", kwargs={"reference": quote.reference})
+        )
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/pdf"
+        assert b"".join(response.streaming_content).startswith(b"%PDF")
+
+    def test_quote_pdf_requires_auth(self, quote):
+        from rest_framework.test import APIClient
+
+        response = APIClient().get(
+            reverse("quote-pdf", kwargs={"reference": quote.reference})
+        )
+        assert response.status_code == 401

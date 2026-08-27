@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Printer, Save } from 'lucide-react';
+import { ArrowLeft, Download, Printer, Save } from 'lucide-react';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { getInvoice, updateInvoiceStatus } from '@/lib/admin-api';
+import { getInvoice, downloadInvoicePdf, updateInvoiceStatus } from '@/lib/admin-api';
 import type { Invoice, InvoiceStatus } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { companyProfile } from '@/lib/company';
@@ -93,9 +93,22 @@ export default function InvoiceDetailPage() {
             <p className="text-sm text-gray-500">Emitida para {invoice.client_name}</p>
           </div>
         </div>
-        <Button variant="outline" className="gap-2" onClick={() => window.print()}>
-          <Printer className="h-4 w-4" /> Imprimir / Guardar PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() =>
+              downloadInvoicePdf(invoice.reference).catch((err) =>
+                setError(getApiErrorMessage(err, 'Erro ao descarregar PDF'))
+              )
+            }
+          >
+            <Download className="h-4 w-4" /> Descarregar PDF
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+            <Printer className="h-4 w-4" /> Imprimir
+          </Button>
+        </div>
       </div>
 
       {error ? <div className="print-hidden rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}

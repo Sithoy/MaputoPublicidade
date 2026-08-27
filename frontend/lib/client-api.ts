@@ -1,4 +1,4 @@
-import { fetchWithAuth } from './auth';
+import { fetchWithAuth, downloadWithAuth } from './auth';
 import type { Cart, CartItem, Order, Payment, Quote, User, UserProfile } from './api';
 
 function emitCartUpdate() {
@@ -137,6 +137,10 @@ export async function getClientQuotes(): Promise<Quote[]> {
 
 export async function getClientQuote(reference: string): Promise<Quote> {
   return fetchWithAuth(`/api/quotes/${reference}/`) as Promise<Quote>;
+}
+
+export async function downloadClientQuotePdf(reference: string) {
+  return downloadWithAuth(`/api/quotes/${reference}/pdf/`, `Proposta-${reference}.pdf`);
 }
 
 export async function getClientOrder(reference: string): Promise<Order> {

@@ -168,6 +168,18 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Company identity used on generated documents (proposals, invoices).
+COMPANY_PROFILE = {
+    "legal_name": os.getenv(
+        "COMPANY_LEGAL_NAME", "Maputo Publicidade e Serviços, Lda"
+    ),
+    "nuit": os.getenv("COMPANY_NUIT", ""),
+    "address": os.getenv("COMPANY_ADDRESS", "Maputo, Moçambique"),
+    "email": os.getenv("COMPANY_EMAIL", "info@maputopublicidade.com"),
+    "phone": os.getenv("COMPANY_PHONE", ""),
+    "logo_path": BASE_DIR / "static" / "documents" / "logo.png",
+}
+
 AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")

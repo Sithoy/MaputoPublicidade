@@ -1,4 +1,4 @@
-import { getToken } from './auth';
+import { getToken, downloadWithAuth } from './auth';
 import { del, get, getAllPages, patch, post, put } from './api';
 import type { Category, ClientOption, Invoice, InvoiceStatus, Order, Package, PaginatedResponse, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
 
@@ -207,6 +207,21 @@ export async function updateQuotePrice(
 
 export async function updateQuoteInternalNotes(reference: string, internal_notes: string) {
   return patch(`/api/quotes/${reference}/`, { internal_notes }, getToken());
+}
+
+export async function updateQuoteDocument(
+  reference: string,
+  data: { valid_until?: string | null; terms?: string }
+) {
+  return patch(`/api/quotes/${reference}/`, data, getToken());
+}
+
+export async function downloadQuotePdf(reference: string) {
+  return downloadWithAuth(`/api/quotes/${reference}/pdf/`, `Proposta-${reference}.pdf`);
+}
+
+export async function downloadInvoicePdf(reference: string) {
+  return downloadWithAuth(`/api/invoices/${reference}/pdf/`, `Fatura-${reference}.pdf`);
 }
 
 export async function uploadArtworkProof(reference: string, formData: FormData) {

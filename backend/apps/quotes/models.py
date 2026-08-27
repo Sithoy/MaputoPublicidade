@@ -72,6 +72,8 @@ class QuoteRequest(models.Model):
     price_approval_comment = models.TextField(
         "comentário da aprovação de preço", blank=True
     )
+    valid_until = models.DateField("proposta válida até", null=True, blank=True)
+    terms = models.TextField("condições da proposta", blank=True)
 
     # Server-side guard rails for the commercial workflow.
     ALLOWED_TRANSITIONS = {

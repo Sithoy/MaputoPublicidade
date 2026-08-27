@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, Check, CheckCircle2, MessageSquare } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, Download, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -13,6 +13,7 @@ import { ActivityTimeline } from '@/components/ActivityTimeline';
 import {
   approveArtwork,
   approveQuotePrice,
+  downloadClientQuotePdf,
   getClientQuote,
   requestArtworkChange,
 } from '@/lib/client-api';
@@ -90,9 +91,24 @@ export default function ClientQuoteDetailPage() {
             Reveja a proposta, aprove o valor e acompanhe a arte até à produção.
           </p>
         </div>
-        <Badge variant="outline" className="self-start sm:self-auto">
-          {quote.status_display || clientOrderStatusLabels[quote.status] || quote.status}
-        </Badge>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Badge variant="outline">
+            {quote.status_display || clientOrderStatusLabels[quote.status] || quote.status}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() =>
+              downloadClientQuotePdf(quote.reference).catch(() =>
+                setError('Não foi possível descarregar a proposta.')
+              )
+            }
+          >
+            <Download className="h-4 w-4" />
+            PDF
+          </Button>
+        </div>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}

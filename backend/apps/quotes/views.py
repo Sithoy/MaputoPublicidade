@@ -1,5 +1,7 @@
 import os
+from io import BytesIO
 
+from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -9,6 +11,7 @@ from rest_framework.response import Response
 
 from apps.accounts.roles import StaffCapability
 from apps.core.activity import record_activity
+from apps.core.documents import build_quote_pdf
 from apps.core.export_utils import export_response
 from apps.core.models import ActivityEvent
 from apps.core.notifications import (
@@ -177,6 +180,16 @@ class QuoteRequestViewSet(
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="pdf")
+    def pdf(self, request, reference=None):
+        quote = self.get_object()
+        content = build_quote_pdf(quote)
+        response = FileResponse(BytesIO(content), content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="Proposta-{quote.reference}.pdf"'
+        )
+        return response
 
     @action(detail=True, methods=["post"], url_path="set-status")
     def set_status(self, request, reference=None):

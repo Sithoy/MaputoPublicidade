@@ -201,6 +201,22 @@ export async function fetchWithAuth(path: string, options: RequestInit = {}) {
   return res.json();
 }
 
+/** Authenticated file download (e.g. generated PDF documents). */
+export async function downloadWithAuth(path: string, filename: string) {
+  const token = getToken();
+  const res = await fetch(apiUrl(path), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`Download falhou: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function fetchSession() {
   if (sessionCache && sessionCache.expiresAt > Date.now()) {
     return sessionCache.data;
