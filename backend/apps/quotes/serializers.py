@@ -8,7 +8,7 @@ from apps.accounts.roles import StaffCapability, has_staff_capability
 from apps.catalog.models import Product, ProductVariant
 from apps.core.fields import RelativeFileField
 
-from .models import ArtworkApproval, QuoteItem, QuoteRequest
+from .models import ArtworkApproval, ArtworkProofVersion, QuoteItem, QuoteRequest
 
 
 class QuoteItemSerializer(serializers.ModelSerializer):
@@ -50,9 +50,45 @@ class QuoteItemSerializer(serializers.ModelSerializer):
         }
 
 
+class ArtworkProofVersionSerializer(serializers.ModelSerializer):
+    client_decision_display = serializers.CharField(
+        source="get_client_decision_display", read_only=True
+    )
+    file = RelativeFileField(read_only=True)
+    uploaded_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ArtworkProofVersion
+        fields = [
+            "id",
+            "version",
+            "file",
+            "designer_comment",
+            "uploaded_by_name",
+            "client_decision",
+            "client_decision_display",
+            "client_comment",
+            "created_at",
+        ]
+
+    def get_uploaded_by_name(self, obj):
+        if not obj.uploaded_by:
+            return None
+        request = self.context.get("request")
+        viewer_is_staff = bool(
+            request and request.user.is_authenticated and request.user.is_staff
+        )
+        if obj.uploaded_by.is_staff and not viewer_is_staff:
+            return "Equipa MP"
+        return obj.uploaded_by.get_full_name() or obj.uploaded_by.email
+
+
+
 class QuoteRequestListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     item_count = serializers.IntegerField(source="items.count", read_only=True)
+    order_reference = serializers.SerializerMethodField()
+    artwork_status = serializers.SerializerMethodField()
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
@@ -73,8 +109,20 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
             "item_count",
             "estimated_price",
             "final_price",
+            "order_reference",
+            "artwork_status",
             "created_at",
         ]
+
+    def get_order_reference(self, obj):
+        if hasattr(obj, "order") and obj.order:
+            return obj.order.reference
+        return None
+
+    def get_artwork_status(self, obj):
+        if hasattr(obj, "artwork") and obj.artwork:
+            return obj.artwork.status
+        return None
 
 
 class QuoteRequestDetailSerializer(serializers.ModelSerializer):
@@ -87,6 +135,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
     # Staff-only: never leak internal notes to the client who owns the quote.
     internal_notes = serializers.SerializerMethodField()
     activity = serializers.SerializerMethodField()
+    proof_versions = ArtworkProofVersionSerializer(many=True, read_only=True)
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
@@ -121,6 +170,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "artwork",
             "order_reference",
             "activity",
+            "proof_versions",
             "created_at",
             "updated_at",
         ]

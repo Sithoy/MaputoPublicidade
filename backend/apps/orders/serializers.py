@@ -65,6 +65,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     item_count = serializers.IntegerField(source="items.count", read_only=True)
     client_name = serializers.CharField(source="client_name_display", read_only=True)
     invoice_reference = serializers.SerializerMethodField()
+    artwork_status = serializers.SerializerMethodField()
 
     def get_invoice_reference(self, obj):
         return obj.invoice.reference if hasattr(obj, "invoice") else None
@@ -84,8 +85,14 @@ class OrderListSerializer(serializers.ModelSerializer):
             "amount_paid",
             "amount_due",
             "item_count",
+            "artwork_status",
             "created_at",
         ]
+
+    def get_artwork_status(self, obj):
+        if obj.quote and hasattr(obj.quote, "artwork") and obj.quote.artwork:
+            return obj.quote.artwork.status
+        return None
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):

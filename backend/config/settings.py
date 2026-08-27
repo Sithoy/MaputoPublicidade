@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "csp",
     "apps.core.apps.CoreConfig",
     "apps.accounts",
+    "apps.assets",
     "apps.catalog",
     "apps.portfolio",
     "apps.quotes",

@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
+import { ProofVersionHistory } from '@/components/ProofVersionHistory';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   convertQuoteToOrder,
@@ -549,6 +550,8 @@ export default function AdminOrderDetailPage() {
               Enviar prova
             </Button>
           ) : null}
+
+          <ProofVersionHistory versions={quote.proof_versions ?? []} />
         </CardContent>
       </Card>
 

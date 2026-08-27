@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Textarea } from '@/components/ui/Textarea';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
+import { ProofVersionHistory } from '@/components/ProofVersionHistory';
 import {
   approveArtwork,
   approveQuotePrice,
@@ -278,6 +279,8 @@ export default function ClientQuoteDetailPage() {
                 Alterações solicitadas: {quote.artwork.requested_changes}
               </p>
             )}
+
+            <ProofVersionHistory versions={quote.proof_versions ?? []} />
           </CardContent>
         </Card>
       ) : null}

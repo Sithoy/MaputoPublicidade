@@ -1,5 +1,5 @@
 import { fetchWithAuth, downloadWithAuth } from './auth';
-import type { Cart, CartItem, Order, Payment, Quote, User, UserProfile } from './api';
+import type { BrandAsset, Cart, CartItem, Order, Payment, Quote, User, UserProfile } from './api';
 
 function emitCartUpdate() {
   if (typeof window !== 'undefined') {
@@ -209,6 +209,30 @@ export async function getClientQuote(reference: string): Promise<Quote> {
 
 export async function downloadClientQuotePdf(reference: string) {
   return downloadWithAuth(`/api/quotes/${reference}/pdf/`, `Proposta-${reference}.pdf`);
+}
+
+export async function getBrandAssets(): Promise<BrandAsset[]> {
+  return fetchAllPages<BrandAsset>('/api/brand-assets/');
+}
+
+export async function uploadBrandAsset(data: {
+  name: string;
+  kind: string;
+  file: File;
+  description?: string;
+  brand_colors?: string;
+}): Promise<BrandAsset> {
+  const formData = new FormData();
+  formData.append('name', data.name);
+  formData.append('kind', data.kind);
+  formData.append('file', data.file);
+  if (data.description) formData.append('description', data.description);
+  if (data.brand_colors) formData.append('brand_colors', data.brand_colors);
+  return fetchWithAuth('/api/brand-assets/', { method: 'POST', body: formData }) as Promise<BrandAsset>;
+}
+
+export async function deleteBrandAsset(id: number) {
+  await fetchWithAuth(`/api/brand-assets/${id}/`, { method: 'DELETE' });
 }
 
 export async function getClientOrder(reference: string): Promise<Order> {

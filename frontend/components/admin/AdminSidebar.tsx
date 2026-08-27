@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Boxes,
+  Columns3,
   FileText,
   FolderOpen,
   Handshake,
@@ -26,6 +27,7 @@ const navGroups = [
     label: 'Fluxo comercial',
     items: [
       { href: '/admin', label: 'Visão geral', icon: BarChart3, capability: 'dashboard.view' },
+      { href: '/admin/quadro', label: 'Quadro de produção', icon: Columns3, capability: 'quotes.view' },
       { href: '/admin/orcamentos', label: 'Pedidos e propostas', icon: ShoppingCart, capability: 'quotes.view' },
       { href: '/admin/encomendas', label: 'Produção e entregas', icon: Package, capability: 'orders.view' },
     ],

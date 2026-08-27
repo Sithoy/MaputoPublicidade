@@ -201,3 +201,33 @@ class TestQuoteApi:
             reverse("quote-pdf", kwargs={"reference": quote.reference})
         )
         assert response.status_code == 401
+
+    def test_proof_versions_keep_history(self, staff_client, authenticated_client, quote):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        url = reverse("quote-upload-proof", kwargs={"reference": quote.reference})
+        staff_client.post(
+            url,
+            {"proof_file": SimpleUploadedFile("v1.png", b"\x89PNG\r\n\x1a\n", content_type="image/png"), "designer_comment": "Primeira versão"},
+            format="multipart",
+        )
+        staff_client.post(
+            url,
+            {"proof_file": SimpleUploadedFile("v2.png", b"\x89PNG\r\n\x1a\n", content_type="image/png"), "designer_comment": "Corrigida"},
+            format="multipart",
+        )
+
+        response = authenticated_client.post(
+            reverse("quote-request-change", kwargs={"reference": quote.reference}),
+            {"comment": "Ajustar o verde"},
+            format="json",
+        )
+        assert response.status_code == 200
+
+        quote.refresh_from_db()
+        versions = list(quote.proof_versions.all())
+        assert len(versions) == 2
+        assert versions[0].version == 2  # newest first
+        assert versions[0].client_decision == "changes_requested"
+        assert versions[0].client_comment == "Ajustar o verde"
+        assert versions[1].client_decision == "pending"

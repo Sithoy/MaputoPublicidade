@@ -1,18 +1,48 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
   Download,
   FileImage,
+  FileText,
   FolderOpen,
   LibraryBig,
+  Palette,
+  Plus,
   RefreshCw,
   ShieldCheck,
+  Trash2,
+  Upload,
 } from 'lucide-react';
-import { getClientOrders, getClientQuotes } from '@/lib/client-api';
-import type { Order, Quote } from '@/lib/api';
+import {
+  deleteBrandAsset,
+  getBrandAssets,
+  getClientOrders,
+  getClientQuotes,
+  uploadBrandAsset,
+} from '@/lib/client-api';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import type { BrandAsset as ManagedAsset, Order, Quote } from '@/lib/api';
+
+const kindOptions = [
+  { value: 'logo', label: 'Logótipo' },
+  { value: 'artwork', label: 'Arte aprovada' },
+  { value: 'template', label: 'Modelo reutilizável' },
+  { value: 'guide', label: 'Guia de marca' },
+  { value: 'document', label: 'Documento' },
+  { value: 'other', label: 'Outro' },
+];
+
+function isImage(file: string) {
+  return /\.(png|jpe?g|svg|webp|gif)$/i.test(file);
+}
 
 type BrandAsset = {
   url: string;
@@ -88,24 +118,70 @@ function buildBrandAssets(quotes: Quote[], orders: Order[]) {
 export default function BrandLibraryPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [managedAssets, setManagedAssets] = useState<ManagedAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState('logo');
+  const [file, setFile] = useState<File | null>(null);
+  const [description, setDescription] = useState('');
+  const [brandColors, setBrandColors] = useState('');
 
-  function loadAssets() {
+  const loadAssets = useCallback(() => {
     setLoading(true);
     setError('');
-    Promise.all([getClientQuotes(), getClientOrders()])
-      .then(([quoteData, orderData]) => {
+    Promise.all([getClientQuotes(), getClientOrders(), getBrandAssets()])
+      .then(([quoteData, orderData, assetData]) => {
         setQuotes(quoteData);
         setOrders(orderData);
+        setManagedAssets(assetData);
       })
       .catch((loadError) => setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar os ficheiros.'))
       .finally(() => setLoading(false));
-  }
+  }, []);
 
   useEffect(() => {
     loadAssets();
-  }, []);
+  }, [loadAssets]);
+
+  async function handleUpload(event: React.FormEvent) {
+    event.preventDefault();
+    if (!file || !name.trim()) return;
+    setSaving(true);
+    setError('');
+    try {
+      await uploadBrandAsset({
+        name: name.trim(),
+        kind,
+        file,
+        description: description.trim() || undefined,
+        brand_colors: brandColors.trim() || undefined,
+      });
+      setName('');
+      setKind('logo');
+      setFile(null);
+      setDescription('');
+      setBrandColors('');
+      setShowForm(false);
+      loadAssets();
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Não foi possível carregar o ficheiro.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(asset: ManagedAsset) {
+    if (!window.confirm(`Remover "${asset.name}" dos materiais de marca?`)) return;
+    try {
+      await deleteBrandAsset(asset.id);
+      setManagedAssets((current) => current.filter((item) => item.id !== asset.id));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Não foi possível remover.');
+    }
+  }
 
   const assets = useMemo(() => buildBrandAssets(quotes, orders), [quotes, orders]);
   const approvedCount = assets.filter((asset) => asset.kind === 'approved').length;
@@ -204,6 +280,128 @@ export default function BrandLibraryPage() {
           </div>
         </section>
       ) : null}
+
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Materiais guardados</p>
+            <h2 className="mt-1 text-xl font-semibold text-dark">Logótipos e ficheiros da marca</h2>
+            <p className="mt-1 text-sm text-[#718078]">
+              Guarde uma vez — a equipa MP reutiliza em cada trabalho.
+            </p>
+          </div>
+          <Button onClick={() => setShowForm((v) => !v)} className="gap-2 self-start">
+            <Plus className="h-4 w-4" />
+            Adicionar material
+          </Button>
+        </div>
+
+        {showForm ? (
+          <Card className="mb-4">
+            <CardContent className="p-5">
+              <form onSubmit={handleUpload} className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="asset-name">Nome *</Label>
+                    <Input id="asset-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Logótipo principal" className="mt-1" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="asset-kind">Tipo</Label>
+                    <Select id="asset-kind" value={kind} onChange={(e) => setKind(e.target.value)} className="mt-1">
+                      {kindOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="asset-file">Ficheiro *</Label>
+                    <Input id="asset-file" type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="mt-1" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="asset-colors">Cores da marca (opcional)</Label>
+                    <Input id="asset-colors" value={brandColors} onChange={(e) => setBrandColors(e.target.value)} placeholder="#063F2B, #F4F0E8" className="mt-1" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="asset-description">Descrição (opcional)</Label>
+                  <Textarea id="asset-description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1" />
+                </div>
+                <Button type="submit" disabled={saving || !file || !name.trim()} className="gap-2">
+                  <Upload className="h-4 w-4" />
+                  {saving ? 'A enviar...' : 'Guardar material'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {managedAssets.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-[#d7e1da] bg-white/60 px-5 py-6 text-sm text-[#718078]">
+            Ainda não guardou materiais. Adicione o seu logótipo para não precisar de o reenviar.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {managedAssets.map((asset) => (
+              <article key={asset.id} className="overflow-hidden rounded-2xl border border-[#dfe7e1] bg-white shadow-[0_14px_38px_-34px_rgba(6,63,43,0.5)]">
+                {isImage(asset.file) ? (
+                  <div className="flex h-32 items-center justify-center bg-[#f4f7f4] p-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={asset.file} alt={asset.name} className="max-h-full max-w-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="flex h-32 items-center justify-center bg-[#f4f7f4] text-[#829087]">
+                    {asset.kind === 'document' ? <FileText className="h-10 w-10" /> : <Palette className="h-10 w-10" />}
+                  </div>
+                )}
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-semibold text-dark" title={asset.name}>{asset.name}</h3>
+                      <p className="mt-0.5 text-xs text-[#829087]">{asset.kind_display || asset.kind}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <a
+                        href={asset.file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#64736b] transition hover:bg-brand-50 hover:text-brand-700"
+                        aria-label={`Descarregar ${asset.name}`}
+                      >
+                        <Download className="h-4 w-4" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(asset)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#64736b] transition hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Remover ${asset.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {asset.brand_colors ? (
+                    <div className="mt-3 flex items-center gap-1.5">
+                      {asset.brand_colors.split(',').map((color) => color.trim()).filter(Boolean).map((color) => (
+                        <span
+                          key={color}
+                          title={color}
+                          className="h-5 w-5 rounded-md border border-black/10"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  {asset.description ? (
+                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#718078]">{asset.description}</p>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -76,6 +76,7 @@ export function getDefaultAdminPath(user: User | null | undefined) {
 export function getRequiredCapability(pathname: string): StaffCapability | null {
   if (pathname === '/admin/login') return null;
   if (pathname === '/admin') return 'dashboard.view';
+  if (pathname.startsWith('/admin/quadro')) return 'quotes.view';
   if (pathname.startsWith('/admin/orcamentos')) return 'quotes.view';
   if (pathname.startsWith('/admin/encomendas')) return 'orders.view';
   if (pathname.startsWith('/admin/faturas')) return 'invoices.view';

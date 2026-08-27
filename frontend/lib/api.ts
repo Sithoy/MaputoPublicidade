@@ -334,7 +334,9 @@ export type Quote = {
   items: QuoteItem[];
   item_count?: number;
   activity?: ActivityEvent[];
+  proof_versions?: ProofVersion[];
   order_reference?: string | null;
+  artwork_status?: string | null;
   artwork?: {
     id: number;
     status: 'pending' | 'approved' | 'changes_requested';
@@ -403,8 +405,19 @@ export type Invoice = {
   updated_at?: string;
 };
 
-export type PortfolioItem = {
+export type BrandAsset = {
   id: number;
+  name: string;
+  kind: 'logo' | 'artwork' | 'template' | 'guide' | 'document' | 'other';
+  kind_display?: string;
+  file: string;
+  description?: string;
+  brand_colors?: string;
+  uploaded_by_name?: string | null;
+  created_at: string;
+};
+
+export type PortfolioItem = {  id: number;
   title: string;
   slug: string;
   category?: number | null;
@@ -514,6 +527,18 @@ export type ActivityEvent = {
   created_at: string;
 };
 
+export type ProofVersion = {
+  id: number;
+  version: number;
+  file: string;
+  designer_comment?: string;
+  uploaded_by_name?: string | null;
+  client_decision: 'pending' | 'approved' | 'changes_requested';
+  client_decision_display?: string;
+  client_comment?: string;
+  created_at: string;
+};
+
 export type Order = {
   id: number;
   reference: string;
@@ -524,6 +549,7 @@ export type Order = {
   user?: number;
   user_email?: string;
   user_name?: string;
+  artwork_status?: string | null;
   profile?: UserProfile;
   estimated_price?: number;
   final_price?: number;

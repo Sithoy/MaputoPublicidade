@@ -12,6 +12,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("_allauth/", include("allauth.headless.urls")),
     path("api/auth/", include("apps.accounts.urls")),
+    path("api/", include("apps.assets.urls")),
     path("api/admin/stats/", AdminStatsView.as_view(), name="admin-stats"),
     path("api/", include("apps.catalog.urls")),
     path("api/", include("apps.portfolio.urls")),

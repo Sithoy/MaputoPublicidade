@@ -24,7 +24,7 @@ from apps.core.notifications import (
 from apps.core.permissions import HasStaffCapability, IsOwnerOrStaff
 from apps.orders.models import Order, OrderItem
 
-from .models import ArtworkApproval, QuoteRequest
+from .models import ArtworkApproval, ArtworkProofVersion, QuoteRequest
 from .serializers import (
     ArtworkApprovalSerializer,
     ArtworkProofSerializer,
@@ -51,7 +51,7 @@ class QuoteRequestViewSet(
     queryset = (
         QuoteRequest.objects.all()
         .select_related("artwork", "user", "price_approved_by")
-        .prefetch_related("items", "items__product", "items__product_variant")
+        .prefetch_related("items", "items__product", "items__product_variant", "proof_versions")
     )
     lookup_field = "reference"
     parser_classes = [JSONParser, FormParser, MultiPartParser]
@@ -289,6 +289,16 @@ class QuoteRequestViewSet(
         serializer = ArtworkProofSerializer(artwork, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save(status=ArtworkApproval.STATUS_PENDING)
+
+        # Keep every uploaded proof as an immutable version.
+        if artwork.proof_file:
+            ArtworkProofVersion.objects.create(
+                quote=quote,
+                version=quote.proof_versions.count() + 1,
+                file=artwork.proof_file,
+                designer_comment=artwork.designer_comment,
+                uploaded_by=request.user,
+            )
         record_activity(
             action=ActivityEvent.ACTION_ARTWORK_PROOF_UPLOADED,
             quote=quote,
@@ -330,6 +340,11 @@ class QuoteRequestViewSet(
         artwork.client_comment = serializer.validated_data.get("comment", "")
         artwork.approved_at = timezone.now()
         artwork.save()
+        latest_version = quote.proof_versions.first()
+        if latest_version:
+            latest_version.client_decision = ArtworkProofVersion.DECISION_APPROVED
+            latest_version.client_comment = artwork.client_comment
+            latest_version.save(update_fields=["client_decision", "client_comment"])
         record_activity(
             action=ActivityEvent.ACTION_ARTWORK_APPROVED,
             quote=quote,
@@ -368,6 +383,11 @@ class QuoteRequestViewSet(
         artwork.status = ArtworkApproval.STATUS_CHANGES_REQUESTED
         artwork.requested_changes = serializer.validated_data.get("comment", "")
         artwork.save()
+        latest_version = quote.proof_versions.first()
+        if latest_version:
+            latest_version.client_decision = ArtworkProofVersion.DECISION_CHANGES_REQUESTED
+            latest_version.client_comment = artwork.requested_changes
+            latest_version.save(update_fields=["client_decision", "client_comment"])
         record_activity(
             action=ActivityEvent.ACTION_ARTWORK_CHANGES_REQUESTED,
             quote=quote,

@@ -195,6 +195,56 @@ class QuoteItem(models.Model):
         return f"{self.description or 'Item'} × {self.quantity}"
 
 
+class ArtworkProofVersion(models.Model):
+    """One uploaded proof per row, so the full revision history is kept."""
+
+    DECISION_PENDING = "pending"
+    DECISION_APPROVED = "approved"
+    DECISION_CHANGES_REQUESTED = "changes_requested"
+    DECISION_CHOICES = [
+        (DECISION_PENDING, "Pendente"),
+        (DECISION_APPROVED, "Aprovada"),
+        (DECISION_CHANGES_REQUESTED, "Alterações solicitadas"),
+    ]
+
+    quote = models.ForeignKey(
+        QuoteRequest,
+        on_delete=models.CASCADE,
+        related_name="proof_versions",
+        verbose_name="orçamento",
+    )
+    version = models.PositiveIntegerField("versão")
+    file = models.FileField("ficheiro da prova", upload_to="uploads/artwork_proofs/")
+    designer_comment = models.TextField("comentário do designer", blank=True)
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_proofs",
+        verbose_name="carregado por",
+    )
+    client_decision = models.CharField(
+        "decisão do cliente",
+        max_length=30,
+        choices=DECISION_CHOICES,
+        default=DECISION_PENDING,
+    )
+    client_comment = models.TextField("comentário do cliente", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "versão de prova"
+        verbose_name_plural = "versões de prova"
+        ordering = ["-version"]
+        constraints = [
+            models.UniqueConstraint(fields=["quote", "version"], name="unique_proof_version")
+        ]
+
+    def __str__(self):
+        return f"{self.quote.reference} — v{self.version}"
+
+
 class ArtworkApproval(models.Model):
     STATUS_PENDING = "pending"
     STATUS_APPROVED = "approved"
