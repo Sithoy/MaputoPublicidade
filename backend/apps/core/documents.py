@@ -56,6 +56,14 @@ def _money(value) -> str:
     return f"{grouped},{cents} MZN"
 
 
+def _quantity(value) -> str:
+    """Render decimal quantities without insignificant zeros or exponent notation."""
+    amount = Decimal(str(value))
+    if amount == amount.to_integral():
+        return f"{amount:.0f}"
+    return format(amount.normalize(), "f").rstrip("0").rstrip(".").replace(".", ",")
+
+
 def _date(value) -> str:
     if not value:
         return "—"
@@ -364,6 +372,55 @@ def _totals_table(rows, emphasize=-1):
     return table
 
 
+def _invoice_summary_block(styles, invoice, totals_rows, total_row_index):
+    terms = invoice.terms or DEFAULT_INVOICE_TERMS
+    details = [
+        Paragraph("CONDIÇÕES DE PAGAMENTO", styles["section"]),
+        Paragraph(terms.replace("\n", "<br/>"), styles["small"]),
+    ]
+
+    if invoice.notes:
+        details.extend(
+            [
+                Spacer(1, 2 * mm),
+                Paragraph("OBSERVAÇÕES", styles["section"]),
+                Paragraph(invoice.notes.replace("\n", "<br/>"), styles["small"]),
+            ]
+        )
+
+    details.extend(
+        [
+            Spacer(1, 4 * mm),
+            Paragraph(
+                "Obrigado pela sua confiança.",
+                ParagraphStyle(
+                    "invoice_thanks",
+                    parent=styles["small"],
+                    fontName="Helvetica-Bold",
+                    textColor=INK,
+                ),
+            ),
+        ]
+    )
+
+    table = Table(
+        [[details, "", _totals_table(totals_rows, emphasize=total_row_index)]],
+        colWidths=[92 * mm, 6 * mm, 80 * mm],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    return table
+
+
 def _build(filename, company, story, footer_extra_note=None):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -419,7 +476,7 @@ def build_quote_pdf(quote) -> bytes:
         rows.append(
             [
                 Paragraph(details, styles["body"]),
-                str(item.quantity),
+                _quantity(item.quantity),
                 _money(unit) if unit is not None else "A definir",
                 _money(Decimal(str(unit)) * item.quantity) if unit is not None else "—",
             ]
@@ -465,7 +522,7 @@ def build_invoice_pdf(invoice) -> bytes:
         rows.append(
             [
                 Paragraph(item.description, styles["body"]),
-                f"{item.quantity.normalize()}" if item.quantity == item.quantity.to_integral() else str(item.quantity),
+                _quantity(item.quantity),
                 _money(item.unit_price),
                 _money(item.line_total),
             ]
@@ -477,35 +534,19 @@ def build_invoice_pdf(invoice) -> bytes:
     if invoice.discount_amount:
         totals_rows.append(["Desconto", f"-{_money(invoice.discount_amount)}"])
     if invoice.tax_rate:
-        totals_rows.append([f"IVA ({invoice.tax_rate.normalize()}%)", _money(invoice.tax_amount)])
+        totals_rows.append([f"IVA ({_quantity(invoice.tax_rate)}%)", _money(invoice.tax_amount)])
     totals_rows.append(["Total", _money(invoice.total)])
     total_row_index = len(totals_rows) - 1
     if invoice.amount_paid:
         totals_rows.append(["Pago", _money(invoice.amount_paid)])
     if invoice.balance_due:
         totals_rows.append(["Em dívida", _money(invoice.balance_due)])
-    story.append(_totals_table(totals_rows, emphasize=total_row_index))
-
-    terms = invoice.terms or DEFAULT_INVOICE_TERMS
-    story.append(Spacer(1, 6 * mm))
-    story.append(Paragraph("CONDIÇÕES DE PAGAMENTO", styles["section"]))
-    story.append(Paragraph(terms.replace("\n", "<br/>"), styles["small"]))
-
-    if invoice.notes:
-        story.append(Spacer(1, 3 * mm))
-        story.append(Paragraph("OBSERVAÇÕES", styles["section"]))
-        story.append(Paragraph(invoice.notes.replace("\n", "<br/>"), styles["small"]))
-
-    story.append(Spacer(1, 5 * mm))
     story.append(
-        Paragraph(
-            "Obrigado pela sua confiança.",
-            ParagraphStyle(
-                "invoice_thanks",
-                parent=styles["small"],
-                fontName="Helvetica-Bold",
-                textColor=INK,
-            ),
+        _invoice_summary_block(
+            styles,
+            invoice,
+            totals_rows,
+            total_row_index,
         )
     )
 

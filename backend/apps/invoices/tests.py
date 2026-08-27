@@ -1,9 +1,12 @@
+from decimal import Decimal
+
 import pytest
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.accounts.roles import StaffRole
+from apps.core.documents import _quantity
 from apps.invoices.models import Invoice
 
 
@@ -139,6 +142,18 @@ def test_invoice_pdf_download(staff_client, order):
     assert response.status_code == 200
     assert response["Content-Type"] == "application/pdf"
     assert b"".join(response.streaming_content).startswith(b"%PDF")
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (Decimal("100.00"), "100"),
+        (Decimal("2.50"), "2,5"),
+        (Decimal("0.125"), "0,125"),
+    ],
+)
+def test_invoice_pdf_quantity_format(value, expected):
+    assert _quantity(value) == expected
 
 
 @pytest.mark.django_db
