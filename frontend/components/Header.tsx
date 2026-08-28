@@ -8,6 +8,7 @@ import { ArrowUpRight, Menu, MessageCircle, Phone, ShoppingCart, User, X } from 
 import { cn } from '@/lib/utils';
 import { getToken } from '@/lib/auth';
 import { getCart } from '@/lib/client-api';
+import { companyProfile, telephoneHref, whatsappHref as buildWhatsappHref } from '@/lib/company';
 
 const navLinks = [
   { href: '/catalogo', label: 'Catálogo' },
@@ -16,7 +17,6 @@ const navLinks = [
   { href: '/sobre', label: 'Sobre Nós' },
 ];
 
-const WHATSAPP_NUMBER = '25882555736';
 const WHATSAPP_MESSAGE = 'Olá! Vi o site da Maputo Publicidade e gostaria de falar sobre um projeto.';
 
 function CartCount({ inverted = false }: { inverted?: boolean }) {
@@ -81,7 +81,7 @@ export function Header() {
 
   const transparentHeader = isHome && isAtHomePosition;
 
-  const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  const whatsappHref = buildWhatsappHref(WHATSAPP_MESSAGE);
 
   return (
     <header
@@ -221,11 +221,11 @@ export function Header() {
           </Link>
           <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#dde6df] pt-4">
             <a
-              href="tel:+25882555736"
+              href={telephoneHref()}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#d4ded6] bg-white text-sm font-semibold text-[#304038]"
             >
               <Phone className="h-4 w-4" />
-              82 555 736
+              {companyProfile.primaryPhone}
             </a>
             <a
               href={whatsappHref}

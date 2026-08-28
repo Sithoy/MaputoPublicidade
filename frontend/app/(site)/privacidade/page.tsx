@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { companyProfile, mailtoHref } from '@/lib/company';
 
 export const metadata: Metadata = {
   title: 'Política de Privacidade',
@@ -37,7 +38,11 @@ export default function PrivacyPage() {
         <h2 className="mt-4 text-lg font-semibold">5. Direitos do utilizador</h2>
         <p>
           Pode solicitar acesso, rectificação ou eliminação dos seus dados pessoais através do
-          email maputopublicidade@outlook.com.
+          email{' '}
+          <a href={mailtoHref()} className="font-medium text-brand hover:underline">
+            {companyProfile.email}
+          </a>
+          .
         </p>
       </div>
     </div>
