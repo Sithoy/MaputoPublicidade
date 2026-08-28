@@ -180,54 +180,79 @@ export default function NewQuotePage() {
       </Card>
 
       <Card>
+        <CardContent className="space-y-5 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-dark">Condições comerciais</h2>
+              <p className="text-sm text-gray-500">
+                Defina o prazo e a condição de pagamento que serão apresentados ao cliente.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Obrigatório
+            </span>
+          </div>
+
+          <div className="grid gap-5 rounded-2xl border border-primary/15 bg-primary/[0.04] p-5 lg:grid-cols-3">
+            <div>
+              <Label htmlFor="urgency">Prioridade</Label>
+              <Select id="urgency" value={urgency} onChange={(event) => setUrgency(event.target.value as 'normal' | 'urgent')} className="mt-1">
+                <option value="normal">Normal</option>
+                <option value="urgent">Urgente</option>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="estimated-delivery">Prazo de entrega (dias úteis) *</Label>
+              <Input
+                id="estimated-delivery"
+                type="number"
+                min="1"
+                max="365"
+                step="1"
+                required
+                value={estimatedDeliveryDays}
+                onChange={(event) => setEstimatedDeliveryDays(event.target.value)}
+                className="mt-1"
+              />
+              <p className="mt-1 text-xs text-gray-500">Após a adjudicação da proposta.</p>
+            </div>
+            <div>
+              <Label htmlFor="payment-option">Condição de pagamento *</Label>
+              <Select
+                id="payment-option"
+                value={paymentOption}
+                onChange={(event) => setPaymentOption(event.target.value as 'deposit_50' | 'on_delivery')}
+                className="mt-1"
+              >
+                <option value="deposit_50">50% adiantado + 50% na entrega</option>
+                <option value="on_delivery">100% na entrega</option>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardContent className="p-6">
           <DocumentItemsEditor lines={lines} onChange={setLines} products={products} />
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent className="grid gap-5 p-6 lg:grid-cols-2">
+        <CardContent className="space-y-5 p-6">
           <div>
-            <Label htmlFor="urgency">Prioridade</Label>
-            <Select id="urgency" value={urgency} onChange={(event) => setUrgency(event.target.value as 'normal' | 'urgent')} className="mt-1">
-              <option value="normal">Normal</option>
-              <option value="urgent">Urgente</option>
-            </Select>
+            <h2 className="text-lg font-semibold text-dark">Notas da proposta</h2>
+            <p className="text-sm text-gray-500">Separe as informações visíveis pelo cliente das notas internas.</p>
           </div>
-          <div>
-            <Label htmlFor="estimated-delivery">Prazo estimado de entrega (dias úteis) *</Label>
-            <Input
-              id="estimated-delivery"
-              type="number"
-              min="1"
-              max="365"
-              step="1"
-              required
-              value={estimatedDeliveryDays}
-              onChange={(event) => setEstimatedDeliveryDays(event.target.value)}
-              className="mt-1"
-            />
-            <p className="mt-1 text-xs text-gray-500">Contado após a adjudicação da proposta.</p>
-          </div>
-          <div className="lg:col-span-2">
-            <Label htmlFor="payment-option">Condição de pagamento *</Label>
-            <Select
-              id="payment-option"
-              value={paymentOption}
-              onChange={(event) => setPaymentOption(event.target.value as 'deposit_50' | 'on_delivery')}
-              className="mt-1"
-            >
-              <option value="deposit_50">50% adiantado + 50% na entrega</option>
-              <option value="on_delivery">100% na entrega</option>
-            </Select>
-          </div>
-          <div className="lg:col-span-2">
-            <Label htmlFor="notes">Observações para o cliente</Label>
-            <Textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className="mt-1" />
-          </div>
-          <div className="lg:col-span-2">
-            <Label htmlFor="internal-notes">Notas internas</Label>
-            <Textarea id="internal-notes" value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} rows={3} className="mt-1" />
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div>
+              <Label htmlFor="notes">Observações para o cliente</Label>
+              <Textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className="mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="internal-notes">Notas internas</Label>
+              <Textarea id="internal-notes" value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} rows={3} className="mt-1" />
+            </div>
           </div>
         </CardContent>
       </Card>
