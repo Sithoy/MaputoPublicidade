@@ -89,6 +89,9 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
     item_count = serializers.IntegerField(source="items.count", read_only=True)
     order_reference = serializers.SerializerMethodField()
     artwork_status = serializers.SerializerMethodField()
+    payment_option_display = serializers.CharField(
+        source="get_payment_option_display", read_only=True
+    )
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
@@ -106,6 +109,9 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
             "status",
             "status_display",
             "urgency",
+            "estimated_delivery_days",
+            "payment_option",
+            "payment_option_display",
             "item_count",
             "estimated_price",
             "final_price",
@@ -128,6 +134,9 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
 class QuoteRequestDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     urgency_display = serializers.CharField(source="get_urgency_display", read_only=True)
+    payment_option_display = serializers.CharField(
+        source="get_payment_option_display", read_only=True
+    )
     items = QuoteItemSerializer(many=True, read_only=True)
     artwork = serializers.SerializerMethodField()
     order_reference = serializers.SerializerMethodField()
@@ -166,6 +175,9 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "price_approval_comment",
             "valid_until",
             "terms",
+            "estimated_delivery_days",
+            "payment_option",
+            "payment_option_display",
             "items",
             "artwork",
             "order_reference",
@@ -333,6 +345,11 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
     )
     notes = serializers.CharField(required=False, allow_blank=True)
     internal_notes = serializers.CharField(required=False, allow_blank=True)
+    estimated_delivery_days = serializers.IntegerField(min_value=1, max_value=365)
+    payment_option = serializers.ChoiceField(
+        choices=QuoteRequest.PAYMENT_OPTION_CHOICES,
+        default=QuoteRequest.PAYMENT_DEPOSIT_50,
+    )
     items = ManualQuoteItemSerializer(many=True, allow_empty=False)
 
     def validate(self, attrs):
@@ -398,6 +415,8 @@ class QuoteRequestUpdateSerializer(serializers.ModelSerializer):
             "user_id",
             "valid_until",
             "terms",
+            "estimated_delivery_days",
+            "payment_option",
         ]
 
     def validate_status(self, value):

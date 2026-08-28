@@ -34,8 +34,6 @@ INK = colors.HexColor("#17211D")
 GREY_TEXT = colors.HexColor("#5B6B62")
 GREY_LINE = colors.HexColor("#D9E2DC")
 ACCENT = colors.HexColor("#D6A842")
-GOLD_LIGHT = colors.HexColor("#FFF7E7")
-GOLD_TEXT = colors.HexColor("#8A6828")
 
 PAGE_MARGIN_X = 16 * mm
 PAGE_MARGIN_TOP = 16 * mm
@@ -142,7 +140,7 @@ def _footer(canvas, doc, company):
     canvas.setFillColor(GREY_TEXT)
     contact = " · ".join(
         part
-        for part in [company["legal_name"], company["address"], company["email"], company["phone"]]
+        for part in [company["legal_name"], company["email"]]
         if part
     )
     canvas.drawString(PAGE_MARGIN_X, y, contact)
@@ -456,13 +454,6 @@ def _totals_table(rows, emphasize=-1):
         ("TOPPADDING", (0, emphasize), (-1, emphasize), 8),
         ("BOTTOMPADDING", (0, emphasize), (-1, emphasize), 8),
     ]
-    for index, row in enumerate(rows):
-        if row[0] == "Em dívida":
-            style += [
-                ("BACKGROUND", (0, index), (-1, index), GOLD_LIGHT),
-                ("TEXTCOLOR", (0, index), (-1, index), GOLD_TEXT),
-                ("FONTNAME", (0, index), (-1, index), "Helvetica-Bold"),
-            ]
     table.setStyle(TableStyle(style))
     return table
 
@@ -666,7 +657,18 @@ def build_quote_pdf(quote) -> bytes:
 
     terms = quote.terms or DEFAULT_QUOTE_TERMS
     story.append(Spacer(1, 6 * mm))
-    story.append(Paragraph("CONDIÇÕES", styles["section"]))
+    story.append(Paragraph("CONDIÇÕES COMERCIAIS", styles["section"]))
+    commercial_terms = []
+    if quote.estimated_delivery_days:
+        commercial_terms.append(
+            "<b>Prazo estimado de entrega:</b> "
+            f"{quote.estimated_delivery_days} dias úteis após adjudicação."
+        )
+    commercial_terms.append(
+        f"<b>Pagamento:</b> {quote.get_payment_option_display()}."
+    )
+    story.append(Paragraph("<br/>".join(commercial_terms), styles["small"]))
+    story.append(Spacer(1, 2 * mm))
     story.append(Paragraph(terms.replace("\n", "<br/>"), styles["small"]))
 
     if quote.notes:
@@ -713,8 +715,6 @@ def build_invoice_pdf(invoice) -> bytes:
     total_row_index = len(totals_rows) - 1
     if invoice.amount_paid:
         totals_rows.append(["Pago", _money(invoice.amount_paid)])
-    if invoice.balance_due:
-        totals_rows.append(["Em dívida", _money(invoice.balance_due)])
     story.append(
         _invoice_summary_block(
             styles,

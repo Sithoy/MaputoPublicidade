@@ -12,6 +12,8 @@ class TestQuoteApi:
             reverse("quote-manual"),
             {
                 "user_id": client_user.id,
+                "estimated_delivery_days": 10,
+                "payment_option": QuoteRequest.PAYMENT_DEPOSIT_50,
                 "items": [
                     {
                         "product_id": product.id,
@@ -27,6 +29,21 @@ class TestQuoteApi:
         assert response.json()["status"] == QuoteRequest.STATUS_QUOTED
         assert response.json()["final_price"] == 1500.0
         assert response.json()["client_email"] == client_user.email
+        assert response.json()["estimated_delivery_days"] == 10
+        assert response.json()["payment_option"] == QuoteRequest.PAYMENT_DEPOSIT_50
+
+    def test_new_reference_uses_sequence_before_year(self, db):
+        year = QuoteRequest()._now().year
+        QuoteRequest.objects.create(
+            reference=f"MP-{year}-0042",
+            client_name="Referência anterior",
+            client_email="legacy@example.com",
+        )
+        quote = QuoteRequest.objects.create(
+            client_name="Nova referência",
+            client_email="new@example.com",
+        )
+        assert quote.reference == f"MP-0043-{year}"
 
     def test_create_quote_anonymous(self, product, product_data):
         from rest_framework.test import APIClient

@@ -80,6 +80,17 @@ export default function PrintableQuotePage() {
               <dd className="text-right font-medium text-dark">{new Date(quote.created_at).toLocaleDateString('pt-MZ')}</dd>
               <dt className="text-gray-500">Prioridade</dt>
               <dd className="text-right font-medium text-dark">{quote.urgency_display || 'Normal'}</dd>
+              <dt className="text-gray-500">Prazo estimado</dt>
+              <dd className="text-right font-medium text-dark">
+                {quote.estimated_delivery_days ? `${quote.estimated_delivery_days} dias úteis` : 'A confirmar'}
+              </dd>
+              <dt className="text-gray-500">Pagamento</dt>
+              <dd className="text-right font-medium text-dark">
+                {quote.payment_option_display ||
+                  (quote.payment_option === 'on_delivery'
+                    ? '100% na entrega'
+                    : '50% adiantado + 50% na entrega')}
+              </dd>
               <dt className="text-gray-500">Moeda</dt>
               <dd className="text-right font-medium text-dark">MZN</dd>
             </dl>
@@ -123,8 +134,9 @@ export default function PrintableQuotePage() {
               <p className="mt-2 whitespace-pre-line text-sm text-gray-600">{quote.notes}</p>
             </div>
           ) : null}
-          <p className="border-t border-[#e6ebe7] pt-6 text-xs leading-5 text-gray-500">
-            Esta proposta está sujeita à confirmação de disponibilidade, especificações finais e aprovação do cliente.
+          <p className="whitespace-pre-line border-t border-[#e6ebe7] pt-6 text-xs leading-5 text-gray-500">
+            {quote.terms ||
+              'Esta proposta está sujeita à confirmação de disponibilidade, especificações finais e aprovação do cliente.'}
           </p>
         </div>
       </article>

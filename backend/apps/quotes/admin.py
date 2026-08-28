@@ -25,9 +25,11 @@ class QuoteRequestAdmin(admin.ModelAdmin):
         "client_company",
         "status",
         "urgency",
+        "estimated_delivery_days",
+        "payment_option",
         "created_at",
     ]
-    list_filter = ["status", "urgency", "created_at"]
+    list_filter = ["status", "urgency", "payment_option", "created_at"]
     search_fields = ["reference", "client_name", "client_email", "client_company", "notes", "internal_notes"]
     readonly_fields = ["reference", "created_at", "updated_at"]
     inlines = [QuoteItemInline, ArtworkApprovalInline]
@@ -53,6 +55,8 @@ class QuoteRequestAdmin(admin.ModelAdmin):
             {
                 "fields": [
                     "urgency",
+                    "estimated_delivery_days",
+                    "payment_option",
                     "notes",
                     "internal_notes",
                 ]
@@ -75,6 +79,8 @@ class QuoteRequestAdmin(admin.ModelAdmin):
             "Empresa": "client_company",
             "Estado": lambda obj: obj.get_status_display(),
             "Urgencia": lambda obj: obj.get_urgency_display(),
+            "Prazo (dias uteis)": "estimated_delivery_days",
+            "Pagamento": lambda obj: obj.get_payment_option_display(),
             "Preco estimado": "estimated_price",
             "Preco final": "final_price",
             "Itens": lambda obj: "; ".join(f"{i.description} x{i.quantity}" for i in obj.items.all()),
@@ -94,6 +100,8 @@ class QuoteRequestAdmin(admin.ModelAdmin):
             "Empresa": "client_company",
             "Estado": lambda obj: obj.get_status_display(),
             "Urgencia": lambda obj: obj.get_urgency_display(),
+            "Prazo (dias uteis)": "estimated_delivery_days",
+            "Pagamento": lambda obj: obj.get_payment_option_display(),
             "Preco estimado": "estimated_price",
             "Preco final": "final_price",
             "Itens": lambda obj: "; ".join(f"{i.description} x{i.quantity}" for i in obj.items.all()),

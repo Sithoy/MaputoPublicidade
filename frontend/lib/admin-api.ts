@@ -183,6 +183,8 @@ export type ManualQuoteInput = {
   urgency?: 'normal' | 'urgent';
   notes?: string;
   internal_notes?: string;
+  estimated_delivery_days: number;
+  payment_option: 'deposit_50' | 'on_delivery';
   items: DocumentLineInput[];
 };
 
@@ -211,7 +213,12 @@ export async function updateQuoteInternalNotes(reference: string, internal_notes
 
 export async function updateQuoteDocument(
   reference: string,
-  data: { valid_until?: string | null; terms?: string }
+  data: {
+    valid_until?: string | null;
+    terms?: string;
+    estimated_delivery_days?: number | null;
+    payment_option?: 'deposit_50' | 'on_delivery';
+  }
 ) {
   return patch(`/api/quotes/${reference}/`, data, getToken());
 }

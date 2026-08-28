@@ -27,6 +27,8 @@ export default function NewQuotePage() {
   const [clientPhone, setClientPhone] = useState('');
   const [clientCompany, setClientCompany] = useState('');
   const [urgency, setUrgency] = useState<'normal' | 'urgent'>('normal');
+  const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState('10');
+  const [paymentOption, setPaymentOption] = useState<'deposit_50' | 'on_delivery'>('deposit_50');
   const [notes, setNotes] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [lines, setLines] = useState<EditableDocumentLine[]>([newDocumentLine()]);
@@ -72,6 +74,11 @@ export default function NewQuotePage() {
       setError('Indique o nome e o e-mail do cliente.');
       return;
     }
+    const deliveryDays = Number(estimatedDeliveryDays);
+    if (!Number.isInteger(deliveryDays) || deliveryDays < 1 || deliveryDays > 365) {
+      setError('Indique um prazo estimado entre 1 e 365 dias úteis.');
+      return;
+    }
     setSaving(true);
     try {
       const quote = await createManualQuote({
@@ -81,6 +88,8 @@ export default function NewQuotePage() {
         client_phone: clientPhone.trim(),
         client_company: clientCompany.trim(),
         urgency,
+        estimated_delivery_days: deliveryDays,
+        payment_option: paymentOption,
         notes: notes.trim(),
         internal_notes: internalNotes.trim(),
         items: lines.map((line) => ({
@@ -183,6 +192,33 @@ export default function NewQuotePage() {
             <Select id="urgency" value={urgency} onChange={(event) => setUrgency(event.target.value as 'normal' | 'urgent')} className="mt-1">
               <option value="normal">Normal</option>
               <option value="urgent">Urgente</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="estimated-delivery">Prazo estimado de entrega (dias úteis) *</Label>
+            <Input
+              id="estimated-delivery"
+              type="number"
+              min="1"
+              max="365"
+              step="1"
+              required
+              value={estimatedDeliveryDays}
+              onChange={(event) => setEstimatedDeliveryDays(event.target.value)}
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-gray-500">Contado após a adjudicação da proposta.</p>
+          </div>
+          <div className="lg:col-span-2">
+            <Label htmlFor="payment-option">Condição de pagamento *</Label>
+            <Select
+              id="payment-option"
+              value={paymentOption}
+              onChange={(event) => setPaymentOption(event.target.value as 'deposit_50' | 'on_delivery')}
+              className="mt-1"
+            >
+              <option value="deposit_50">50% adiantado + 50% na entrega</option>
+              <option value="on_delivery">100% na entrega</option>
             </Select>
           </div>
           <div className="lg:col-span-2">

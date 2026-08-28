@@ -331,6 +331,9 @@ export type Quote = {
   price_approval_comment?: string;
   valid_until?: string | null;
   terms?: string;
+  estimated_delivery_days?: number | null;
+  payment_option?: 'deposit_50' | 'on_delivery';
+  payment_option_display?: string;
   items: QuoteItem[];
   item_count?: number;
   activity?: ActivityEvent[];

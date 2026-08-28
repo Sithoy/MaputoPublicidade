@@ -230,12 +230,6 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
               </dt>
               <dd className="text-xl font-semibold tabular-nums tracking-[-0.02em]">{formatMZN(invoice.total)}</dd>
             </div>
-            {invoice.balance_due > 0 ? (
-              <div className="flex justify-between gap-4 border-t border-[#dce5df] bg-[#fffaf0] px-5 py-3 text-sm text-[#8a6828]">
-                <dt className="font-medium">Saldo por liquidar</dt>
-                <dd className="font-bold tabular-nums">{formatMZN(invoice.balance_due)}</dd>
-              </div>
-            ) : null}
           </dl>
         </div>
       </div>

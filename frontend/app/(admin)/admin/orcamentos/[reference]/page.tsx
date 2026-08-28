@@ -51,6 +51,8 @@ export default function AdminOrderDetailPage() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [validUntil, setValidUntil] = useState('');
   const [terms, setTerms] = useState('');
+  const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState('');
+  const [paymentOption, setPaymentOption] = useState<'deposit_50' | 'on_delivery'>('deposit_50');
 
   useEffect(() => {
     if (authLoading || !reference) return;
@@ -63,12 +65,19 @@ export default function AdminOrderDetailPage() {
         setInternalNotes(data.internal_notes || '');
         setValidUntil(data.valid_until || '');
         setTerms(data.terms || '');
+        setEstimatedDeliveryDays(data.estimated_delivery_days?.toString() || '');
+        setPaymentOption(data.payment_option || 'deposit_50');
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar orçamento')));
   }, [authLoading, reference]);
 
   async function handleDocumentUpdate() {
     if (!reference) return;
+    const deliveryDays = Number(estimatedDeliveryDays);
+    if (!Number.isInteger(deliveryDays) || deliveryDays < 1 || deliveryDays > 365) {
+      setError('Indique um prazo estimado entre 1 e 365 dias úteis.');
+      return;
+    }
     setLoading(true);
     setError('');
     setMessage('');
@@ -76,6 +85,8 @@ export default function AdminOrderDetailPage() {
       await updateQuoteDocument(reference, {
         valid_until: validUntil || null,
         terms,
+        estimated_delivery_days: deliveryDays,
+        payment_option: paymentOption,
       });
       setMessage('Dados do documento guardados.');
     } catch (err) {
@@ -402,6 +413,34 @@ export default function AdminOrderDetailPage() {
                   className="mt-1"
                   disabled={!canManageQuote}
                 />
+              </div>
+              <div>
+                <Label htmlFor="estimated_delivery_days">Prazo estimado de entrega (dias úteis)</Label>
+                <Input
+                  id="estimated_delivery_days"
+                  type="number"
+                  min="1"
+                  max="365"
+                  step="1"
+                  value={estimatedDeliveryDays}
+                  onChange={(e) => setEstimatedDeliveryDays(e.target.value)}
+                  className="mt-1"
+                  disabled={!canManageQuote}
+                />
+                <p className="mt-1 text-xs text-gray-500">Contado após a adjudicação.</p>
+              </div>
+              <div>
+                <Label htmlFor="payment_option">Condição de pagamento</Label>
+                <Select
+                  id="payment_option"
+                  value={paymentOption}
+                  onChange={(e) => setPaymentOption(e.target.value as 'deposit_50' | 'on_delivery')}
+                  className="mt-1"
+                  disabled={!canManageQuote}
+                >
+                  <option value="deposit_50">50% adiantado + 50% na entrega</option>
+                  <option value="on_delivery">100% na entrega</option>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="terms">Condições</Label>

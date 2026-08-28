@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.catalog.models import Product, ProductVariant
@@ -29,6 +30,13 @@ class QuoteRequest(models.Model):
     URGENCY_CHOICES = [
         (URGENCY_NORMAL, "Normal"),
         (URGENCY_URGENT, "Urgente"),
+    ]
+
+    PAYMENT_DEPOSIT_50 = "deposit_50"
+    PAYMENT_ON_DELIVERY = "on_delivery"
+    PAYMENT_OPTION_CHOICES = [
+        (PAYMENT_DEPOSIT_50, "50% adiantado + 50% na entrega"),
+        (PAYMENT_ON_DELIVERY, "100% na entrega"),
     ]
 
     reference = models.CharField(
@@ -74,6 +82,18 @@ class QuoteRequest(models.Model):
     )
     valid_until = models.DateField("proposta válida até", null=True, blank=True)
     terms = models.TextField("condições da proposta", blank=True)
+    estimated_delivery_days = models.PositiveSmallIntegerField(
+        "prazo estimado de entrega (dias úteis)",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(365)],
+    )
+    payment_option = models.CharField(
+        "condição de pagamento",
+        max_length=20,
+        choices=PAYMENT_OPTION_CHOICES,
+        default=PAYMENT_DEPOSIT_50,
+    )
 
     # Server-side guard rails for the commercial workflow.
     ALLOWED_TRANSITIONS = {
@@ -122,23 +142,27 @@ class QuoteRequest(models.Model):
         super().save(*args, **kwargs)
 
     def _generate_reference(self):
-        from django.db.models import Max
-
         year = self.created_at.year if self.created_at else self._now().year
-        prefix = f"MP-{year}-"
-        latest = (
-            QuoteRequest.objects.filter(reference__startswith=prefix)
-            .aggregate(max_ref=Max("reference"))
-            .get("max_ref")
-        )
-        if latest:
+        from django.db.models import Q
+
+        references = QuoteRequest.objects.filter(
+            Q(reference__endswith=f"-{year}")
+            | Q(reference__startswith=f"MP-{year}-")
+        ).values_list("reference", flat=True)
+        sequences = []
+        for reference in references:
+            parts = reference.split("-")
+            if len(parts) != 3 or parts[0] != "MP":
+                continue
             try:
-                seq = int(latest.split("-")[-1]) + 1
-            except (ValueError, IndexError):
-                seq = 1
-        else:
-            seq = 1
-        return f"{prefix}{seq:04d}"
+                if parts[2] == str(year):
+                    sequences.append(int(parts[1]))
+                elif parts[1] == str(year):
+                    sequences.append(int(parts[2]))
+            except ValueError:
+                continue
+
+        return f"MP-{max(sequences, default=0) + 1:04d}-{year}"
 
     def _now(self):
         from django.utils import timezone

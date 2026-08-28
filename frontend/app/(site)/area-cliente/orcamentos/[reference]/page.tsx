@@ -165,6 +165,19 @@ export default function ClientQuoteDetailPage() {
                 'Ainda não definido'
               )}
             </p>
+            <p>
+              <span className="font-medium text-dark">Prazo estimado:</span>{' '}
+              {quote.estimated_delivery_days
+                ? `${quote.estimated_delivery_days} dias úteis após adjudicação`
+                : 'A confirmar'}
+            </p>
+            <p>
+              <span className="font-medium text-dark">Pagamento:</span>{' '}
+              {quote.payment_option_display ||
+                (quote.payment_option === 'on_delivery'
+                  ? '100% na entrega'
+                  : '50% adiantado + 50% na entrega')}
+            </p>
           </div>
         </CardContent>
       </Card>
