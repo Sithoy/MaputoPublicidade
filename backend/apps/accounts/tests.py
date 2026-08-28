@@ -52,6 +52,80 @@ class TestMeView:
 
 
 @pytest.mark.django_db
+class TestClientSelfRegistration:
+    signup_url = "/_allauth/app/v1/auth/signup"
+
+    def test_client_can_create_account_and_company_profile(self):
+        client = APIClient()
+        response = client.post(
+            self.signup_url,
+            {
+                "email": "dario@empresa.co.mz",
+                "password": "BrandDesk-Cliente-2026!",
+                "password_confirm": "BrandDesk-Cliente-2026!",
+                "first_name": "Dario",
+                "last_name": "Nhampossa",
+                "company": "Empresa Moçambicana",
+                "phone": "+258 84 123 4567",
+                "nuit": "400123456",
+                "accept_terms": True,
+                "is_staff": True,
+            },
+            format="json",
+            secure=True,
+        )
+
+        assert response.status_code == 200
+        assert response.json()["meta"]["is_authenticated"] is True
+        assert response.json()["meta"]["access_token"]
+
+        user = User.objects.get(email="dario@empresa.co.mz")
+        assert user.first_name == "Dario"
+        assert user.last_name == "Nhampossa"
+        assert user.is_staff is False
+        assert user.is_superuser is False
+        assert user.profile.company == "Empresa Moçambicana"
+        assert user.profile.phone == "+258 84 123 4567"
+        assert user.profile.nuit == "400123456"
+
+    def test_registration_requires_terms_acceptance(self):
+        response = APIClient().post(
+            self.signup_url,
+            {
+                "email": "sem-termos@example.com",
+                "password": "BrandDesk-Cliente-2026!",
+                "password_confirm": "BrandDesk-Cliente-2026!",
+                "first_name": "Ana",
+                "last_name": "Mussa",
+                "accept_terms": False,
+            },
+            format="json",
+            secure=True,
+        )
+
+        assert response.status_code == 400
+        assert not User.objects.filter(email="sem-termos@example.com").exists()
+
+    def test_registration_rejects_different_passwords(self):
+        response = APIClient().post(
+            self.signup_url,
+            {
+                "email": "senhas@example.com",
+                "password": "BrandDesk-Cliente-2026!",
+                "password_confirm": "Outra-Password-2026!",
+                "first_name": "Ana",
+                "last_name": "Mussa",
+                "accept_terms": True,
+            },
+            format="json",
+            secure=True,
+        )
+
+        assert response.status_code == 400
+        assert not User.objects.filter(email="senhas@example.com").exists()
+
+
+@pytest.mark.django_db
 class TestUserManagement:
     def test_user_list_requires_staff(self, authenticated_client, staff_client):
         response = authenticated_client.get(reverse("user-list"))

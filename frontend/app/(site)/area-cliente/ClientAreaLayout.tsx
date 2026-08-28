@@ -201,8 +201,9 @@ export default function ClientAreaLayout({ children }: { children: React.ReactNo
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isLoginRoute = pathname === '/area-cliente/login';
-  const { user, loading } = useClientAuth({ enabled: !isLoginRoute });
+  const isPublicAuthRoute =
+    pathname === '/area-cliente/login' || pathname === '/area-cliente/registo';
+  const { user, loading } = useClientAuth({ enabled: !isPublicAuthRoute });
 
   function handleLogout() {
     removeToken();
@@ -210,7 +211,7 @@ export default function ClientAreaLayout({ children }: { children: React.ReactNo
     router.push('/area-cliente/login');
   }
 
-  if (isLoginRoute) return <>{children}</>;
+  if (isPublicAuthRoute) return <>{children}</>;
   if (loading) return <PortalLoading />;
 
   const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Cliente MP';

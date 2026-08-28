@@ -70,6 +70,23 @@ interface AuthResponse {
     access_token?: string;
     refresh_token?: string;
   };
+  errors?: Array<{
+    message?: string;
+    code?: string;
+    param?: string;
+  }>;
+}
+
+export interface ClientRegistration {
+  firstName: string;
+  lastName: string;
+  company?: string;
+  phone?: string;
+  nuit?: string;
+  email: string;
+  password: string;
+  passwordConfirm: string;
+  acceptTerms: boolean;
 }
 
 function authUrl(path: string): string {
@@ -118,20 +135,52 @@ export async function login(email: string, password: string) {
   return data;
 }
 
-export async function register(email: string, password: string, name: string) {
-  const [first_name, ...rest] = name.trim().split(' ');
-  const last_name = rest.join(' ');
-  const res = await fetch(authUrl('/auth/signup'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, first_name, last_name }),
-  });
+function registrationError(data: AuthResponse | null, status: number) {
+  if (status === 404 || status >= 500) return AUTH_UNAVAILABLE_MESSAGE;
+
+  const firstError = data?.errors?.[0];
+  const fieldNames: Record<string, string> = {
+    email: 'E-mail',
+    password: 'Palavra-passe',
+    password_confirm: 'Confirmação da palavra-passe',
+    first_name: 'Nome',
+    last_name: 'Apelido',
+    accept_terms: 'Termos e privacidade',
+  };
+  if (firstError?.message) {
+    const label = firstError.param ? fieldNames[firstError.param] : undefined;
+    return label ? `${label}: ${firstError.message}` : firstError.message;
+  }
+  return 'Não foi possível criar a conta. Confirme os dados e tente novamente.';
+}
+
+export async function registerClient(registration: ClientRegistration) {
+  let res: Response;
+  try {
+    res = await fetch(authUrl('/auth/signup'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: registration.email.trim(),
+        password: registration.password,
+        password_confirm: registration.passwordConfirm,
+        first_name: registration.firstName.trim(),
+        last_name: registration.lastName.trim(),
+        company: registration.company?.trim() || '',
+        phone: registration.phone?.trim() || '',
+        nuit: registration.nuit?.trim() || '',
+        accept_terms: registration.acceptTerms,
+      }),
+    });
+  } catch {
+    throw new Error(AUTH_UNAVAILABLE_MESSAGE);
+  }
   const data = await readJson<AuthResponse>(res);
   const accessTokenValue = data?.meta?.access_token || data?.data?.access_token;
   const refreshToken = data?.meta?.refresh_token || data?.data?.refresh_token;
 
   if (!res.ok || !accessTokenValue) {
-    throw new Error('Erro ao criar conta');
+    throw new Error(registrationError(data, res.status));
   }
 
   setToken(accessTokenValue);

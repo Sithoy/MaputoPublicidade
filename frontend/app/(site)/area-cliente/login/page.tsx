@@ -228,10 +228,10 @@ function ClientLoginForm() {
             <div className="mt-6 border-t border-[#e7ece8] pt-6 text-center">
               <p className="text-sm text-[#68776f]">Ainda não tem acesso ao BrandDesk?</p>
               <Link
-                href="/sobre#contactos"
+                href="/area-cliente/registo"
                 className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
               >
-                Fale com a nossa equipa
+                Criar conta de cliente
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
