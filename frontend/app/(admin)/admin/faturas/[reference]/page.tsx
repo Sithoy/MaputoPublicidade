@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download, FileCheck2, Pencil, Plus, Printer, Save, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Download, FileCheck2, Pencil, Printer, Save, X } from 'lucide-react';
+import { DocumentItemsEditor, type EditableDocumentLine } from '@/components/admin/DocumentItemsEditor';
 import { InvoiceDocument } from '@/components/admin/InvoiceDocument';
+import { InvoiceTermsCard } from '@/components/admin/InvoiceTermsCard';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
-import { Textarea } from '@/components/ui/Textarea';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { downloadInvoicePdf, getInvoice, updateInvoice, updateInvoiceStatus } from '@/lib/admin-api';
+import { downloadInvoicePdf, getInvoice, getProducts, updateInvoice, updateInvoiceStatus } from '@/lib/admin-api';
 import type { DocumentLineInput } from '@/lib/admin-api';
-import type { Invoice, InvoiceStatus } from '@/lib/api';
+import type { Invoice, InvoiceStatus, Product } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
 
 const statusLabels: Record<InvoiceStatus, string> = {
@@ -36,6 +37,7 @@ export default function InvoiceDetailPage() {
   const router = useRouter();
   const { loading: authLoading, can } = useAdminAuth();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [nextStatus, setNextStatus] = useState<InvoiceStatus>('draft');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -54,21 +56,28 @@ export default function InvoiceDetailPage() {
     tax_rate: string;
     notes: string;
     terms: string;
-    items: { description: string; quantity: string; unit_price: string }[];
+    items: EditableDocumentLine[];
   } | null>(null);
 
   useEffect(() => {
     if (authLoading || !reference) return;
-    getInvoice(reference)
-      .then((data) => {
+    Promise.all([getInvoice(reference), getProducts().catch(() => [])])
+      .then(([data, productData]) => {
         setInvoice(data);
         setNextStatus(data.status);
+        setProducts(productData.filter((product) => product.is_active !== false));
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar fatura')));
   }, [authLoading, reference]);
 
   const statusOptions = invoice ? statusTransitions[invoice.status] : ['draft'] as InvoiceStatus[];
   const canEdit = Boolean(invoice && invoice.status === 'draft' && can('invoices.manage'));
+  const editSubtotal = form
+    ? form.items.reduce(
+        (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0),
+        0
+      )
+    : 0;
 
   function startEditing() {
     if (!invoice) return;
@@ -85,7 +94,8 @@ export default function InvoiceDetailPage() {
       tax_rate: String(invoice.tax_rate ?? 0),
       notes: invoice.notes ?? '',
       terms: invoice.terms ?? '',
-      items: invoice.items.map((item) => ({
+      items: invoice.items.map((item, index) => ({
+        key: `invoice-${item.id ?? index}`,
         description: item.description,
         quantity: String(item.quantity),
         unit_price: String(item.unit_price),
@@ -96,24 +106,36 @@ export default function InvoiceDetailPage() {
     setMessage('');
   }
 
-  function updateItem(index: number, field: 'description' | 'quantity' | 'unit_price', value: string) {
-    setForm((current) => {
-      if (!current) return current;
-      const items = current.items.map((item, i) => (i === index ? { ...item, [field]: value } : item));
-      return { ...current, items };
-    });
-  }
-
   async function saveEdit() {
     if (!invoice || !form) return;
+    if (!form.client_name.trim()) {
+      setError('Indique o nome do cliente.');
+      return;
+    }
+    if (
+      form.items.some(
+        (item) =>
+          !item.description.trim() ||
+          Number(item.quantity) <= 0 ||
+          item.unit_price === '' ||
+          Number(item.unit_price) < 0
+      )
+    ) {
+      setError('Preencha corretamente todos os itens da fatura.');
+      return;
+    }
+    if (form.due_date < form.issue_date) {
+      setError('A data de vencimento não pode anteceder a data de emissão.');
+      return;
+    }
     setSaving(true);
     setError('');
     setMessage('');
     try {
-      const items: DocumentLineInput[] = form.items.map((item, position) => ({
-        description: item.description,
-        quantity: Number(item.quantity) || 0,
-        unit_price: Number(item.unit_price) || 0,
+      const items: DocumentLineInput[] = form.items.map((item) => ({
+        description: item.description.trim(),
+        quantity: Number(item.quantity),
+        unit_price: Number(item.unit_price),
       }));
       const updated = await updateInvoice(invoice.reference, {
         client_name: form.client_name,
@@ -163,7 +185,7 @@ export default function InvoiceDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className={`mx-auto space-y-6 ${editing ? 'max-w-6xl' : 'max-w-5xl'}`}>
       <div className="print-hidden flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => router.push('/admin/faturas')}>
@@ -216,118 +238,98 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
-            <div className="w-full sm:w-56">
-              <Label htmlFor="status">Estado do documento</Label>
-              <Select id="status" value={nextStatus} onChange={(event) => setNextStatus(event.target.value as InvoiceStatus)} className="mt-1">
-                {statusOptions.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
-              </Select>
-            </div>
-            <Button onClick={saveStatus} disabled={saving || nextStatus === invoice.status} className="gap-2">
-              <Save className="h-4 w-4" /> Guardar estado
-            </Button>
+              <div className="w-full sm:w-56">
+                <Label htmlFor="status">Estado do documento</Label>
+                <Select id="status" value={nextStatus} onChange={(event) => setNextStatus(event.target.value as InvoiceStatus)} className="mt-1">
+                  {statusOptions.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
+                </Select>
+              </div>
+              <Button onClick={saveStatus} disabled={saving || nextStatus === invoice.status} className="gap-2">
+                <Save className="h-4 w-4" /> Guardar estado
+              </Button>
             </div>
           </CardContent>
         </Card>
       ) : null}
 
       {editing && form ? (
-        <Card>
-          <CardContent className="space-y-5 p-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-dark">Editar fatura</h2>
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => { setEditing(false); setForm(null); }}>
-                <X className="h-4 w-4" /> Cancelar
-              </Button>
-            </div>
+        <div className="space-y-6">
+          <Card className="border-[#dce6df] shadow-[0_12px_34px_-26px_rgba(6,63,43,0.35)]">
+            <CardContent className="space-y-5 p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-dark">Dados fiscais do cliente</h2>
+                  <p className="text-sm text-gray-500">Atualize os dados que serão apresentados nesta fatura.</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                  A editar
+                </span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="edit-client-name">Nome do cliente *</Label>
+                  <Input id="edit-client-name" value={form.client_name} onChange={(event) => setForm({ ...form, client_name: event.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-client-company">Empresa</Label>
+                  <Input id="edit-client-company" value={form.client_company} onChange={(event) => setForm({ ...form, client_company: event.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-client-email">E-mail</Label>
+                  <Input id="edit-client-email" type="email" value={form.client_email} onChange={(event) => setForm({ ...form, client_email: event.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-client-phone">Telefone</Label>
+                  <Input id="edit-client-phone" value={form.client_phone} onChange={(event) => setForm({ ...form, client_phone: event.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-client-nuit">NUIT</Label>
+                  <Input id="edit-client-nuit" value={form.client_nuit} onChange={(event) => setForm({ ...form, client_nuit: event.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-billing-address">Morada de faturação</Label>
+                  <Input id="edit-billing-address" value={form.billing_address} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} className="mt-1" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="client_name">Nome do cliente *</Label>
-                <Input id="client_name" value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="client_company">Empresa</Label>
-                <Input id="client_company" value={form.client_company} onChange={(e) => setForm({ ...form, client_company: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="client_email">E-mail</Label>
-                <Input id="client_email" type="email" value={form.client_email} onChange={(e) => setForm({ ...form, client_email: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="client_phone">Telefone</Label>
-                <Input id="client_phone" value={form.client_phone} onChange={(e) => setForm({ ...form, client_phone: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="client_nuit">NUIT</Label>
-                <Input id="client_nuit" value={form.client_nuit} onChange={(e) => setForm({ ...form, client_nuit: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="billing_address">Morada de faturação</Label>
-                <Input id="billing_address" value={form.billing_address} onChange={(e) => setForm({ ...form, billing_address: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="issue_date">Data de emissão</Label>
-                <Input id="issue_date" type="date" value={form.issue_date} onChange={(e) => setForm({ ...form, issue_date: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="due_date">Vencimento</Label>
-                <Input id="due_date" type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="discount_amount">Desconto (MZN)</Label>
-                <Input id="discount_amount" type="number" step="0.01" min="0" value={form.discount_amount} onChange={(e) => setForm({ ...form, discount_amount: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="tax_rate">IVA (%)</Label>
-                <Input id="tax_rate" type="number" step="0.01" min="0" max="100" value={form.tax_rate} onChange={(e) => setForm({ ...form, tax_rate: e.target.value })} className="mt-1" />
-              </div>
-            </div>
+          <Card className="border-[#dce6df] shadow-[0_12px_34px_-26px_rgba(6,63,43,0.35)]">
+            <CardContent className="p-6">
+              <DocumentItemsEditor
+                lines={form.items}
+                onChange={(items) => setForm({ ...form, items })}
+                products={products}
+              />
+            </CardContent>
+          </Card>
 
-            <div>
-              <Label>Itens</Label>
-              <div className="mt-2 space-y-2">
-                {form.items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-[1fr_90px_130px_40px] items-center gap-2">
-                    <Input placeholder="Descrição" value={item.description} onChange={(e) => updateItem(index, 'description', e.target.value)} />
-                    <Input type="number" min="0" step="0.01" placeholder="Qtd" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', e.target.value)} />
-                    <Input type="number" min="0" step="0.01" placeholder="Preço unit." value={item.unit_price} onChange={(e) => updateItem(index, 'unit_price', e.target.value)} />
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-                      aria-label="Remover item"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 gap-2"
-                onClick={() => setForm({ ...form, items: [...form.items, { description: '', quantity: '1', unit_price: '0' }] })}
-              >
-                <Plus className="h-4 w-4" /> Adicionar item
-              </Button>
-            </div>
+          <InvoiceTermsCard
+            issueDate={form.issue_date}
+            dueDate={form.due_date}
+            discount={form.discount_amount}
+            taxRate={form.tax_rate}
+            notes={form.notes}
+            terms={form.terms}
+            subtotal={editSubtotal}
+            idPrefix="edit-invoice"
+            onIssueDateChange={(issue_date) => setForm({ ...form, issue_date })}
+            onDueDateChange={(due_date) => setForm({ ...form, due_date })}
+            onDiscountChange={(discount_amount) => setForm({ ...form, discount_amount })}
+            onTaxRateChange={(tax_rate) => setForm({ ...form, tax_rate })}
+            onNotesChange={(notes) => setForm({ ...form, notes })}
+            onTermsChange={(terms) => setForm({ ...form, terms })}
+          />
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="notes">Observações</Label>
-                <Textarea id="notes" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="terms">Condições de pagamento</Label>
-                <Textarea id="terms" rows={2} value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value })} className="mt-1" />
-              </div>
-            </div>
-
+          <div className="flex flex-col-reverse gap-3 rounded-2xl border border-[#dce6df] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-end">
+            <Button variant="outline" className="gap-2" onClick={() => { setEditing(false); setForm(null); }}>
+              <X className="h-4 w-4" /> Cancelar
+            </Button>
             <Button onClick={saveEdit} disabled={saving || !form.client_name.trim() || form.items.length === 0} className="gap-2">
               <Save className="h-4 w-4" /> {saving ? 'A guardar...' : 'Guardar alterações'}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : null}
 
       {!editing ? (

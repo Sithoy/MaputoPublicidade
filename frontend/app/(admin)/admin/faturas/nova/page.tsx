@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ReceiptText } from 'lucide-react';
 import { DocumentItemsEditor, newDocumentLine, type EditableDocumentLine } from '@/components/admin/DocumentItemsEditor';
+import { InvoiceTermsCard } from '@/components/admin/InvoiceTermsCard';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
-import { Textarea } from '@/components/ui/Textarea';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { createInvoice, getClientOptions, getOrders } from '@/lib/admin-api';
-import type { ClientOption, Order } from '@/lib/api';
+import { createInvoice, getClientOptions, getOrders, getProducts } from '@/lib/admin-api';
+import type { ClientOption, Order, Product } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { formatMZN } from '@/lib/utils';
 
@@ -36,6 +36,7 @@ export default function NewInvoicePage() {
   const canManage = can('invoices.manage');
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [orderReference, setOrderReference] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientName, setClientName] = useState('');
@@ -56,10 +57,11 @@ export default function NewInvoicePage() {
 
   useEffect(() => {
     if (authLoading || !canManage) return;
-    Promise.all([getClientOptions(), getOrders()])
-      .then(([clientData, orderData]) => {
+    Promise.all([getClientOptions(), getOrders(), getProducts().catch(() => [])])
+      .then(([clientData, orderData, productData]) => {
         setClients(clientData);
         setOrders(orderData.filter((order) => !order.invoice_reference));
+        setProducts(productData.filter((product) => product.is_active !== false));
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar dados de faturação')));
   }, [authLoading, canManage]);
@@ -80,9 +82,10 @@ export default function NewInvoicePage() {
     (sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unit_price) || 0),
     0
   );
-  const taxable = Math.max(subtotal - (Number(discount) || 0), 0);
-  const taxAmount = taxable * (Number(taxRate) || 0) / 100;
-  const total = taxable + taxAmount;
+  const selectedOrder = orders.find((order) => order.reference === orderReference);
+  const documentSubtotal = selectedOrder
+    ? Number(selectedOrder.final_price ?? selectedOrder.estimated_price ?? 0)
+    : subtotal;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -208,30 +211,30 @@ export default function NewInvoicePage() {
               </div>
             </CardContent>
           </Card>
-          <Card><CardContent className="p-6"><DocumentItemsEditor lines={lines} onChange={setLines} /></CardContent></Card>
+          <Card className="border-[#dce6df] shadow-[0_12px_34px_-26px_rgba(6,63,43,0.35)]">
+            <CardContent className="p-6">
+              <DocumentItemsEditor lines={lines} onChange={setLines} products={products} />
+            </CardContent>
+          </Card>
         </>
       ) : null}
 
-      <Card>
-        <CardContent className="grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-4">
-          <div><Label htmlFor="issue-date">Data de emissão</Label><Input id="issue-date" type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} className="mt-1" /></div>
-          <div><Label htmlFor="due-date">Vencimento</Label><Input id="due-date" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="mt-1" /></div>
-          <div><Label htmlFor="discount">Desconto (MZN)</Label><Input id="discount" type="number" min="0" step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} className="mt-1" /></div>
-          <div><Label htmlFor="tax">IVA (%)</Label><Input id="tax" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} className="mt-1" /></div>
-          {!orderReference ? (
-            <div className="rounded-xl bg-brand-50 p-4 sm:col-span-2 lg:col-span-4">
-              <div className="ml-auto max-w-sm space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><strong>{formatMZN(subtotal)}</strong></div>
-                <div className="flex justify-between"><span className="text-gray-600">Desconto</span><strong>- {formatMZN(Number(discount) || 0)}</strong></div>
-                <div className="flex justify-between"><span className="text-gray-600">IVA</span><strong>{formatMZN(taxAmount)}</strong></div>
-                <div className="flex justify-between border-t border-brand-200 pt-2 text-base"><span>Total</span><strong>{formatMZN(total)}</strong></div>
-              </div>
-            </div>
-          ) : null}
-          <div className="sm:col-span-2 lg:col-span-4"><Label htmlFor="notes">Observações</Label><Textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className="mt-1" /></div>
-          <div className="sm:col-span-2 lg:col-span-4"><Label htmlFor="terms">Condições de pagamento</Label><Textarea id="terms" value={terms} onChange={(event) => setTerms(event.target.value)} rows={3} placeholder="Ex.: Pagamento por transferência bancária no prazo indicado." className="mt-1" /></div>
-        </CardContent>
-      </Card>
+      <InvoiceTermsCard
+        issueDate={issueDate}
+        dueDate={dueDate}
+        discount={discount}
+        taxRate={taxRate}
+        notes={notes}
+        terms={terms}
+        subtotal={documentSubtotal}
+        idPrefix="new-invoice"
+        onIssueDateChange={setIssueDate}
+        onDueDateChange={setDueDate}
+        onDiscountChange={setDiscount}
+        onTaxRateChange={setTaxRate}
+        onNotesChange={setNotes}
+        onTermsChange={setTerms}
+      />
     </form>
   );
 }
