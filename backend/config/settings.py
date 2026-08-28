@@ -83,6 +83,7 @@ AUTHENTICATION_BACKENDS = [
 # django-allauth
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
+ACCOUNT_SIGNUP_FORM_CLASS = "apps.accounts.forms.ClientSignupForm"
 ACCOUNT_EMAIL_VERIFICATION = "none"
 ACCOUNT_SESSION_REMEMBER = True
 ACCOUNT_ADAPTER = "apps.core.adapter.AccountAdapter"
