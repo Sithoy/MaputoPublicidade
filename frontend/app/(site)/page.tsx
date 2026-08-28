@@ -7,34 +7,32 @@ import { PortfolioGallery } from '@/components/PortfolioGallery';
 import { WhyTrustSection } from '@/components/WhyTrustSection';
 import { PartnersSection } from '@/components/PartnersSection';
 import { CTABanner } from '@/components/CTABanner';
+import { companyProfile } from '@/lib/company';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const siteUrl = companyProfile.siteUrl;
 
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'LocalBusiness',
-  name: 'Maputo Publicidade',
+  name: companyProfile.displayName,
   description:
     'Parceiro de execução e gestão de marca para empresas em Maputo, da criação à produção, instalação e entrega.',
   url: siteUrl,
-  telephone: '+25882555736',
-  email: 'info@maputopublicidade.com',
+  telephone: companyProfile.primaryPhone,
+  email: companyProfile.email,
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'Rua da Resistência Nº 1550 R/C',
-    addressLocality: 'Maputo',
-    addressCountry: 'MZ',
+    streetAddress: companyProfile.streetAddress,
+    addressLocality: companyProfile.city,
+    addressCountry: companyProfile.countryCode,
   },
-  sameAs: [
-    'https://www.facebook.com/maputopublicidade',
-    'https://www.instagram.com/maputopublicidade',
-  ],
+  sameAs: [companyProfile.facebookUrl, companyProfile.instagramUrl].filter(Boolean),
   openingHoursSpecification: [
     {
       '@type': 'OpeningHoursSpecification',
-      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-      opens: '08:00',
-      closes: '17:00',
+      dayOfWeek: companyProfile.openingHours.days,
+      opens: companyProfile.openingHours.opens,
+      closes: companyProfile.openingHours.closes,
     },
   ],
 };

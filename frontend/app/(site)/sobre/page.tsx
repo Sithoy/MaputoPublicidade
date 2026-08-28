@@ -12,6 +12,12 @@ import {
   Target,
   Users,
 } from 'lucide-react';
+import {
+  companyProfile,
+  mailtoHref,
+  telephoneHref,
+  whatsappHref as buildWhatsappHref,
+} from '@/lib/company';
 
 export const metadata = {
   title: 'Sobre Nós | Maputo Publicidade',
@@ -42,8 +48,9 @@ const values = [
   },
 ];
 
-const whatsappHref =
-  'https://wa.me/25882555736?text=Olá! Gostaria de falar com a Maputo Publicidade sobre um projeto.';
+const whatsappHref = buildWhatsappHref(
+  'Olá! Gostaria de falar com a Maputo Publicidade sobre um projeto.'
+);
 
 export default function AboutPage() {
   return (
@@ -182,39 +189,43 @@ export default function AboutPage() {
 
           <div className="overflow-hidden rounded-[28px] border border-white/12 bg-white/[0.06]">
             <div className="grid gap-px bg-white/10 sm:grid-cols-2">
-              <a href="tel:+25882555736" className="flex gap-4 bg-brand-900/95 p-5 transition hover:bg-white/5">
+              <a href={telephoneHref()} className="flex gap-4 bg-brand-900/95 p-5 transition hover:bg-white/5">
                 <Phone className="mt-0.5 h-5 w-5 shrink-0 text-brand-100" />
                 <span>
                   <span className="block text-xs font-bold uppercase tracking-[0.14em] text-white/50">Telefone</span>
-                  <span className="mt-2 block text-sm leading-6 text-white">82 555 736 / 84 741 2838</span>
+                  <span className="mt-2 block text-sm leading-6 text-white">
+                    {companyProfile.phoneNumbers.join(' / ')}
+                  </span>
                 </span>
               </a>
-              <a href="mailto:info@maputopublicidade.com" className="flex gap-4 bg-brand-900/95 p-5 transition hover:bg-white/5">
+              <a href={mailtoHref()} className="flex gap-4 bg-brand-900/95 p-5 transition hover:bg-white/5">
                 <Mail className="mt-0.5 h-5 w-5 shrink-0 text-brand-100" />
                 <span>
                   <span className="block text-xs font-bold uppercase tracking-[0.14em] text-white/50">E-mail</span>
-                  <span className="mt-2 block text-sm leading-6 text-white">info@maputopublicidade.com</span>
+                  <span className="mt-2 block text-sm leading-6 text-white">{companyProfile.email}</span>
                 </span>
               </a>
               <div className="flex gap-4 bg-brand-900/95 p-5">
                 <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-brand-100" />
                 <span>
                   <span className="block text-xs font-bold uppercase tracking-[0.14em] text-white/50">Morada</span>
-                  <span className="mt-2 block text-sm leading-6 text-white">Rua da Resistência Nº 1550 R/C, Maputo</span>
+                  <span className="mt-2 block text-sm leading-6 text-white">{companyProfile.address}</span>
                 </span>
               </div>
               <div className="flex gap-4 bg-brand-900/95 p-5">
                 <Clock className="mt-0.5 h-5 w-5 shrink-0 text-brand-100" />
                 <span>
                   <span className="block text-xs font-bold uppercase tracking-[0.14em] text-white/50">Horário</span>
-                  <span className="mt-2 block text-sm leading-6 text-white">Segunda a Sexta, 08h00–17h00</span>
+                  <span className="mt-2 block text-sm leading-6 text-white">
+                    {companyProfile.openingHoursLabel}
+                  </span>
                 </span>
               </div>
             </div>
             <div className="aspect-[16/7] min-h-[220px] bg-white/5">
               <iframe
                 title="Localização da Maputo Publicidade"
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3584.0!2d32.5833!3d-25.9667!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDU4JzAwLjEiUyAzMsKwMzUnMDAuMCJF!5e0!3m2!1spt-PT!2smz!4v1600000000000!5m2!1spt-PT!2smz"
+                src={companyProfile.mapEmbedUrl}
                 className="h-full w-full border-0 grayscale-[0.2]"
                 allowFullScreen
                 loading="lazy"

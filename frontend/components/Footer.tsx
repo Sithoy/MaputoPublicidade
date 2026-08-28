@@ -2,12 +2,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Facebook, Instagram, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { mainServices } from '@/lib/service-catalog';
+import { companyProfile, mailtoHref, whatsappHref as buildWhatsappHref } from '@/lib/company';
 
-const WHATSAPP_NUMBER = '25882555736';
 const WHATSAPP_MESSAGE = 'Olá! Vi o site da Maputo Publicidade e gostaria de falar sobre um projeto.';
 
 export function Footer() {
-  const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  const whatsappHref = buildWhatsappHref(WHATSAPP_MESSAGE);
 
   return (
     <footer className="bg-brand-900 text-white">
@@ -59,24 +59,36 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-gray-300">
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-brand" />
-                <span>82 555 736 / 84 741 2838 / 84 555 0250</span>
+                <span>{companyProfile.phoneNumbers.join(' / ')}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-brand" />
-                <a href="mailto:info@maputopublicidade.com" className="hover:text-white">
-                  info@maputopublicidade.com
+                <a href={mailtoHref()} className="hover:text-white">
+                  {companyProfile.email}
                 </a>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 text-brand" />
-                <span>Rua da Resistência Nº 1550 R/C, Maputo</span>
+                <span>{companyProfile.address}</span>
               </li>
             </ul>
             <div className="mt-4 flex gap-3">
-              <a href="#" aria-label="Facebook" className="rounded-full bg-white/10 p-2 hover:bg-brand">
+              <a
+                href={companyProfile.facebookUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="rounded-full bg-white/10 p-2 hover:bg-brand"
+              >
                 <Facebook className="h-4 w-4" />
               </a>
-              <a href="#" aria-label="Instagram" className="rounded-full bg-white/10 p-2 hover:bg-brand">
+              <a
+                href={companyProfile.instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="rounded-full bg-white/10 p-2 hover:bg-brand"
+              >
                 <Instagram className="h-4 w-4" />
               </a>
               <a

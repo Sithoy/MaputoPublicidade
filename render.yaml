@@ -39,9 +39,7 @@ services:
       - key: SERVE_MEDIA
         value: "True"
       - key: DEFAULT_FROM_EMAIL
-        value: maputopublicidade@outlook.com
-      - key: ADMIN_EMAIL
-        value: maputopublicidade@outlook.com
+        value: info@maputopublicidade.com
       - key: EMAIL_BACKEND
         value: django.core.mail.backends.smtp.EmailBackend
       - key: EMAIL_HOST

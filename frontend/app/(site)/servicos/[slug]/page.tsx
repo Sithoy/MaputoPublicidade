@@ -22,6 +22,7 @@ import {
   type ServiceProductGroup,
 } from '@/lib/service-catalog';
 import { serviceIconMap } from '@/lib/service-icons';
+import { companyProfile } from '@/lib/company';
 
 export const revalidate = 60;
 
@@ -29,7 +30,7 @@ export function generateStaticParams() {
   return mainServices.map((service) => ({ slug: service.slug }));
 }
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const siteUrl = companyProfile.siteUrl;
 
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const service = getMainService(params.slug);
@@ -147,14 +148,14 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
     image: `${siteUrl}${service.image}`,
     provider: {
       '@type': 'LocalBusiness',
-      name: 'Maputo Publicidade',
-      telephone: '+25882555736',
-      email: 'maputopublicidade@outlook.com',
+      name: companyProfile.displayName,
+      telephone: companyProfile.primaryPhone,
+      email: companyProfile.email,
       address: {
         '@type': 'PostalAddress',
-        streetAddress: 'Rua da Resistência Nº 1550 R/C',
-        addressLocality: 'Maputo',
-        addressCountry: 'MZ',
+        streetAddress: companyProfile.streetAddress,
+        addressLocality: companyProfile.city,
+        addressCountry: companyProfile.countryCode,
       },
     },
     areaServed: {
