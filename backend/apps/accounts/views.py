@@ -1,6 +1,8 @@
+from allauth.headless import app_settings as headless_settings
 from django.contrib.auth.models import User
 from django.db.models import Count
 from rest_framework import status, viewsets
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -233,11 +235,37 @@ class MeView(APIView):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
 
+
     def patch(self, request):
         serializer = UserSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class SocialSessionExchangeView(APIView):
+    """Exchange a completed same-origin OAuth session for BrandDesk JWTs."""
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token_payload = headless_settings.TOKEN_STRATEGY.create_access_token_payload(
+            request._request
+        )
+        if not token_payload:
+            return Response(
+                {"detail": "Não foi possível concluir a autenticação social."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        return Response(
+            {
+                "status": status.HTTP_200_OK,
+                "data": {"user": UserSerializer(request.user).data},
+                "meta": {"is_authenticated": True, **token_payload},
+            }
+        )
 
 
 class ClientOptionsView(APIView):

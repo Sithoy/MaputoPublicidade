@@ -16,6 +16,7 @@ export default function ClientProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isFirstAccess, setIsFirstAccess] = useState(false);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -26,6 +27,9 @@ export default function ClientProfilePage() {
   const [billingAddress, setBillingAddress] = useState('');
 
   useEffect(() => {
+    setIsFirstAccess(
+      new URLSearchParams(window.location.search).get('primeiro_acesso') === '1'
+    );
     getMe()
       .then((data) => {
         setUser(data);
@@ -77,6 +81,14 @@ export default function ClientProfilePage() {
 
   return (
     <div className="space-y-6">
+      {isFirstAccess ? (
+        <div className="rounded-2xl border border-brand-200 bg-brand-50 px-5 py-4 text-sm leading-6 text-brand-900">
+          <p className="font-semibold">Bem-vindo ao BrandDesk.</p>
+          <p className="mt-1 text-brand-800">
+            Complete os dados da sua empresa para receber propostas e documentos correctamente preenchidos.
+          </p>
+        </div>
+      ) : null}
       <div>
         <h1 className="text-2xl font-bold text-dark">O Meu Perfil</h1>
         <p className="text-sm text-gray-500">Actualize os seus dados de contacto e empresa.</p>

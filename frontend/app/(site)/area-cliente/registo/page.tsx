@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import { registerClient } from '@/lib/auth';
 
 const signupBenefits = [
@@ -144,6 +145,8 @@ export default function ClientRegistrationPage() {
               {error}
             </div>
           ) : null}
+
+          <SocialLoginButtons />
 
           <form onSubmit={handleSubmit} className="space-y-7">
             <fieldset>

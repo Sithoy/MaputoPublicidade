@@ -1,6 +1,7 @@
 import pytest
 from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -123,6 +124,88 @@ class TestClientSelfRegistration:
 
         assert response.status_code == 400
         assert not User.objects.filter(email="senhas@example.com").exists()
+
+
+@pytest.mark.django_db
+class TestSocialSessionExchange:
+    def test_provider_callbacks_are_available(self):
+        assert reverse("google_callback") == "/accounts/google/login/callback/"
+        assert reverse("microsoft_callback") == "/accounts/microsoft/login/callback/"
+
+    def test_authenticated_social_session_can_be_exchanged_for_jwts(
+        self, client_user
+    ):
+        client = APIClient()
+        client.force_login(client_user)
+
+        response = client.post(reverse("social-session-exchange"), secure=True)
+
+        assert response.status_code == 200
+        assert response.json()["meta"]["is_authenticated"] is True
+        assert response.json()["meta"]["access_token"]
+        assert response.json()["meta"]["refresh_token"]
+        assert response.json()["data"]["user"]["email"] == client_user.email
+
+        jwt_client = APIClient()
+        jwt_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {response.json()['meta']['access_token']}"
+        )
+        me_response = jwt_client.get(reverse("me"), secure=True)
+        assert me_response.status_code == 200
+        assert me_response.json()["email"] == client_user.email
+
+    def test_exchange_rejects_anonymous_session(self):
+        response = APIClient().post(reverse("social-session-exchange"), secure=True)
+        assert response.status_code in {401, 403}
+
+    @override_settings(
+        ALLOWED_HOSTS=["frontend.example.com"],
+        SOCIALACCOUNT_PROVIDERS={
+            "google": {
+                "APPS": [
+                    {
+                        "client_id": "google-test-client",
+                        "secret": "google-test-secret",
+                        "key": "",
+                    }
+                ],
+                "SCOPE": ["profile", "email"],
+            }
+        },
+    )
+    def test_google_redirect_uses_the_frontend_callback_domain(self):
+        client = APIClient(enforce_csrf_checks=True)
+        forwarded = {
+            "secure": True,
+            "HTTP_REFERER": "https://frontend.example.com/area-cliente/login",
+            "HTTP_X_FORWARDED_HOST": "frontend.example.com",
+            "HTTP_X_FORWARDED_PROTO": "https",
+        }
+        config_response = client.get(
+            "/_allauth/browser/v1/config", **forwarded
+        )
+        csrf_token = config_response.cookies["csrftoken"].value
+
+        response = client.post(
+            "/_allauth/browser/v1/auth/provider/redirect",
+            {
+                "provider": "google",
+                "process": "login",
+                "callback_url": (
+                    "https://frontend.example.com/area-cliente/auth/callback"
+                ),
+                "csrfmiddlewaretoken": csrf_token,
+            },
+            HTTP_X_CSRFTOKEN=csrf_token,
+            **forwarded,
+        )
+
+        assert response.status_code == 302
+        assert "accounts.google.com" in response["Location"]
+        assert (
+            "redirect_uri=https%3A%2F%2Ffrontend.example.com%2Faccounts%2Fgoogle%2Flogin%2Fcallback%2F"
+            in response["Location"]
+        )
 
 
 @pytest.mark.django_db

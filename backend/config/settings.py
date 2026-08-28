@@ -46,6 +46,9 @@ INSTALLED_APPS = [
     "corsheaders",
     "allauth",
     "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.microsoft",
     "allauth.headless",
     "storages",
     "csp",
@@ -88,11 +91,60 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 ACCOUNT_SESSION_REMEMBER = True
 ACCOUNT_ADAPTER = "apps.core.adapter.AccountAdapter"
 
+# Social login providers are enabled only when their server-side credentials
+# are present. Secrets remain on the backend and are never exposed to Next.js.
+SOCIALACCOUNT_ADAPTER = "apps.core.adapter.SocialAccountAdapter"
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_PROVIDERS = {}
+
+GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()
+if GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET:
+    SOCIALACCOUNT_PROVIDERS["google"] = {
+        "APPS": [
+            {
+                "client_id": GOOGLE_OAUTH_CLIENT_ID,
+                "secret": GOOGLE_OAUTH_CLIENT_SECRET,
+                "key": "",
+            }
+        ],
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+    }
+
+MICROSOFT_OAUTH_CLIENT_ID = os.getenv("MICROSOFT_OAUTH_CLIENT_ID", "").strip()
+MICROSOFT_OAUTH_CLIENT_SECRET = os.getenv(
+    "MICROSOFT_OAUTH_CLIENT_SECRET", ""
+).strip()
+if MICROSOFT_OAUTH_CLIENT_ID and MICROSOFT_OAUTH_CLIENT_SECRET:
+    SOCIALACCOUNT_PROVIDERS["microsoft"] = {
+        "APPS": [
+            {
+                "client_id": MICROSOFT_OAUTH_CLIENT_ID,
+                "secret": MICROSOFT_OAUTH_CLIENT_SECRET,
+                "key": "",
+                "settings": {
+                    "tenant": os.getenv("MICROSOFT_OAUTH_TENANT", "common")
+                },
+            }
+        ],
+        # Microsoft Graph supplies the signed-in tenant's email address.
+        "VERIFIED_EMAIL": True,
+    }
+
 # django-allauth headless
 HEADLESS_ONLY = True
 HEADLESS_ADAPTER = "apps.core.adapter.HeadlessAdapter"
 HEADLESS_TOKEN_STRATEGY = "allauth.headless.tokens.strategies.jwt.JWTTokenStrategy"
 HEADLESS_JWT_ALGORITHM = "HS256"
+
+# OAuth requests reach Django through the website's same-origin proxy. Django
+# uses this trusted host/protocol when generating provider callback URLs.
+USE_X_FORWARDED_HOST = True
 HEADLESS_JWT_ACCESS_TOKEN_EXPIRES_IN = 3600
 HEADLESS_JWT_REFRESH_TOKEN_EXPIRES_IN = 604800
 HEADLESS_JWT_STATEFUL_VALIDATION_ENABLED = False

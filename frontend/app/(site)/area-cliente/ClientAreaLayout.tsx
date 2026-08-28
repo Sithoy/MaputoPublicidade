@@ -202,7 +202,9 @@ export default function ClientAreaLayout({ children }: { children: React.ReactNo
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isPublicAuthRoute =
-    pathname === '/area-cliente/login' || pathname === '/area-cliente/registo';
+    pathname === '/area-cliente/login' ||
+    pathname === '/area-cliente/registo' ||
+    pathname === '/area-cliente/auth/callback';
   const { user, loading } = useClientAuth({ enabled: !isPublicAuthRoute });
 
   function handleLogout() {

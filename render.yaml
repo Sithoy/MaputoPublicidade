@@ -31,11 +31,21 @@ services:
       - key: ADMIN_RESET_PASSWORD
         value: "True"
       - key: ALLOWED_HOSTS
-        value: ".onrender.com,localhost,127.0.0.1"
+        value: ".onrender.com,.vercel.app,maputopublicidade.com,www.maputopublicidade.com,localhost,127.0.0.1"
       - key: CORS_ALLOWED_ORIGINS
         value: https://maputopublicidade.vercel.app
       - key: CSRF_TRUSTED_ORIGINS
-        value: https://maputopublicidade.vercel.app
+        value: https://maputopublicidade.vercel.app,https://maputopublicidade.com,https://www.maputopublicidade.com
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_OAUTH_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_OAUTH_TENANT
+        value: common
       - key: SERVE_MEDIA
         value: "True"
       - key: DEFAULT_FROM_EMAIL

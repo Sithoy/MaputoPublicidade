@@ -10,6 +10,7 @@ from apps.core.views import AdminStatsView, HealthCheckView
 urlpatterns = [
     path("health/", HealthCheckView.as_view(), name="health-check"),
     path("admin/", admin.site.urls),
+    path("accounts/", include("allauth.urls")),
     path("_allauth/", include("allauth.headless.urls")),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/", include("apps.assets.urls")),

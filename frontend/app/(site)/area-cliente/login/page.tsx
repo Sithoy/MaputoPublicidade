@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { TestCredentialsButton } from '@/components/TestCredentialsButton';
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import { login } from '@/lib/auth';
 
 const WHATSAPP_URL =
@@ -49,6 +50,13 @@ function ClientLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const socialError = new URLSearchParams(window.location.search).get('social_error');
+    if (socialError) {
+      setError('Não foi possível iniciar sessão com esse fornecedor. Tente novamente.');
+    }
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -159,6 +167,8 @@ function ClientLoginForm() {
                 {error}
               </div>
             ) : null}
+
+            <SocialLoginButtons />
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>

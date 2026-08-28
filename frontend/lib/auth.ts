@@ -56,11 +56,20 @@ interface AuthResponse {
       id: number;
       email: string;
       display?: string;
+      first_name?: string;
+      last_name?: string;
       is_staff?: boolean;
       is_superuser?: boolean;
       role?: 'owner' | 'administrator' | 'commercial' | 'production' | 'finance' | 'content' | 'client';
       role_display?: string;
       capabilities?: string[];
+      profile?: {
+        company?: string;
+        phone?: string;
+        nuit?: string;
+        address?: string;
+        billing_address?: string;
+      };
     };
     access_token?: string;
     refresh_token?: string;
@@ -185,6 +194,58 @@ export async function registerClient(registration: ClientRegistration) {
 
   setToken(accessTokenValue);
   if (refreshToken) setRefreshToken(refreshToken);
+  return data;
+}
+
+export type SocialProvider = 'google' | 'microsoft';
+
+interface AuthConfigResponse {
+  data?: {
+    socialaccount?: {
+      providers?: Array<{ id: string }>;
+    };
+  };
+}
+
+export async function fetchSocialProviders(): Promise<SocialProvider[]> {
+  try {
+    const res = await fetch('/auth-api/browser/v1/config', {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    const config = await readJson<AuthConfigResponse>(res);
+    const supported = new Set<SocialProvider>(['google', 'microsoft']);
+    return (config?.data?.socialaccount?.providers || [])
+      .map((provider) => provider.id)
+      .filter((provider): provider is SocialProvider =>
+        supported.has(provider as SocialProvider)
+      );
+  } catch {
+    return [];
+  }
+}
+
+export async function exchangeSocialSession() {
+  let res: Response;
+  try {
+    res = await fetch('/auth/social/exchange', {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+    });
+  } catch {
+    throw new Error(AUTH_UNAVAILABLE_MESSAGE);
+  }
+
+  const data = await readJson<AuthResponse & { detail?: string }>(res);
+  const access = data?.meta?.access_token || data?.data?.access_token;
+  const refresh = data?.meta?.refresh_token || data?.data?.refresh_token;
+  if (!res.ok || !access) {
+    throw new Error(data?.detail || 'Não foi possível concluir o início de sessão social.');
+  }
+
+  setToken(access);
+  if (refresh) setRefreshToken(refresh);
   return data;
 }
 

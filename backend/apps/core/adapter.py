@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.headless.adapter import DefaultHeadlessAdapter
+from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.contrib.auth import get_user_model
 
 from apps.accounts.roles import (
@@ -24,6 +25,15 @@ class AccountAdapter(DefaultAccountAdapter):
         if commit:
             user.save()
         return user
+
+
+class SocialAccountAdapter(DefaultSocialAccountAdapter):
+    """Keep every account created through a social provider client-only."""
+
+    def save_user(self, request, sociallogin, form=None):
+        sociallogin.user.is_staff = False
+        sociallogin.user.is_superuser = False
+        return super().save_user(request, sociallogin, form=form)
 
 
 class HeadlessAdapter(DefaultHeadlessAdapter):

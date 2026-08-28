@@ -43,3 +43,43 @@ export function buildAuthUpstreamUrl(
   const safePath = path.map((segment) => encodeURIComponent(segment)).join('/');
   return `${resolveAuthBackendOrigin(env)}/_allauth/${safePath}${search}`;
 }
+
+export function buildAccountsUpstreamUrl(
+  path: string[],
+  search: string,
+  env: AuthProxyEnvironment = process.env
+): string {
+  const safePath = path.map((segment) => encodeURIComponent(segment)).join('/');
+  return `${resolveAuthBackendOrigin(env)}/accounts/${safePath}${search}`;
+}
+
+export function splitSetCookieHeaders(headers: Headers): string[] {
+  const headersWithCookies = headers as Headers & { getSetCookie?: () => string[] };
+  const values =
+    typeof headersWithCookies.getSetCookie === 'function'
+      ? headersWithCookies.getSetCookie()
+      : [headers.get('set-cookie')].filter((value): value is string => Boolean(value));
+
+  return values.flatMap((value) =>
+    value.split(/,(?=\s*[A-Za-z0-9!#$%&'*+.^_`|~-]+=)/g)
+  );
+}
+
+export function cookieHeaderFromSetCookie(setCookies: string[]): string {
+  return setCookies.map((cookie) => cookie.split(';', 1)[0].trim()).join('; ');
+}
+
+export function getCookieValue(cookieHeader: string | null, name: string): string | null {
+  if (!cookieHeader) return null;
+  for (const cookie of cookieHeader.split(';')) {
+    const [key, ...value] = cookie.trim().split('=');
+    if (key === name) return decodeURIComponent(value.join('='));
+  }
+  return null;
+}
+
+export function appendSetCookieHeaders(target: Headers, source: Headers): void {
+  for (const cookie of splitSetCookieHeaders(source)) {
+    target.append('set-cookie', cookie);
+  }
+}
