@@ -8,6 +8,7 @@ class StaffRole(models.TextChoices):
     PRODUCTION = "production", "Produção"
     FINANCE = "finance", "Finanças"
     CONTENT = "content", "Conteúdo"
+    RECEPTIONIST = "receptionist", "Recepção"
     CLIENT = "client", "Cliente"
 
     @classmethod
@@ -20,6 +21,7 @@ class StaffRole(models.TextChoices):
 
 
 class StaffCapability:
+    CREATE_INTAKE = "intake.create"
     VIEW_DASHBOARD = "dashboard.view"
     VIEW_QUOTES = "quotes.view"
     MANAGE_QUOTES = "quotes.manage"
@@ -92,6 +94,13 @@ ROLE_CAPABILITIES = {
         {
             StaffCapability.MANAGE_CATALOG,
             StaffCapability.MANAGE_CONTENT,
+        }
+    ),
+    StaffRole.RECEPTIONIST: frozenset(
+        {
+            StaffCapability.CREATE_INTAKE,
+            StaffCapability.VIEW_QUOTES,
+            StaffCapability.VIEW_ORDERS,
         }
     ),
     StaffRole.CLIENT: frozenset(),

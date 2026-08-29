@@ -122,7 +122,7 @@ export type UserFormData = {
   first_name?: string;
   last_name?: string;
   is_staff?: boolean;
-  staff_role?: 'administrator' | 'commercial' | 'production' | 'finance' | 'content' | '';
+  staff_role?: 'administrator' | 'commercial' | 'production' | 'finance' | 'content' | 'receptionist' | '';
   is_active?: boolean;
   password?: string;
   password_confirm?: string;
@@ -188,8 +188,45 @@ export type ManualQuoteInput = {
   items: DocumentLineInput[];
 };
 
+export type ReceptionIntakeInput = {
+  user_id?: number | null;
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_company?: string;
+  contact_source: 'walk_in' | 'phone' | 'whatsapp' | 'email';
+  outcome: 'quote' | 'confirmed_order';
+  urgency: 'normal' | 'urgent';
+  estimated_delivery_days?: number | null;
+  payment_option: 'deposit_50' | 'on_delivery';
+  delivery_method: 'pickup' | 'delivery';
+  delivery_address?: string;
+  notes?: string;
+  internal_notes?: string;
+  items: Array<{
+    product_id?: number;
+    description: string;
+    quantity: number;
+    unit_price?: number | null;
+    notes?: string;
+  }>;
+};
+
+export type ReceptionIntakeResult = {
+  outcome: 'quote' | 'confirmed_order';
+  quote_reference: string;
+  order_reference: string | null;
+  quote: Quote;
+};
+
 export async function createManualQuote(data: ManualQuoteInput): Promise<Quote> {
   return post<Quote>('/api/quotes/manual/', data, getToken());
+}
+
+export async function createReceptionIntake(
+  data: ReceptionIntakeInput
+): Promise<ReceptionIntakeResult> {
+  return post<ReceptionIntakeResult>('/api/quotes/intake/', data, getToken());
 }
 
 export async function getClientOptions(): Promise<ClientOption[]> {

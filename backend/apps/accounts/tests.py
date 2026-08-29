@@ -366,6 +366,19 @@ class TestStaffRbac:
         assert orders_response.status_code == 403
         assert dashboard_response.status_code == 403
 
+    def test_receptionist_has_intake_access_without_commercial_management(self):
+        user, client = self.staff_client(StaffRole.RECEPTIONIST, "intake")
+
+        response = client.get(reverse("me"))
+
+        assert response.status_code == 200
+        assert StaffCapability.CREATE_INTAKE in response.json()["capabilities"]
+        assert StaffCapability.VIEW_QUOTES in response.json()["capabilities"]
+        assert StaffCapability.VIEW_ORDERS in response.json()["capabilities"]
+        assert StaffCapability.MANAGE_QUOTES not in response.json()["capabilities"]
+        assert StaffCapability.MANAGE_ORDERS not in response.json()["capabilities"]
+        assert has_staff_capability(user, StaffCapability.CREATE_INTAKE)
+
     def test_owner_can_create_staff_with_specific_role(self, superuser_client):
         response = superuser_client.post(
             reverse("user-list"),

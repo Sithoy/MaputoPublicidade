@@ -7,9 +7,11 @@ export type StaffRole =
   | 'production'
   | 'finance'
   | 'content'
+  | 'receptionist'
   | 'client';
 
 export type StaffCapability =
+  | 'intake.create'
   | 'dashboard.view'
   | 'quotes.view'
   | 'quotes.manage'
@@ -35,6 +37,7 @@ export const STAFF_ROLE_OPTIONS: { value: Exclude<StaffRole, 'owner' | 'client'>
   { value: 'production', label: 'Produção' },
   { value: 'finance', label: 'Finanças' },
   { value: 'content', label: 'Conteúdo' },
+  { value: 'receptionist', label: 'Recepção' },
 ];
 
 export const ROLE_LABELS: Record<StaffRole, string> = {
@@ -44,6 +47,7 @@ export const ROLE_LABELS: Record<StaffRole, string> = {
   production: 'Produção',
   finance: 'Finanças',
   content: 'Conteúdo',
+  receptionist: 'Recepção',
   client: 'Cliente',
 };
 
@@ -64,6 +68,7 @@ export function getRoleLabel(user: User | null | undefined) {
 
 export function getDefaultAdminPath(user: User | null | undefined) {
   if (hasCapability(user, 'dashboard.view')) return '/admin';
+  if (hasCapability(user, 'intake.create')) return '/admin/atendimento/novo';
   if (hasCapability(user, 'orders.view')) return '/admin/encomendas';
   if (hasCapability(user, 'quotes.view')) return '/admin/orcamentos';
   if (hasCapability(user, 'invoices.view')) return '/admin/faturas';
@@ -75,6 +80,7 @@ export function getDefaultAdminPath(user: User | null | undefined) {
 
 export function getRequiredCapability(pathname: string): StaffCapability | null {
   if (pathname === '/admin/login') return null;
+  if (pathname.startsWith('/admin/atendimento')) return 'intake.create';
   if (pathname === '/admin') return 'dashboard.view';
   if (pathname.startsWith('/admin/quadro')) return 'quotes.view';
   if (pathname.startsWith('/admin/orcamentos')) return 'quotes.view';

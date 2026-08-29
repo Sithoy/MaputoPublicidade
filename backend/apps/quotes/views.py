@@ -1,6 +1,7 @@
 import os
 from io import BytesIO
 
+from django.db import transaction
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -37,7 +38,46 @@ from .serializers import (
     QuoteRequestListSerializer,
     QuoteRequestUpdateSerializer,
     QuoteStatusSerializer,
+    ReceptionIntakeSerializer,
 )
+
+
+def create_order_from_quote(
+    quote,
+    *,
+    delivery_method=Order.DELIVERY_PICKUP,
+    delivery_address="",
+):
+    order = Order.objects.create(
+        user=quote.user,
+        quote=quote,
+        estimated_price=quote.estimated_price,
+        final_price=quote.final_price,
+        status=Order.STATUS_APPROVED,
+        delivery_method=delivery_method,
+        delivery_address=delivery_address,
+    )
+
+    for idx, quote_item in enumerate(quote.items.all()):
+        order_item = OrderItem.objects.create(
+            order=order,
+            product=quote_item.product,
+            product_variant=quote_item.product_variant,
+            description=quote_item.description,
+            quantity=quote_item.quantity,
+            size=quote_item.size,
+            material=quote_item.material,
+            colors=quote_item.colors,
+            needs_design=quote_item.needs_design,
+            notes=quote_item.notes,
+            unit_price=quote_item.unit_price,
+            position=idx,
+        )
+        if quote_item.artwork_file:
+            filename = os.path.basename(quote_item.artwork_file.name)
+            order_item.artwork_file.save(filename, quote_item.artwork_file, save=True)
+
+    return order
 
 
 class QuoteRequestViewSet(
@@ -57,6 +97,8 @@ class QuoteRequestViewSet(
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     def get_serializer_class(self):
+        if self.action == "intake":
+            return ReceptionIntakeSerializer
         if self.action == "manual":
             return ManualQuoteCreateSerializer
         if self.action == "create":
@@ -68,6 +110,8 @@ class QuoteRequestViewSet(
         return QuoteRequestListSerializer
 
     def get_permissions(self):
+        if self.action == "intake":
+            return [HasStaffCapability(StaffCapability.CREATE_INTAKE)]
         if self.action == "create":
             return [AllowAny()]
         if self.action == "manual":
@@ -133,6 +177,7 @@ class QuoteRequestViewSet(
             "Email": "client_email",
             "Telefone": "client_phone",
             "Empresa": "client_company",
+            "Origem": lambda obj: obj.get_contact_source_display(),
             "Estado": lambda obj: obj.get_status_display(),
             "Urgencia": lambda obj: obj.get_urgency_display(),
             "Preco estimado": "estimated_price",
@@ -173,6 +218,96 @@ class QuoteRequestViewSet(
             QuoteRequestDetailSerializer(
                 quote, context={"request": request}
             ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=["post"], url_path="intake")
+    @transaction.atomic
+    def intake(self, request):
+        serializer = ReceptionIntakeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        outcome = serializer.validated_data["outcome"]
+        delivery_method = serializer.validated_data.get(
+            "delivery_method", Order.DELIVERY_PICKUP
+        )
+        delivery_address = serializer.validated_data.get("delivery_address", "")
+        quote = serializer.save()
+        source_label = quote.get_contact_source_display()
+
+        record_activity(
+            action=ActivityEvent.ACTION_CREATED,
+            quote=quote,
+            actor=request.user,
+            comment=f"Atendimento registado via {source_label}.",
+        )
+
+        if outcome == ReceptionIntakeSerializer.OUTCOME_QUOTE:
+            notify_quote_received(quote)
+            return Response(
+                {
+                    "outcome": outcome,
+                    "quote_reference": quote.reference,
+                    "order_reference": None,
+                    "quote": QuoteRequestDetailSerializer(
+                        quote, context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        old_status = quote.status
+        quote.status = QuoteRequest.STATUS_APPROVED
+        quote.price_approved_at = timezone.now()
+        quote.price_approved_by = request.user
+        quote.price_approval_comment = (
+            f"Aprovação do cliente registada no atendimento via {source_label}."
+        )
+        quote.save(
+            update_fields=[
+                "status",
+                "price_approved_at",
+                "price_approved_by",
+                "price_approval_comment",
+                "updated_at",
+            ]
+        )
+        record_activity(
+            action=ActivityEvent.ACTION_PRICE_APPROVED,
+            quote=quote,
+            actor=request.user,
+            from_status=old_status,
+            to_status=quote.status,
+            comment=quote.price_approval_comment,
+        )
+
+        order = create_order_from_quote(
+            quote,
+            delivery_method=delivery_method,
+            delivery_address=delivery_address,
+        )
+        record_activity(
+            action=ActivityEvent.ACTION_CONVERTED_TO_ORDER,
+            quote=quote,
+            actor=request.user,
+            comment=f"Encomenda {order.reference}",
+        )
+        record_activity(
+            action=ActivityEvent.ACTION_CREATED,
+            order=order,
+            actor=request.user,
+            comment=f"Atendimento {source_label}; proposta {quote.reference}",
+        )
+        notify_order_created(order)
+
+        return Response(
+            {
+                "outcome": outcome,
+                "quote_reference": quote.reference,
+                "order_reference": order.reference,
+                "quote": QuoteRequestDetailSerializer(
+                    quote, context={"request": request}
+                ).data,
+            },
             status=status.HTTP_201_CREATED,
         )
 
@@ -480,33 +615,12 @@ class QuoteRequestViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        order = Order.objects.create(
-            user=quote.user,
-            quote=quote,
-            estimated_price=quote.estimated_price,
-            final_price=quote.final_price,
-            status=Order.STATUS_APPROVED,
-            delivery_address=getattr(getattr(quote.user, "profile", None), "address", ""),
+        order = create_order_from_quote(
+            quote,
+            delivery_address=getattr(
+                getattr(quote.user, "profile", None), "address", ""
+            ),
         )
-
-        for idx, quote_item in enumerate(quote.items.all()):
-            order_item = OrderItem.objects.create(
-                order=order,
-                product=quote_item.product,
-                product_variant=quote_item.product_variant,
-                description=quote_item.description,
-                quantity=quote_item.quantity,
-                size=quote_item.size,
-                material=quote_item.material,
-                colors=quote_item.colors,
-                needs_design=quote_item.needs_design,
-                notes=quote_item.notes,
-                unit_price=quote_item.unit_price,
-                position=idx,
-            )
-            if quote_item.artwork_file:
-                filename = os.path.basename(quote_item.artwork_file.name)
-                order_item.artwork_file.save(filename, quote_item.artwork_file, save=True)
 
         old_status = quote.status
         quote.status = QuoteRequest.STATUS_APPROVED

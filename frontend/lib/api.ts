@@ -318,6 +318,8 @@ export type Quote = {
   client_email: string;
   client_phone?: string;
   client_company?: string;
+  contact_source?: 'walk_in' | 'phone' | 'whatsapp' | 'email' | 'web';
+  contact_source_display?: string;
   status: string;
   status_display?: string;
   urgency?: string;
@@ -623,7 +625,7 @@ export type User = {
   last_name?: string;
   is_staff?: boolean;
   is_superuser?: boolean;
-  role?: 'owner' | 'administrator' | 'commercial' | 'production' | 'finance' | 'content' | 'client';
+  role?: 'owner' | 'administrator' | 'commercial' | 'production' | 'finance' | 'content' | 'receptionist' | 'client';
   role_display?: string;
   capabilities?: string[];
   is_active?: boolean;

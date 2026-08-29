@@ -246,6 +246,7 @@ class ClientOptionsView(APIView):
     def get_permissions(self):
         return [
             HasAnyStaffCapability(
+                StaffCapability.CREATE_INTAKE,
                 StaffCapability.MANAGE_QUOTES,
                 StaffCapability.MANAGE_INVOICES,
             )
