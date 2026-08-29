@@ -8,6 +8,7 @@ import { getRoleLabel } from '@/lib/rbac';
 
 function getPageTitle(pathname: string) {
   if (pathname === '/admin') return 'Visão geral';
+  if (pathname.startsWith('/admin/atendimento')) return 'Novo atendimento';
   if (pathname.startsWith('/admin/encomendas/')) return 'Acompanhamento da produção';
   if (pathname === '/admin/encomendas') return 'Produção e entregas';
   if (pathname === '/admin/orcamentos/novo') return 'Nova proposta';

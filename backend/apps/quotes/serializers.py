@@ -92,6 +92,9 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
     payment_option_display = serializers.CharField(
         source="get_payment_option_display", read_only=True
     )
+    contact_source_display = serializers.CharField(
+        source="get_contact_source_display", read_only=True
+    )
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
@@ -106,6 +109,8 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
             "reference",
             "client_name",
             "client_company",
+            "contact_source",
+            "contact_source_display",
             "status",
             "status_display",
             "urgency",
@@ -137,6 +142,9 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
     payment_option_display = serializers.CharField(
         source="get_payment_option_display", read_only=True
     )
+    contact_source_display = serializers.CharField(
+        source="get_contact_source_display", read_only=True
+    )
     items = QuoteItemSerializer(many=True, read_only=True)
     artwork = serializers.SerializerMethodField()
     order_reference = serializers.SerializerMethodField()
@@ -162,6 +170,8 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "client_email",
             "client_phone",
             "client_company",
+            "contact_source",
+            "contact_source_display",
             "urgency",
             "urgency_display",
             "notes",
@@ -386,6 +396,135 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
                 description=item["description"],
                 quantity=item["quantity"],
                 unit_price=item["unit_price"],
+                notes=item.get("notes", ""),
+                position=position,
+            )
+        return quote
+
+
+class ReceptionIntakeItemSerializer(serializers.Serializer):
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+        source="product",
+        required=False,
+        allow_null=True,
+    )
+    description = serializers.CharField(max_length=255)
+    quantity = serializers.IntegerField(min_value=1)
+    unit_price = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        allow_null=True,
+    )
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class ReceptionIntakeSerializer(serializers.Serializer):
+    OUTCOME_QUOTE = "quote"
+    OUTCOME_CONFIRMED_ORDER = "confirmed_order"
+    OUTCOME_CHOICES = [
+        (OUTCOME_QUOTE, "Pedido para orçamento"),
+        (OUTCOME_CONFIRMED_ORDER, "Encomenda confirmada"),
+    ]
+
+    user_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(is_staff=False, is_active=True),
+        source="user",
+        required=False,
+        allow_null=True,
+    )
+    client_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    client_email = serializers.EmailField(required=False, allow_blank=True)
+    client_phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    client_company = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    contact_source = serializers.ChoiceField(choices=QuoteRequest.CONTACT_SOURCE_CHOICES)
+    outcome = serializers.ChoiceField(choices=OUTCOME_CHOICES)
+    urgency = serializers.ChoiceField(
+        choices=QuoteRequest.URGENCY_CHOICES,
+        default=QuoteRequest.URGENCY_NORMAL,
+    )
+    notes = serializers.CharField(required=False, allow_blank=True)
+    internal_notes = serializers.CharField(required=False, allow_blank=True)
+    estimated_delivery_days = serializers.IntegerField(
+        min_value=1, max_value=365, required=False, allow_null=True
+    )
+    payment_option = serializers.ChoiceField(
+        choices=QuoteRequest.PAYMENT_OPTION_CHOICES,
+        default=QuoteRequest.PAYMENT_DEPOSIT_50,
+    )
+    delivery_method = serializers.ChoiceField(
+        choices=[("pickup", "Levantamento"), ("delivery", "Entrega")],
+        default="pickup",
+    )
+    delivery_address = serializers.CharField(required=False, allow_blank=True)
+    items = ReceptionIntakeItemSerializer(many=True, allow_empty=False)
+
+    def validate(self, attrs):
+        user = attrs.get("user")
+        if user:
+            profile = getattr(user, "profile", None)
+            attrs["client_name"] = attrs.get("client_name") or user.get_full_name() or user.email
+            attrs["client_email"] = attrs.get("client_email") or user.email
+            attrs["client_phone"] = attrs.get("client_phone") or getattr(profile, "phone", "")
+            attrs["client_company"] = attrs.get("client_company") or getattr(profile, "company", "")
+            attrs["delivery_address"] = attrs.get("delivery_address") or getattr(profile, "address", "")
+
+        if not attrs.get("client_name"):
+            raise serializers.ValidationError({"client_name": "Indique o nome do cliente."})
+        if not (attrs.get("client_email") or attrs.get("client_phone")):
+            raise serializers.ValidationError(
+                {"client_phone": "Indique pelo menos um telefone ou e-mail."}
+            )
+
+        if attrs["outcome"] == self.OUTCOME_CONFIRMED_ORDER:
+            missing_prices = [
+                index + 1
+                for index, item in enumerate(attrs["items"])
+                if item.get("unit_price") is None
+            ]
+            if missing_prices:
+                raise serializers.ValidationError(
+                    {
+                        "items": (
+                            "Indique o preço de todos os itens para uma encomenda confirmada. "
+                            f"Itens sem preço: {', '.join(map(str, missing_prices))}."
+                        )
+                    }
+                )
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        items_data = validated_data.pop("items")
+        outcome = validated_data.pop("outcome")
+        validated_data.pop("delivery_method", None)
+        validated_data.pop("delivery_address", None)
+        priced_items = [item for item in items_data if item.get("unit_price") is not None]
+        total = sum(
+            item["unit_price"] * Decimal(item["quantity"])
+            for item in priced_items
+        )
+        quote = QuoteRequest.objects.create(
+            **validated_data,
+            status=(
+                QuoteRequest.STATUS_QUOTED
+                if outcome == self.OUTCOME_CONFIRMED_ORDER
+                else QuoteRequest.STATUS_RECEIVED
+            ),
+            estimated_price=total if priced_items else None,
+            final_price=(
+                total if outcome == self.OUTCOME_CONFIRMED_ORDER else None
+            ),
+        )
+        for position, item in enumerate(items_data):
+            QuoteItem.objects.create(
+                quote=quote,
+                product=item.get("product"),
+                description=item["description"],
+                quantity=item["quantity"],
+                unit_price=item.get("unit_price"),
                 notes=item.get("notes", ""),
                 position=position,
             )

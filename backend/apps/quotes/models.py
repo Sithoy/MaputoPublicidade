@@ -6,6 +6,19 @@ from apps.catalog.models import Product, ProductVariant
 
 
 class QuoteRequest(models.Model):
+    CONTACT_WALK_IN = "walk_in"
+    CONTACT_PHONE = "phone"
+    CONTACT_WHATSAPP = "whatsapp"
+    CONTACT_EMAIL = "email"
+    CONTACT_WEB = "web"
+    CONTACT_SOURCE_CHOICES = [
+        (CONTACT_WALK_IN, "Atendimento presencial"),
+        (CONTACT_PHONE, "Chamada telefónica"),
+        (CONTACT_WHATSAPP, "WhatsApp"),
+        (CONTACT_EMAIL, "E-mail"),
+        (CONTACT_WEB, "Website"),
+    ]
+
     STATUS_RECEIVED = "received"
     STATUS_REVIEWING = "reviewing"
     STATUS_QUOTED = "quoted"
@@ -52,9 +65,15 @@ class QuoteRequest(models.Model):
     )
 
     client_name = models.CharField("nome do cliente", max_length=255)
-    client_email = models.EmailField("email do cliente")
+    client_email = models.EmailField("email do cliente", blank=True)
     client_phone = models.CharField("telefone do cliente", max_length=50, blank=True)
     client_company = models.CharField("empresa", max_length=255, blank=True)
+    contact_source = models.CharField(
+        "origem do atendimento",
+        max_length=20,
+        choices=CONTACT_SOURCE_CHOICES,
+        default=CONTACT_WEB,
+    )
 
     urgency = models.CharField(
         "urgência", max_length=20, choices=URGENCY_CHOICES, default=URGENCY_NORMAL

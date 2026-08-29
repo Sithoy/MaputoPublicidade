@@ -44,12 +44,18 @@ describe('staff RBAC helpers', () => {
     expect(
       getDefaultAdminPath(user({ role: 'finance', capabilities: ['invoices.view'] }))
     ).toBe('/admin/faturas');
+    expect(
+      getDefaultAdminPath(
+        user({ role: 'receptionist', capabilities: ['intake.create', 'quotes.view', 'orders.view'] })
+      )
+    ).toBe('/admin/atendimento/novo');
   });
 
   it('maps protected routes and displays the assigned role', () => {
     expect(getRequiredCapability('/admin/parceiros/novo')).toBe('content.manage');
     expect(getRequiredCapability('/admin/utilizadores/12')).toBe('users.manage');
     expect(getRequiredCapability('/admin/faturas/FT-2026-0001')).toBe('invoices.view');
+    expect(getRequiredCapability('/admin/atendimento/novo')).toBe('intake.create');
     expect(getRoleLabel(user())).toBe('Comercial');
   });
 });

@@ -28,10 +28,12 @@ export function DocumentItemsEditor({
   lines,
   onChange,
   products,
+  priceOptional = false,
 }: {
   lines: EditableDocumentLine[];
   onChange: (lines: EditableDocumentLine[]) => void;
   products?: Product[];
+  priceOptional?: boolean;
 }) {
   function updateLine(key: string, patch: Partial<EditableDocumentLine>) {
     onChange(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -117,7 +119,9 @@ export function DocumentItemsEditor({
               />
             </div>
             <div className="lg:col-span-2">
-              <Label htmlFor={`price-${line.key}`}>Preço unitário</Label>
+              <Label htmlFor={`price-${line.key}`}>
+                Preço unitário{priceOptional ? ' (opcional)' : ''}
+              </Label>
               <Input
                 id={`price-${line.key}`}
                 type="number"
@@ -148,7 +152,9 @@ export function DocumentItemsEditor({
 
       <div className="flex justify-end border-t border-[#e1e8e3] pt-4">
         <div className="flex min-w-64 items-center justify-between gap-8">
-          <span className="text-sm font-medium text-gray-500">Subtotal</span>
+          <span className="text-sm font-medium text-gray-500">
+            {priceOptional ? 'Subtotal conhecido' : 'Subtotal'}
+          </span>
           <span className="text-lg font-bold text-dark">{formatMZN(subtotal)}</span>
         </div>
       </div>

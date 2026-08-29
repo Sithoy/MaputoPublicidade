@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, RefreshCw } from 'lucide-react';
+import { ArrowRight, RefreshCw, UserRoundPlus } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { getOrders, getQuotes } from '@/lib/admin-api';
@@ -20,6 +20,7 @@ type BoardCard = {
   href: string;
   paymentLabel?: string;
   needsArtwork: boolean;
+  sourceLabel?: string;
 };
 
 type BoardColumn = {
@@ -83,7 +84,7 @@ const columns: BoardColumn[] = [
 ];
 
 export default function AdminBoardPage() {
-  const { loading: authLoading } = useAdminAuth();
+  const { loading: authLoading, can } = useAdminAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,6 +121,7 @@ export default function AdminBoardPage() {
         created_at: q.created_at,
         href: `/admin/orcamentos/${q.reference}`,
         needsArtwork: q.artwork_status === 'pending',
+        sourceLabel: q.contact_source_display,
       }));
     const orderCards = orders
       .filter((o) => o.status !== 'cancelled')
@@ -158,14 +160,25 @@ export default function AdminBoardPage() {
             Todos os trabalhos em curso, por etapa. Clique num cartão para abrir o detalhe.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={load}
-          className="inline-flex items-center gap-2 self-start rounded-xl border border-[#dfe7e1] px-3 py-2 text-sm font-semibold text-[#5d6d65] transition hover:bg-white"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Actualizar
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {can('intake.create') ? (
+            <Link
+              href="/admin/atendimento/novo"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
+            >
+              <UserRoundPlus className="h-4 w-4" />
+              Novo atendimento
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            onClick={load}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#dfe7e1] px-3 py-2 text-sm font-semibold text-[#5d6d65] transition hover:bg-white"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {error ? <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
@@ -219,6 +232,11 @@ export default function AdminBoardPage() {
                           {card.needsArtwork ? (
                             <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-inset ring-violet-200">
                               Arte por aprovar
+                            </span>
+                          ) : null}
+                          {card.sourceLabel ? (
+                            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-200">
+                              {card.sourceLabel}
                             </span>
                           ) : null}
                         </div>

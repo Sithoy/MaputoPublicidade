@@ -1,12 +1,113 @@
 import pytest
+from django.contrib.auth.models import User
 from django.urls import reverse
+from rest_framework.test import APIClient
 
+from apps.accounts.roles import StaffCapability, StaffRole, has_staff_capability
 from apps.orders.models import Order
 from apps.quotes.models import ArtworkApproval, QuoteItem, QuoteRequest
 
 
 @pytest.mark.django_db
 class TestQuoteApi:
+    @staticmethod
+    def receptionist_client(suffix="intake"):
+        user = User.objects.create_user(
+            username=f"reception-{suffix}",
+            email=f"reception-{suffix}@example.com",
+            password="Reception-Test-2026!",
+            is_staff=True,
+        )
+        user.profile.staff_role = StaffRole.RECEPTIONIST
+        user.profile.save(update_fields=["staff_role"])
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return user, client
+
+    def test_receptionist_creates_phone_quote_without_email(self, product):
+        receptionist, client = self.receptionist_client("phone")
+
+        response = client.post(
+            reverse("quote-intake"),
+            {
+                "client_name": "Cliente por telefone",
+                "client_phone": "+258 84 000 0000",
+                "client_email": "",
+                "contact_source": QuoteRequest.CONTACT_PHONE,
+                "outcome": "quote",
+                "estimated_delivery_days": 7,
+                "payment_option": QuoteRequest.PAYMENT_DEPOSIT_50,
+                "items": [
+                    {
+                        "product_id": product.id,
+                        "description": "Banner para evento",
+                        "quantity": 2,
+                    }
+                ],
+            },
+            format="json",
+        )
+
+        assert response.status_code == 201
+        payload = response.json()
+        assert payload["outcome"] == "quote"
+        assert payload["order_reference"] is None
+        quote = QuoteRequest.objects.get(reference=payload["quote_reference"])
+        assert quote.status == QuoteRequest.STATUS_RECEIVED
+        assert quote.contact_source == QuoteRequest.CONTACT_PHONE
+        assert quote.client_email == ""
+        assert quote.activity_events.filter(actor=receptionist, action="created").exists()
+        assert has_staff_capability(receptionist, StaffCapability.CREATE_INTAKE)
+        assert not has_staff_capability(receptionist, StaffCapability.MANAGE_QUOTES)
+
+    def test_receptionist_creates_confirmed_walk_in_order(self, product):
+        receptionist, client = self.receptionist_client("walk-in")
+
+        response = client.post(
+            reverse("quote-intake"),
+            {
+                "client_name": "Cliente de balcão",
+                "client_phone": "+258 85 000 0000",
+                "contact_source": QuoteRequest.CONTACT_WALK_IN,
+                "outcome": "confirmed_order",
+                "estimated_delivery_days": 5,
+                "payment_option": QuoteRequest.PAYMENT_DEPOSIT_50,
+                "delivery_method": Order.DELIVERY_PICKUP,
+                "items": [
+                    {
+                        "product_id": product.id,
+                        "description": "Cartões de visita",
+                        "quantity": 2,
+                        "unit_price": "750.00",
+                    }
+                ],
+            },
+            format="json",
+        )
+
+        assert response.status_code == 201
+        payload = response.json()
+        order = Order.objects.get(reference=payload["order_reference"])
+        quote = order.quote
+        assert payload["outcome"] == "confirmed_order"
+        assert order.status == Order.STATUS_APPROVED
+        assert order.final_price == 1500
+        assert order.items.get().quantity == 2
+        assert quote.status == QuoteRequest.STATUS_APPROVED
+        assert quote.price_approved_by == receptionist
+        assert quote.contact_source == QuoteRequest.CONTACT_WALK_IN
+
+    def test_receptionist_cannot_change_quote_prices(self, quote):
+        _receptionist, client = self.receptionist_client("restricted")
+
+        response = client.post(
+            reverse("quote-set-price", kwargs={"reference": quote.reference}),
+            {"final_price": "1200.00"},
+            format="json",
+        )
+
+        assert response.status_code == 403
+
     def test_staff_creates_priced_manual_quote(self, staff_client, client_user, product):
         response = staff_client.post(
             reverse("quote-manual"),
