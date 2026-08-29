@@ -12,14 +12,9 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { exportQuotes, getQuotes } from '@/lib/admin-api';
 import type { Quote } from '@/lib/api';
+import { quoteLabel } from '@/lib/quote-label';
 import { orderStatusLabels, orderStatusOptions } from '@/lib/status';
 import { formatMZN } from '@/lib/utils';
-
-function quoteLabel(quote: Quote) {
-  if (quote.items.length === 0) return 'Orçamento';
-  if (quote.items.length === 1) return quote.items[0].description;
-  return `${quote.items[0].description} +${quote.items.length - 1}`;
-}
 
 function AdminQuotesContent() {
   const { loading: authLoading, can } = useAdminAuth();
