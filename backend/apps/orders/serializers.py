@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from apps.accounts.roles import StaffCapability, has_staff_capability
@@ -115,6 +116,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     # Staff-only: never leak internal notes to the client who owns the order.
     internal_notes = serializers.SerializerMethodField()
     activity = serializers.SerializerMethodField()
+    delivery_responsible_name = serializers.SerializerMethodField()
+    completion_photo = RelativeFileField(read_only=True)
     invoice_reference = serializers.SerializerMethodField()
 
     class Meta:
@@ -140,6 +143,12 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "delivery_method",
             "delivery_method_display",
             "delivery_address",
+            "scheduled_date",
+            "installation_required",
+            "delivery_responsible",
+            "delivery_responsible_name",
+            "completion_photo",
+            "client_confirmed_at",
             "internal_notes",
             "items",
             "artwork",
@@ -192,6 +201,11 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         from apps.core.activity import serialize_activity
 
         return serialize_activity(obj, self.context)
+
+    def get_delivery_responsible_name(self, obj):
+        if not obj.delivery_responsible:
+            return None
+        return obj.delivery_responsible.get_full_name() or obj.delivery_responsible.email
 
 
 class OrderItemCreateSerializer(serializers.ModelSerializer):
@@ -318,9 +332,24 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
+class OrderDeliverySerializer(serializers.Serializer):
+    """Staff-only delivery/installation details."""
+
+    delivery_method = serializers.ChoiceField(choices=Order.DELIVERY_CHOICES, required=False)
+    delivery_address = serializers.CharField(required=False, allow_blank=True)
+    scheduled_date = serializers.DateTimeField(required=False, allow_null=True)
+    installation_required = serializers.BooleanField(required=False)
+    delivery_responsible_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(is_staff=True, is_active=True),
+        source="delivery_responsible",
+        required=False,
+        allow_null=True,
+    )
+    completion_photo = serializers.ImageField(required=False, allow_null=True)
+
+
 class OrderStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Order.STATUS_CHOICES)
-
 
 class OrderPaymentSerializer(serializers.Serializer):
     payment_status = serializers.ChoiceField(choices=Order.PAYMENT_CHOICES)

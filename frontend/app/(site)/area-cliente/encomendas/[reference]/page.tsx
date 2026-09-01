@@ -15,6 +15,7 @@ import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import {
   approveArtwork,
+  confirmDelivery,
   getClientOrder,
   getOrderPayments,
   initiatePayment,
@@ -59,6 +60,19 @@ export default function ClientOrderDetailPage() {
     if (!reference) return;
     loadOrder();
   }, [reference, loadOrder]);
+
+  async function handleConfirmDelivery() {
+    if (!order) return;
+    setActionLoading(true);
+    try {
+      await confirmDelivery(order.reference);
+      await loadOrder();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao confirmar entrega');
+    } finally {
+      setActionLoading(false);
+    }
+  }
 
   async function handleApproveArtwork() {
     if (!order?.quote_reference) return;
@@ -304,6 +318,56 @@ export default function ClientOrderDetailPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      {order.scheduled_date || order.status === 'ready' || order.client_confirmed_at ? (
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            <h2 className="text-lg font-semibold text-dark">Entrega</h2>
+            <div className="text-sm text-[#5d6d65]">
+              <p>{order.delivery_method_display || 'Levantamento'}</p>
+              {order.scheduled_date ? (
+                <p className="mt-1">
+                  Agendado para{' '}
+                  <span className="font-semibold text-dark">
+                    {new Date(order.scheduled_date).toLocaleString('pt-MZ')}
+                  </span>
+                </p>
+              ) : null}
+              {order.installation_required ? <p className="mt-1">Inclui instalação pela equipa MP.</p> : null}
+              {order.delivery_responsible_name ? <p className="mt-1">Responsável: {order.delivery_responsible_name}</p> : null}
+            </div>
+            {order.completion_photo ? (
+              <a
+                href={order.completion_photo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-sm font-semibold text-brand-700 hover:underline"
+              >
+                Ver foto de conclusão
+              </a>
+            ) : null}
+            {order.client_confirmed_at ? (
+              <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+                Entrega confirmada por si em {new Date(order.client_confirmed_at).toLocaleString('pt-MZ')}.
+              </p>
+            ) : order.status === 'ready' ? (
+              <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+                <p className="text-sm text-[#33443b]">
+                  O seu pedido está pronto. Confirme a recepção quando o tiver em mãos.
+                </p>
+                <Button
+                  onClick={handleConfirmDelivery}
+                  disabled={actionLoading}
+                  className="mt-3 gap-2"
+                >
+                  <Check className="h-4 w-4" />
+                  {actionLoading ? 'A processar...' : 'Confirmar recepção'}
+                </Button>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {order.quote_reference && (
         <Card>

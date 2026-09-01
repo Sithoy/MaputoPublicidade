@@ -71,3 +71,41 @@ class TestOrderApi:
         event = order.activity_events.get(action="status_changed")
         assert event.from_status == "approved"
         assert event.to_status == "in_production"
+
+    def test_staff_sets_delivery_details(self, staff_client, order, staff_user):
+        url = reverse("order-set-delivery", kwargs={"reference": order.reference})
+        response = staff_client.post(
+            url,
+            {
+                "delivery_method": "delivery",
+                "delivery_address": "Av. 25 de Setembro, Maputo",
+                "scheduled_date": "2026-09-05T10:00:00+02:00",
+                "installation_required": True,
+                "delivery_responsible_id": staff_user.id,
+            },
+            format="json",
+        )
+        assert response.status_code == 200, response.json()
+        order.refresh_from_db()
+        assert order.installation_required is True
+        assert order.delivery_responsible == staff_user
+        assert order.activity_events.filter(action="delivery_updated").exists()
+
+    def test_client_confirms_delivery_when_ready(self, authenticated_client, order, staff_client):
+        order.status = Order.STATUS_READY
+        order.save(update_fields=["status"])
+
+        url = reverse("order-confirm-delivery", kwargs={"reference": order.reference})
+        response = authenticated_client.post(url)
+        assert response.status_code == 200, response.json()
+        order.refresh_from_db()
+        assert order.status == Order.STATUS_DELIVERED
+        assert order.client_confirmed_at is not None
+        assert order.activity_events.filter(action="delivery_confirmed").exists()
+
+    def test_client_cannot_confirm_before_ready(self, authenticated_client, order):
+        url = reverse("order-confirm-delivery", kwargs={"reference": order.reference})
+        response = authenticated_client.post(url)
+        assert response.status_code == 400
+        order.refresh_from_db()
+        assert order.status == Order.STATUS_APPROVED

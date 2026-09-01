@@ -18,6 +18,8 @@ class ActivityEvent(models.Model):
     ACTION_CONVERTED_TO_ORDER = "converted_to_order"
     ACTION_PAYMENT_RECORDED = "payment_recorded"
     ACTION_PAYMENT_STATUS_CHANGED = "payment_status_changed"
+    ACTION_DELIVERY_UPDATED = "delivery_updated"
+    ACTION_DELIVERY_CONFIRMED = "delivery_confirmed"
     ACTION_CHOICES = [
         (ACTION_CREATED, "Pedido registado"),
         (ACTION_STATUS_CHANGED, "Estado actualizado"),
@@ -28,6 +30,8 @@ class ActivityEvent(models.Model):
         (ACTION_CONVERTED_TO_ORDER, "Convertido em encomenda"),
         (ACTION_PAYMENT_RECORDED, "Pagamento registado"),
         (ACTION_PAYMENT_STATUS_CHANGED, "Estado de pagamento actualizado"),
+        (ACTION_DELIVERY_UPDATED, "Entrega actualizada"),
+        (ACTION_DELIVERY_CONFIRMED, "Entrega confirmada pelo cliente"),
     ]
 
     quote = models.ForeignKey(

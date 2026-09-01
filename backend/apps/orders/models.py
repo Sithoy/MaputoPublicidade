@@ -106,6 +106,22 @@ class Order(models.Model):
         blank=True,
     )
     delivery_address = models.TextField("morada de entrega", blank=True)
+    scheduled_date = models.DateTimeField("data agendada", null=True, blank=True)
+    installation_required = models.BooleanField("requer instalação", default=False)
+    delivery_responsible = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="assigned_deliveries",
+        null=True,
+        blank=True,
+        verbose_name="responsável pela entrega",
+    )
+    completion_photo = models.ImageField(
+        "foto de conclusão", upload_to="uploads/delivery/", null=True, blank=True
+    )
+    client_confirmed_at = models.DateTimeField(
+        "confirmado pelo cliente em", null=True, blank=True
+    )
     internal_notes = models.TextField("notas internas", blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
