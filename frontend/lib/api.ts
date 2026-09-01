@@ -567,6 +567,12 @@ export type Order = {
   delivery_method?: 'pickup' | 'delivery';
   delivery_method_display?: string;
   delivery_address?: string;
+  scheduled_date?: string | null;
+  installation_required?: boolean;
+  delivery_responsible?: number | null;
+  delivery_responsible_name?: string | null;
+  completion_photo?: string | null;
+  client_confirmed_at?: string | null;
   internal_notes?: string | null;
   items: OrderItem[];
   payments?: Payment[];

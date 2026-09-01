@@ -1,5 +1,7 @@
+from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -14,6 +16,7 @@ from apps.payments.serializers import PaymentCreateSerializer, PaymentSerializer
 from .models import Order
 from .serializers import (
     OrderCreateSerializer,
+    OrderDeliverySerializer,
     OrderDetailSerializer,
     OrderListSerializer,
     OrderPaymentSerializer,
@@ -48,7 +51,7 @@ class OrderViewSet(
         return self.serializer_classes.get(self.action, OrderListSerializer)
 
     def get_permissions(self):
-        if self.action in ["create", "update", "partial_update"]:
+        if self.action in ["create", "update", "partial_update", "set_delivery"]:
             return [HasStaffCapability(StaffCapability.MANAGE_ORDERS)]
         if self.action == "set_status":
             return [HasStaffCapability(StaffCapability.MANAGE_ORDER_STATUS)]
@@ -215,3 +218,68 @@ class OrderViewSet(
         )
         output = PaymentSerializer(payment)
         return Response(output.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="set-delivery",
+        parser_classes=[JSONParser, FormParser, MultiPartParser],
+    )
+    def set_delivery(self, request, reference=None):
+        order = self.get_object()
+        serializer = OrderDeliverySerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        update_fields = ["updated_at"]
+        for field in [
+            "delivery_method",
+            "delivery_address",
+            "scheduled_date",
+            "installation_required",
+            "delivery_responsible",
+            "completion_photo",
+        ]:
+            if field in data:
+                setattr(order, field, data[field])
+                update_fields.append(field)
+        order.save(update_fields=update_fields)
+
+        record_activity(
+            action=ActivityEvent.ACTION_DELIVERY_UPDATED,
+            order=order,
+            actor=request.user,
+            comment=(
+                f"Entrega agendada para {timezone.localtime(order.scheduled_date):%d/%m/%Y %H:%M}"
+                if order.scheduled_date
+                else "Detalhes de entrega actualizados"
+            ),
+        )
+        return Response(OrderDetailSerializer(order, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="confirm-delivery")
+    def confirm_delivery(self, request, reference=None):
+        order = self.get_object()
+        if order.client_confirmed_at:
+            return Response(
+                {"detail": "A entrega já foi confirmada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if order.status != Order.STATUS_READY:
+            return Response(
+                {"detail": "A encomenda ainda não está pronta para entrega."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        old_status = order.status
+        order.client_confirmed_at = timezone.now()
+        order.status = Order.STATUS_DELIVERED
+        order.save(update_fields=["client_confirmed_at", "status", "updated_at"])
+        record_activity(
+            action=ActivityEvent.ACTION_DELIVERY_CONFIRMED,
+            order=order,
+            actor=request.user,
+            from_status=old_status,
+            to_status=order.status,
+        )
+        notify_order_status_changed(order, old_status)
+        return Response(OrderDetailSerializer(order, context={"request": request}).data)

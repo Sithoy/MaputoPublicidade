@@ -279,6 +279,12 @@ export async function initiatePayment(data: PaymentInitiateData): Promise<Paymen
   }) as Promise<PaymentInitiateResponse>;
 }
 
+export async function confirmDelivery(reference: string): Promise<Order> {
+  return fetchWithAuth(`/api/orders/${reference}/confirm-delivery/`, {
+    method: 'POST',
+  }) as Promise<Order>;
+}
+
 export async function approveQuotePrice(reference: string, comment?: string) {
   return fetchWithAuth(`/api/quotes/${reference}/approve-price/`, {
     method: 'POST',

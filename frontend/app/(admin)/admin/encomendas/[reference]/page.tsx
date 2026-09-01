@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Truck } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -14,8 +14,8 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
-import { createOrderPayment, getOrder, getOrderPayments, updateOrderPayment, updateOrderStatus } from '@/lib/admin-api';
-import type { Order, Payment } from '@/lib/api';
+import { createOrderPayment, getOrder, getOrderPayments, getUsers, updateOrderDelivery, updateOrderPayment, updateOrderStatus } from '@/lib/admin-api';
+import type { Order, Payment, User } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { formatMZN } from '@/lib/utils';
 import { allowedNextStatuses, orderStatusLabels, orderStatusTransitions } from '@/lib/status';
@@ -52,6 +52,23 @@ export default function AdminOrderDetailPage() {
   const [newNotes, setNewNotes] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
 
+  const [deliveryMethod, setDeliveryMethod] = useState('pickup');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [installationRequired, setInstallationRequired] = useState(false);
+  const [responsibleId, setResponsibleId] = useState('');
+  const [completionPhoto, setCompletionPhoto] = useState<File | null>(null);
+  const [staffUsers, setStaffUsers] = useState<User[]>([]);
+
+  const canManageDelivery = can('orders.manage');
+
+  function toLocalInputValue(iso?: string | null) {
+    if (!iso) return '';
+    const date = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
   const loadOrder = useCallback(async () => {
     if (!reference) return;
     setLoading(true);
@@ -66,6 +83,11 @@ export default function AdminOrderDetailPage() {
       setPaymentStatus(data.payment_status);
       setAmountPaid(data.amount_paid?.toString() || '');
       setInternalNotes(data.internal_notes || '');
+      setDeliveryMethod(data.delivery_method || 'pickup');
+      setDeliveryAddress(data.delivery_address || '');
+      setScheduledDate(toLocalInputValue(data.scheduled_date));
+      setInstallationRequired(Boolean(data.installation_required));
+      setResponsibleId(data.delivery_responsible ? String(data.delivery_responsible) : '');
       setPayments(paymentList);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Erro ao carregar encomenda'));
@@ -78,6 +100,35 @@ export default function AdminOrderDetailPage() {
     if (authLoading || !reference) return;
     loadOrder();
   }, [authLoading, reference, loadOrder]);
+
+  useEffect(() => {
+    if (authLoading || !canManageDelivery) return;
+    getUsers('?page_size=100')
+      .then((data) => setStaffUsers(data.results.filter((u) => u.is_staff)))
+      .catch(() => setStaffUsers([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  async function handleDeliverySave() {
+    if (!reference) return;
+    setSaving(true);
+    try {
+      await updateOrderDelivery(reference, {
+        delivery_method: deliveryMethod as 'pickup' | 'delivery',
+        delivery_address: deliveryAddress,
+        scheduled_date: scheduledDate ? new Date(scheduledDate).toISOString() : undefined,
+        installation_required: installationRequired,
+        delivery_responsible_id: responsibleId ? Number(responsibleId) : null,
+        completion_photo: completionPhoto,
+      });
+      setCompletionPhoto(null);
+      await loadOrder();
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Erro ao guardar entrega'));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function performStatusUpdate() {
     if (!reference) return;
@@ -249,6 +300,79 @@ export default function AdminOrderDetailPage() {
           </Button>
         </CardContent>
       </Card> : null}
+
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <div className="flex items-center gap-2">
+            <Truck className="h-5 w-5 text-brand-700" />
+            <h2 className="text-lg font-semibold text-dark">Entrega</h2>
+          </div>
+          {order.client_confirmed_at ? (
+            <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+              Entrega confirmada pelo cliente em{' '}
+              {new Date(order.client_confirmed_at).toLocaleString('pt-MZ')}.
+            </p>
+          ) : null}
+          {canManageDelivery ? (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="delivery_method">Método</Label>
+                  <Select id="delivery_method" value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value)} className="mt-1">
+                    <option value="pickup">Levantamento</option>
+                    <option value="delivery">Entrega</option>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="scheduled_date">Data agendada</Label>
+                  <Input id="scheduled_date" type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="installation_required">Instalação necessária</Label>
+                  <Select id="installation_required" value={installationRequired ? 'yes' : 'no'} onChange={(e) => setInstallationRequired(e.target.value === 'yes')} className="mt-1">
+                    <option value="no">Não</option>
+                    <option value="yes">Sim</option>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="delivery_responsible">Responsável</Label>
+                  <Select id="delivery_responsible" value={responsibleId} onChange={(e) => setResponsibleId(e.target.value)} className="mt-1">
+                    <option value="">Por atribuir</option>
+                    {staffUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {[user.first_name, user.last_name].filter(Boolean).join(' ') || user.email}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="delivery_address">Morada de entrega</Label>
+                <Textarea id="delivery_address" rows={2} value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="completion_photo">Foto de conclusão</Label>
+                <Input id="completion_photo" type="file" accept="image/*" onChange={(e) => setCompletionPhoto(e.target.files?.[0] || null)} className="mt-1" />
+                {order.completion_photo ? (
+                  <a href={order.completion_photo} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-xs font-semibold text-brand-700 hover:underline">
+                    Ver foto actual
+                  </a>
+                ) : null}
+              </div>
+              <Button onClick={handleDeliverySave} disabled={saving} variant="outline" className="gap-2">
+                <Save className="h-4 w-4" />
+                Guardar entrega
+              </Button>
+            </>
+          ) : (
+            <div className="text-sm text-gray-600">
+              <p>{order.delivery_method_display || 'Levantamento'}</p>
+              {order.scheduled_date ? <p>Agendado: {new Date(order.scheduled_date).toLocaleString('pt-MZ')}</p> : null}
+              {order.delivery_responsible_name ? <p>Responsável: {order.delivery_responsible_name}</p> : null}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="space-y-4 p-5">
