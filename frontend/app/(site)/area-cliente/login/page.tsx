@@ -237,13 +237,23 @@ function ClientLoginForm() {
 
             <div className="mt-6 border-t border-[#e7ece8] pt-6 text-center">
               <p className="text-sm text-[#68776f]">Ainda não tem acesso ao BrandDesk?</p>
-              <Link
-                href="/area-cliente/registo"
-                className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
-              >
-                Criar conta de cliente
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+                <Link
+                  href="/branddesk/demo"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
+                >
+                  Explorar a demonstração
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+                <span className="hidden text-[#c8d2cb] sm:inline" aria-hidden="true">·</span>
+                <Link
+                  href="/area-cliente/registo"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
+                >
+                  Criar conta de cliente
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
             </div>
           </div>
 

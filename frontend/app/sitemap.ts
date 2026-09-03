@@ -36,6 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/contactos',
     '/portfolio',
     '/orcamento',
+    '/branddesk/demo',
   ];
 
   const serviceSlugs = mainServices.map((service) => service.slug);
