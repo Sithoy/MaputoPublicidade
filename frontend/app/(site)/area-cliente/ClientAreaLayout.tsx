@@ -11,6 +11,7 @@ import {
   FileText,
   FolderKanban,
   Headphones,
+  History,
   LayoutDashboard,
   LibraryBig,
   LogOut,
@@ -25,6 +26,7 @@ import { cn } from '@/lib/utils';
 const portalNav = [
   { href: '/area-cliente', label: 'Visão geral', icon: LayoutDashboard },
   { href: '/area-cliente/encomendas', label: 'Projetos', icon: FolderKanban },
+  { href: '/area-cliente/historico', label: 'Histórico', icon: History },
   { href: '/area-cliente/aprovacoes', label: 'Aprovações', icon: BadgeCheck },
   { href: '/area-cliente/orcamentos', label: 'Propostas', icon: FileText },
   { href: '/area-cliente/marca', label: 'Biblioteca da marca', icon: LibraryBig },
@@ -38,6 +40,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/area-cliente/novo-pedido') return 'Novo pedido';
   if (pathname.startsWith('/area-cliente/encomendas/')) return 'Acompanhamento do pedido';
   if (pathname === '/area-cliente/encomendas') return 'Projetos';
+  if (pathname === '/area-cliente/historico') return 'Histórico de trabalhos';
   if (pathname === '/area-cliente/aprovacoes') return 'Aprovações';
   if (pathname.startsWith('/area-cliente/orcamentos/')) return 'Detalhe da proposta';
   if (pathname === '/area-cliente/orcamentos') return 'Propostas';
