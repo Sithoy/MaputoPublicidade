@@ -38,7 +38,6 @@ import {
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import type { OrderStatus } from '@/lib/api';
 import { cn, formatMZN } from '@/lib/utils';
-import { whatsappHref } from '@/lib/company';
 
 type DemoView = 'overview' | 'projects' | 'history' | 'approvals' | 'quotes' | 'brand';
 
@@ -154,10 +153,6 @@ const completedJobs = [
   },
 ];
 
-const supportUrl = whatsappHref(
-  'Olá! Explorei a demonstração do BrandDesk e gostaria de saber mais.'
-);
-
 function DemoBadge() {
   return (
     <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-800 ring-1 ring-inset ring-amber-200">
@@ -269,15 +264,13 @@ function Sidebar({
           <p className="mt-1 text-xs leading-5 text-white/65">
             A equipa MP prepara o BrandDesk para a sua empresa.
           </p>
-          <a
-            href={supportUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/area-cliente/registo"
             className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-white hover:text-brand-100"
           >
-            Falar com a equipa
+            Criar a minha conta
             <ArrowRight className="h-3.5 w-3.5" />
-          </a>
+          </Link>
         </div>
       </div>
     </aside>
@@ -738,8 +731,8 @@ export function BrandDeskDemo() {
             {view === 'brand' ? <BrandLibraryView /> : null}
 
             <section className="mt-5 flex flex-col items-start justify-between gap-5 rounded-3xl border border-brand-800/10 bg-white p-5 sm:flex-row sm:items-center sm:p-6">
-              <div className="flex items-start gap-4"><span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><Headphones className="h-5 w-5" /></span><div><h2 className="font-semibold text-dark">Pronto para organizar o trabalho da sua marca?</h2><p className="mt-1 text-sm leading-6 text-[#718078]">Fale com a equipa MP ou crie a sua conta para começar.</p></div></div>
-              <div className="flex flex-wrap gap-3"><Link href="/" className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#d6dfd8] bg-white px-4 text-sm font-semibold text-[#405047]"><ArrowLeft className="h-4 w-4" /> Voltar ao site</Link><a href={supportUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white">Falar com a equipa <ArrowRight className="h-4 w-4" /></a></div>
+              <div className="flex items-start gap-4"><span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><Headphones className="h-5 w-5" /></span><div><h2 className="font-semibold text-dark">Pronto para organizar o trabalho da sua marca?</h2><p className="mt-1 text-sm leading-6 text-[#718078]">Crie a sua conta e comece a organizar pedidos, aprovações e entregas.</p></div></div>
+              <div className="flex flex-wrap gap-3"><Link href="/" className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#d6dfd8] bg-white px-4 text-sm font-semibold text-[#405047]"><ArrowLeft className="h-4 w-4" /> Voltar ao site</Link><Link href="/area-cliente/registo" className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white">Criar a minha conta <ArrowRight className="h-4 w-4" /></Link></div>
             </section>
           </div>
         </main>

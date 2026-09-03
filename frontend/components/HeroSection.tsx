@@ -48,7 +48,7 @@ export function HeroSection() {
               href="/sobre"
               className="group inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/45 bg-white/5 px-7 text-base font-semibold text-white backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-white/70 hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#063F2B] sm:w-auto"
             >
-              Conhecer a nossa história
+              Conheça a nossa história
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
