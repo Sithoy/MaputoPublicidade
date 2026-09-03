@@ -37,4 +37,6 @@ class HeadlessAdapter(DefaultHeadlessAdapter):
         data["role"] = role
         data["role_display"] = get_role_display(role)
         data["capabilities"] = sorted(get_staff_capabilities(user))
+        profile = getattr(user, "profile", None)
+        data["profile"] = {"company": profile.company} if profile else {}
         return data

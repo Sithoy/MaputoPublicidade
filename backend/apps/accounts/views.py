@@ -4,6 +4,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,6 +19,7 @@ from .roles import (
 )
 from .serializers import (
     AdminPasswordResetSerializer,
+    ClientProfileSerializer,
     UserAdminSerializer,
     UserSerializer,
 )
@@ -235,6 +237,34 @@ class MeView(APIView):
 
     def patch(self, request):
         serializer = UserSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class CompanyProfileView(APIView):
+    """Return or update the authenticated client's company identity."""
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+    @staticmethod
+    def get_profile(user):
+        from .models import ClientProfile
+
+        return ClientProfile.objects.get_or_create(user=user)[0]
+
+    def get(self, request):
+        profile = self.get_profile(request.user)
+        return Response(ClientProfileSerializer(profile).data)
+
+    def patch(self, request):
+        profile = self.get_profile(request.user)
+        serializer = ClientProfileSerializer(
+            profile,
+            data=request.data,
+            partial=True,
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

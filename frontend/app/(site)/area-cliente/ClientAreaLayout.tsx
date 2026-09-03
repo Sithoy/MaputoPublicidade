@@ -30,7 +30,7 @@ const portalNav = [
   { href: '/area-cliente/aprovacoes', label: 'Aprovações', icon: BadgeCheck },
   { href: '/area-cliente/orcamentos', label: 'Propostas', icon: FileText },
   { href: '/area-cliente/marca', label: 'Biblioteca da marca', icon: LibraryBig },
-  { href: '/area-cliente/perfil', label: 'Conta empresarial', icon: Building2 },
+  { href: '/area-cliente/perfil', label: 'Perfil da empresa', icon: Building2 },
 ];
 
 const SUPPORT_URL =
@@ -45,7 +45,7 @@ function getPageTitle(pathname: string) {
   if (pathname.startsWith('/area-cliente/orcamentos/')) return 'Detalhe da proposta';
   if (pathname === '/area-cliente/orcamentos') return 'Propostas';
   if (pathname === '/area-cliente/marca') return 'Biblioteca da marca';
-  if (pathname === '/area-cliente/perfil') return 'Conta empresarial';
+  if (pathname === '/area-cliente/perfil') return 'Perfil da empresa';
   return 'Visão geral';
 }
 
@@ -217,7 +217,8 @@ export default function ClientAreaLayout({ children }: { children: React.ReactNo
   if (isPublicAuthRoute) return <>{children}</>;
   if (loading) return <PortalLoading />;
 
-  const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Cliente MP';
+  const contactName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Cliente MP';
+  const displayName = user?.profile?.company?.trim() || contactName;
   const initial = displayName.charAt(0).toUpperCase();
   const pageTitle = getPageTitle(pathname);
 

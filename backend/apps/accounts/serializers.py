@@ -5,6 +5,12 @@ from django.db import transaction
 from django.utils.text import slugify
 from rest_framework import serializers
 
+from apps.core.fields import (
+    MAX_DATA_URL_IMAGE_BYTES,
+    PersistedImageSerializerMixin,
+    PersistentImageField,
+)
+
 from .models import ClientProfile
 from .roles import (
     StaffRole,
@@ -14,10 +20,58 @@ from .roles import (
 )
 
 
-class ClientProfileSerializer(serializers.ModelSerializer):
+class ClientProfileSerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):
+    persisted_image_field = "company_logo"
+    persisted_image_data_url_field = "company_logo_data_url"
+
+    company_logo = PersistentImageField(
+        required=False,
+        allow_null=True,
+        data_url_field="company_logo_data_url",
+    )
+    remove_company_logo = serializers.BooleanField(
+        write_only=True,
+        required=False,
+        default=False,
+    )
+
     class Meta:
         model = ClientProfile
-        fields = ["company", "phone", "nuit", "address", "billing_address"]
+        fields = [
+            "company",
+            "company_logo",
+            "remove_company_logo",
+            "phone",
+            "nuit",
+            "website",
+            "address",
+            "billing_address",
+        ]
+
+    def validate_company_logo(self, value):
+        if value and value.size > MAX_DATA_URL_IMAGE_BYTES:
+            raise serializers.ValidationError("O logótipo deve ter no máximo 2 MB.")
+        return value
+
+    def _remove_logo_if_requested(self, instance, remove_logo):
+        if not remove_logo:
+            return instance
+        instance.company_logo = ""
+        instance.company_logo_data_url = ""
+        instance.save(
+            update_fields=["company_logo", "company_logo_data_url", "updated_at"]
+        )
+        return instance
+
+    def create(self, validated_data):
+        remove_logo = validated_data.pop("remove_company_logo", False)
+        instance = super().create(validated_data)
+        return self._remove_logo_if_requested(instance, remove_logo)
+
+    def update(self, instance, validated_data):
+        remove_logo = validated_data.pop("remove_company_logo", False)
+        instance = super().update(instance, validated_data)
+        return self._remove_logo_if_requested(instance, remove_logo)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -66,10 +120,8 @@ class UserSerializer(serializers.ModelSerializer):
         return instance
 
 
-class ClientProfileAdminSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ClientProfile
-        fields = ["company", "phone", "nuit", "address", "billing_address"]
+class ClientProfileAdminSerializer(ClientProfileSerializer):
+    pass
 
 
 class UserAdminSerializer(serializers.ModelSerializer):

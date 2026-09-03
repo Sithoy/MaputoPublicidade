@@ -43,6 +43,34 @@ export async function updateMe(data: ProfileUpdateData): Promise<User> {
   }) as Promise<User>;
 }
 
+export type CompanyProfileUpdateData = {
+  company: string;
+  phone: string;
+  nuit: string;
+  website: string;
+  address: string;
+  billing_address: string;
+  company_logo?: File | null;
+  remove_company_logo?: boolean;
+};
+
+export async function updateCompanyProfile(data: CompanyProfileUpdateData): Promise<UserProfile> {
+  const formData = new FormData();
+  formData.append('company', data.company);
+  formData.append('phone', data.phone);
+  formData.append('nuit', data.nuit);
+  formData.append('website', data.website);
+  formData.append('address', data.address);
+  formData.append('billing_address', data.billing_address);
+  if (data.company_logo) formData.append('company_logo', data.company_logo);
+  if (data.remove_company_logo) formData.append('remove_company_logo', 'true');
+
+  return fetchWithAuth('/api/auth/company-profile/', {
+    method: 'PATCH',
+    body: formData,
+  }) as Promise<UserProfile>;
+}
+
 export async function getCart(): Promise<Cart> {
   return fetchWithAuth('/api/cart/') as Promise<Cart>;
 }

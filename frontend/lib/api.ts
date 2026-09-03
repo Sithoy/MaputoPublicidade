@@ -454,8 +454,10 @@ export type Partner = {
 
 export type UserProfile = {
   company?: string;
+  company_logo?: string | null;
   phone?: string;
   nuit?: string;
+  website?: string;
   address?: string;
   billing_address?: string;
 };

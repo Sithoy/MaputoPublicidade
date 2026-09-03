@@ -1,6 +1,9 @@
+import base64
+
 import pytest
 from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -49,6 +52,48 @@ class TestMeView:
         assert response.status_code == 200
         assert response.json()["first_name"] == "Novo"
         assert response.json()["last_name"] == "Nome"
+
+    def test_company_profile_supports_company_details_and_logo(self, authenticated_client):
+        logo = SimpleUploadedFile(
+            "empresa.png",
+            base64.b64decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+            ),
+            content_type="image/png",
+        )
+        response = authenticated_client.patch(
+            reverse("company-profile"),
+            {
+                "company": "Empresa Moçambicana, Lda",
+                "nuit": "400123456",
+                "phone": "+258 84 123 4567",
+                "website": "https://empresa.co.mz",
+                "address": "Av. 24 de Julho, Maputo",
+                "billing_address": "Av. 24 de Julho, Maputo",
+                "company_logo": logo,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["company"] == "Empresa Moçambicana, Lda"
+        assert response.json()["website"] == "https://empresa.co.mz"
+        assert response.json()["company_logo"].startswith("data:image/png;base64,")
+
+    def test_company_logo_can_be_removed(self, authenticated_client, client_user):
+        client_user.profile.company_logo_data_url = "data:image/png;base64,AAAA"
+        client_user.profile.save(update_fields=["company_logo_data_url"])
+
+        response = authenticated_client.patch(
+            reverse("company-profile"),
+            {"remove_company_logo": True},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["company_logo"] is None
+        client_user.profile.refresh_from_db()
+        assert client_user.profile.company_logo_data_url == ""
 
 
 @pytest.mark.django_db

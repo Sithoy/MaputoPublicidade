@@ -11,8 +11,20 @@ class ClientProfile(models.Model):
         User, on_delete=models.CASCADE, related_name="profile"
     )
     company = models.CharField("empresa", max_length=255, blank=True)
+    company_logo = models.ImageField(
+        "logótipo da empresa",
+        upload_to="uploads/company_logos/",
+        blank=True,
+        null=True,
+    )
+    company_logo_data_url = models.TextField(
+        "logótipo persistido",
+        blank=True,
+        editable=False,
+    )
     phone = models.CharField("telefone", max_length=50, blank=True)
     nuit = models.CharField("NUIT", max_length=50, blank=True)
+    website = models.URLField("website", blank=True)
     address = models.TextField("endereço", blank=True)
     billing_address = models.TextField("morada de faturação", blank=True)
     staff_role = models.CharField(
