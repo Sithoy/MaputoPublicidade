@@ -50,10 +50,16 @@ export function BrandPlatformSection() {
             ))}
           </div>
 
-          <Link href="/area-cliente" className="group mt-8 inline-flex items-center gap-2 text-sm font-bold text-brand-800 hover:text-brand">
-            Conhecer a área do cliente
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
+          <div className="mt-8 flex flex-wrap items-center gap-5">
+            <Link href="/branddesk/demo" className="group inline-flex items-center gap-2 rounded-xl bg-brand-800 px-5 py-3 text-sm font-bold text-white shadow-[0_14px_30px_-18px_rgba(6,63,43,0.85)] transition hover:-translate-y-0.5 hover:bg-brand-700">
+              Experimentar BrandDesk
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+            <Link href="/area-cliente" className="group inline-flex items-center gap-2 text-sm font-bold text-brand-800 hover:text-brand">
+              Já sou cliente
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
         </div>
 
         <div className="relative">

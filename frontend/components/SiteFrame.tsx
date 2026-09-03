@@ -8,9 +8,10 @@ import { WhatsAppButton } from '@/components/WhatsAppButton';
 
 export function SiteFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isClientPortal = pathname.startsWith('/area-cliente');
+  const isPortalExperience =
+    pathname.startsWith('/area-cliente') || pathname.startsWith('/branddesk/demo');
 
-  if (isClientPortal) return <>{children}</>;
+  if (isPortalExperience) return <>{children}</>;
 
   return (
     <div className="flex min-h-screen flex-col">
