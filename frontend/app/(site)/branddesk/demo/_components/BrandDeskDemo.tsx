@@ -13,6 +13,7 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   Download,
   Eye,
@@ -20,6 +21,7 @@ import {
   FileText,
   FolderKanban,
   Headphones,
+  History,
   LayoutDashboard,
   LibraryBig,
   Menu,
@@ -27,16 +29,18 @@ import {
   PackageCheck,
   Palette,
   Plus,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
   Upload,
   X,
 } from 'lucide-react';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
+import type { OrderStatus } from '@/lib/api';
 import { cn, formatMZN } from '@/lib/utils';
 import { whatsappHref } from '@/lib/company';
 
-type DemoView = 'overview' | 'projects' | 'approvals' | 'quotes' | 'brand';
+type DemoView = 'overview' | 'projects' | 'history' | 'approvals' | 'quotes' | 'brand';
 
 type NavItem = {
   id: DemoView;
@@ -48,6 +52,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { id: 'overview', label: 'Visão geral', icon: LayoutDashboard },
   { id: 'projects', label: 'Projetos', icon: FolderKanban, badge: '3' },
+  { id: 'history', label: 'Histórico', icon: History },
   { id: 'approvals', label: 'Aprovações', icon: BadgeCheck, badge: '1' },
   { id: 'quotes', label: 'Propostas', icon: FileText, badge: '1' },
   { id: 'brand', label: 'Biblioteca da marca', icon: LibraryBig },
@@ -56,38 +61,96 @@ const navItems: NavItem[] = [
 const viewTitles: Record<DemoView, string> = {
   overview: 'Visão geral',
   projects: 'Projetos',
+  history: 'Histórico de trabalhos',
   approvals: 'Aprovações',
   quotes: 'Propostas',
   brand: 'Biblioteca da marca',
 };
 
-const projects = [
+type DemoProject = {
+  reference: string;
+  title: string;
+  status: string;
+  statusKey: OrderStatus;
+  statusClass: string;
+  progress: number;
+  date: string;
+  total: number;
+  journeyDescription: string;
+};
+
+const projects: DemoProject[] = [
   {
     reference: 'MP-0148-2026',
     title: 'Sinalização da nova loja',
     status: 'Em produção',
+    statusKey: 'in_production',
     statusClass: 'bg-violet-50 text-violet-700 ring-violet-200',
     progress: 72,
     date: 'Entrega prevista: 08 Set',
     total: 128500,
+    journeyDescription: 'A sinalização está em produção e a entrega está prevista para 8 de Setembro.',
   },
   {
     reference: 'MP-0151-2026',
     title: 'Uniformes da equipa comercial',
     status: 'Aprovação necessária',
+    statusKey: 'quoted',
     statusClass: 'bg-amber-50 text-amber-700 ring-amber-200',
     progress: 43,
     date: 'Prova enviada hoje',
     total: 46750,
+    journeyDescription: 'A prova digital está pronta e aguarda a sua aprovação para avançar.',
   },
   {
     reference: 'MP-0154-2026',
     title: 'Material para campanha de verão',
     status: 'Em análise',
+    statusKey: 'reviewing',
     statusClass: 'bg-sky-50 text-sky-700 ring-sky-200',
     progress: 18,
     date: 'Pedido recebido: 02 Set',
     total: 0,
+    journeyDescription: 'A equipa está a validar quantidades, materiais e o prazo do seu pedido.',
+  },
+];
+
+const completedJobs = [
+  {
+    reference: 'MP-0096-2026',
+    title: 'Menus e sinalização sazonal',
+    deliveredAt: '18 Jul 2026',
+    total: 86400,
+    items: '6 itens',
+    image: '/branddesk-demo/social-campaign.png',
+    invoice: 'FT-2026-0081',
+  },
+  {
+    reference: 'MP-0072-2026',
+    title: 'Embalagens take-away',
+    deliveredAt: '22 Mai 2026',
+    total: 153000,
+    items: '3 itens',
+    image: '/branddesk-demo/brand-guidelines.png',
+    invoice: 'FT-2026-0059',
+  },
+  {
+    reference: 'MP-0031-2026',
+    title: 'Uniformes da equipa de loja',
+    deliveredAt: '14 Fev 2026',
+    total: 58500,
+    items: '42 peças',
+    image: '/branddesk-demo/uniform-approval.png',
+    invoice: 'FT-2026-0027',
+  },
+  {
+    reference: 'MP-0189-2025',
+    title: 'Campanha de fim de ano',
+    deliveredAt: '12 Dez 2025',
+    total: 112000,
+    items: '8 itens',
+    image: '/branddesk-demo/social-campaign.png',
+    invoice: 'FT-2025-0164',
   },
 ];
 
@@ -287,7 +350,18 @@ function ProjectList({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function Overview({ onSelect }: { onSelect: (view: DemoView) => void }) {
+function Overview({
+  onSelect,
+  selectedProjectReference,
+  onSelectProject,
+}: {
+  onSelect: (view: DemoView) => void;
+  selectedProjectReference: string;
+  onSelectProject: (reference: string) => void;
+}) {
+  const selectedProject =
+    projects.find((project) => project.reference === selectedProjectReference) || projects[0];
+
   return (
     <div className="space-y-5">
       <section className="relative overflow-hidden rounded-3xl bg-brand-900 px-6 py-8 text-white shadow-[0_24px_60px_-38px_rgba(3,42,29,0.9)] sm:px-8 sm:py-9">
@@ -320,17 +394,33 @@ function Overview({ onSelect }: { onSelect: (view: DemoView) => void }) {
 
       <section className="rounded-3xl border border-[#dfe7e1] bg-white p-5 shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)] sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Percurso do trabalho</p>
-            <h3 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">Onde está o projeto MP-0148-2026</h3>
-            <p className="mt-1 text-sm leading-6 text-[#718078]">A sinalização está em produção e a entrega está prevista para 8 de Setembro.</p>
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <h3 className="shrink-0 text-xl font-semibold tracking-[-0.02em] text-dark">Onde está o projeto:</h3>
+              <div className="relative min-w-0 sm:max-w-[420px] sm:flex-1">
+                <label htmlFor="demo-tracked-project" className="sr-only">Escolher projeto para acompanhar</label>
+                <select
+                  id="demo-tracked-project"
+                  value={selectedProject.reference}
+                  onChange={(event) => onSelectProject(event.target.value)}
+                  className="h-11 w-full appearance-none truncate rounded-xl border border-[#d7e2da] bg-[#f8faf8] py-2 pl-3 pr-10 text-sm font-semibold text-brand-900 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-50"
+                >
+                  {projects.map((project) => (
+                    <option key={project.reference} value={project.reference}>{project.reference} — {project.title}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-700" />
+              </div>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-[#718078]">{selectedProject.journeyDescription}</p>
           </div>
           <button type="button" onClick={() => onSelect('projects')} className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900">
             Abrir projeto
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
-        <WorkflowJourney status="in_production" compact className="mt-6" />
+        <WorkflowJourney status={selectedProject.statusKey} compact className="mt-6" />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[0.92fr_1.58fr]">
@@ -393,6 +483,69 @@ function ProjectsView() {
   );
 }
 
+function HistoryView() {
+  return (
+    <div className="space-y-5">
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Memória da sua marca</p>
+          <h2 className="mt-1.5 text-3xl font-semibold tracking-[-0.03em] text-dark">Histórico de trabalhos</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#718078]">Entregas, documentos e materiais aprovados continuam disponíveis quando precisar deles novamente.</p>
+        </div>
+        <button type="button" className="inline-flex h-11 items-center justify-center gap-2 self-start rounded-xl bg-brand px-4 text-sm font-semibold text-white"><RefreshCw className="h-4 w-4" />Repetir um trabalho</button>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-3" aria-label="Resumo do histórico de demonstração">
+        <StatCard icon={CheckCircle2} label="Trabalhos entregues" value="18" note="desde a criação da conta" tone="bg-brand-50 text-brand-700" />
+        <StatCard icon={Banknote} label="Valor realizado" value="409 900 MZN" note="nos trabalhos apresentados" tone="bg-sky-50 text-sky-700" />
+        <StatCard icon={Clock3} label="Última entrega" value="18 Jul 2026" note="menus e sinalização" tone="bg-amber-50 text-amber-700" />
+      </section>
+
+      <section className="rounded-3xl border border-[#dfe7e1] bg-white p-5 shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)] sm:p-7">
+        <div className="flex flex-col gap-4 border-b border-[#edf1ee] pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Arquivo organizado</p>
+            <h3 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">Trabalhos concluídos</h3>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" className="rounded-xl bg-brand-800 px-3 py-2 text-xs font-semibold text-white">2026</button>
+            <button type="button" className="rounded-xl border border-[#d7e2da] bg-white px-3 py-2 text-xs font-semibold text-[#617068]">2025</button>
+            <button type="button" className="rounded-xl border border-[#d7e2da] bg-white px-3 py-2 text-xs font-semibold text-[#617068]">Todos</button>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {completedJobs.map((job) => (
+            <article key={job.reference} className="overflow-hidden rounded-2xl border border-[#dfe7e1] bg-white transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md">
+              <div className="grid grid-cols-[112px_1fr] sm:grid-cols-[148px_1fr]">
+                <div className="relative min-h-[184px] bg-[#f4f0e8]">
+                  <Image src={job.image} alt={`Pré-visualização fictícia do trabalho ${job.title}`} fill sizes="148px" className="object-cover" />
+                </div>
+                <div className="min-w-0 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[11px] font-semibold text-brand-700">{job.reference}</span>
+                    <span className="rounded-full bg-brand-50 px-2 py-1 text-[10px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-200">Entregue</span>
+                  </div>
+                  <h4 className="mt-2 text-sm font-semibold leading-5 text-dark">{job.title}</h4>
+                  <p className="mt-2 text-xs text-[#718078]">Entregue em {job.deliveredAt} · {job.items}</p>
+                  <p className="mt-3 text-sm font-semibold text-dark">{formatMZN(job.total)}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button type="button" className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-900"><RefreshCw className="h-3.5 w-3.5" />Repetir</button>
+                    <span className="text-[#cbd4ce]" aria-hidden="true">·</span>
+                    <button type="button" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#617068] hover:text-dark"><FileText className="h-3.5 w-3.5" />{job.invoice}</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <p className="mt-6 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800 ring-1 ring-inset ring-amber-200">Esta conta é fictícia. Num BrandDesk real, cada trabalho entregue aparece aqui com os respetivos documentos e ações.</p>
+      </section>
+    </div>
+  );
+}
+
 function ApprovalsView() {
   return (
     <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
@@ -409,14 +562,16 @@ function ApprovalsView() {
         </div>
         <div className="bg-[#edf1ed] p-5 sm:p-8">
           <div className="relative mx-auto aspect-[16/10] max-w-3xl overflow-hidden rounded-2xl bg-[#f8f3ea] shadow-[0_20px_50px_-34px_rgba(23,33,29,0.6)] ring-1 ring-black/5">
-            <div className="absolute inset-x-0 top-0 h-3 bg-[#d4662b]" />
-            <div className="grid h-full place-items-center p-8 text-center">
-              <div>
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#d4662b] text-3xl font-black text-white shadow-lg">SA</div>
-                <p className="mt-5 text-xl font-bold tracking-[-0.03em] text-[#31261f]">Sabores de África</p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#9a6b4e]">Uniforme · frente</p>
-              </div>
-            </div>
+            <Image
+              src="/branddesk-demo/uniform-approval.png"
+              alt="Prova digital fictícia de polos verdes com bordado da marca Sabores de África"
+              fill
+              sizes="(max-width: 1280px) 90vw, 760px"
+              className="object-cover"
+            />
+            <span className="absolute bottom-3 left-3 rounded-lg bg-white/92 px-3 py-1.5 text-[11px] font-semibold text-brand-900 shadow-sm backdrop-blur">
+              Frente · costas · detalhe do bordado
+            </span>
           </div>
         </div>
         <div className="flex flex-wrap gap-3 p-5 sm:p-7">
@@ -490,10 +645,10 @@ function QuotesView() {
 
 function BrandLibraryView() {
   const assets = [
-    { title: 'Logótipo principal', type: 'SVG · PNG', icon: Palette, tone: 'bg-[#f8f3ea] text-[#d4662b]' },
-    { title: 'Guia da marca', type: 'PDF · 4,2 MB', icon: FileCheck2, tone: 'bg-brand-50 text-brand-700' },
-    { title: 'Logótipo monocromático', type: 'SVG · PNG', icon: Building2, tone: 'bg-[#eef1f5] text-[#44546a]' },
-    { title: 'Templates sociais', type: 'ZIP · 18 MB', icon: FolderKanban, tone: 'bg-violet-50 text-violet-700' },
+    { title: 'Identidade visual', type: 'PNG · 3,1 MB', icon: Palette, image: '/branddesk-demo/brand-guidelines.png', position: 'center' },
+    { title: 'Uniforme aprovado', type: 'PNG · 2,3 MB', icon: FileCheck2, image: '/branddesk-demo/uniform-approval.png', position: 'center' },
+    { title: 'Campanha social', type: 'PNG · 2,4 MB', icon: FolderKanban, image: '/branddesk-demo/social-campaign.png', position: 'center' },
+    { title: 'Embalagens e aplicações', type: 'PNG · 3,1 MB', icon: Building2, image: '/branddesk-demo/brand-guidelines.png', position: 'right center' },
   ];
   return (
     <div className="space-y-5">
@@ -507,7 +662,19 @@ function BrandLibraryView() {
             const Icon = asset.icon;
             return (
               <button key={asset.title} type="button" className="group rounded-2xl border border-[#dfe7e1] p-4 text-left transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md">
-                <div className={cn('flex aspect-[4/3] items-center justify-center rounded-xl', asset.tone)}><Icon className="h-10 w-10" /></div>
+                <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[#f4f0e8]">
+                  <Image
+                    src={asset.image}
+                    alt={`Pré-visualização fictícia: ${asset.title}`}
+                    fill
+                    sizes="(max-width: 640px) 90vw, (max-width: 1280px) 44vw, 260px"
+                    className="object-cover transition duration-300 group-hover:scale-[1.025]"
+                    style={{ objectPosition: asset.position }}
+                  />
+                  <span className="absolute left-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-brand-800 shadow-sm backdrop-blur">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                </div>
                 <p className="mt-4 text-sm font-semibold text-dark">{asset.title}</p>
                 <div className="mt-1 flex items-center justify-between gap-3"><span className="text-xs text-[#829087]">{asset.type}</span><Download className="h-4 w-4 text-[#829087] transition group-hover:text-brand-700" /></div>
               </button>
@@ -527,6 +694,7 @@ function BrandLibraryView() {
 export function BrandDeskDemo() {
   const [view, setView] = useState<DemoView>('overview');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [selectedProjectReference, setSelectedProjectReference] = useState(projects[0].reference);
 
   function selectView(nextView: DemoView) {
     setView(nextView);
@@ -556,8 +724,15 @@ export function BrandDeskDemo() {
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-[1480px]">
-            {view === 'overview' ? <Overview onSelect={selectView} /> : null}
+            {view === 'overview' ? (
+              <Overview
+                onSelect={selectView}
+                selectedProjectReference={selectedProjectReference}
+                onSelectProject={setSelectedProjectReference}
+              />
+            ) : null}
             {view === 'projects' ? <ProjectsView /> : null}
+            {view === 'history' ? <HistoryView /> : null}
             {view === 'approvals' ? <ApprovalsView /> : null}
             {view === 'quotes' ? <QuotesView /> : null}
             {view === 'brand' ? <BrandLibraryView /> : null}

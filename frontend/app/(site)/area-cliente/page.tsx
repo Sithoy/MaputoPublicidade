@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Banknote,
   CheckCircle2,
+  ChevronDown,
   ClipboardCheck,
   Clock3,
   FileText,
@@ -22,6 +23,7 @@ import { cn, formatMZN } from '@/lib/utils';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import { getClientNextAction, getOrderProgress } from '@/lib/workflow';
 import { clientOrderStatusLabels } from '@/lib/status';
+import { getOrderLabel } from '@/lib/order-display';
 
 const statusStyles: Record<string, string> = {
   received: 'bg-sky-50 text-sky-700 ring-sky-200',
@@ -33,15 +35,6 @@ const statusStyles: Record<string, string> = {
   delivered: 'bg-[#eff3f0] text-[#58685f] ring-[#dbe3dd]',
   cancelled: 'bg-red-50 text-red-700 ring-red-200',
 };
-
-function orderLabel(order: Order) {
-  const items = order.items ?? [];
-  if (items.length === 1) return items[0].description;
-  if (items.length > 1) return `${items[0].description} +${items.length - 1}`;
-  if (order.item_count === 1) return '1 item solicitado';
-  if (order.item_count && order.item_count > 1) return `${order.item_count} itens solicitados`;
-  return 'Projeto de marca';
-}
 
 function StatCard({
   icon: Icon,
@@ -97,6 +90,7 @@ export default function ClientDashboardPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedOrderReference, setSelectedOrderReference] = useState('');
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -168,10 +162,13 @@ export default function ClientDashboardPage() {
     return [...quoteItems, ...orderItems];
   }, [activeOrders, quotes]);
 
-  const focusOrder =
+  const defaultFocusOrder =
     activeOrders.find((order) => getClientNextAction(order).actionRequired) ||
     activeOrders[0] ||
     null;
+  const focusOrder =
+    activeOrders.find((order) => order.reference === selectedOrderReference) ||
+    defaultFocusOrder;
 
   if (loading) return <DashboardSkeleton />;
 
@@ -262,13 +259,45 @@ export default function ClientDashboardPage() {
 
       <section className="rounded-3xl border border-[#dfe7e1] bg-white p-5 shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)] sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">
               Percurso do trabalho
             </p>
-            <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">
-              {focusOrder ? `Onde está o projeto ${focusOrder.reference}` : 'Da ideia à entrega, sem perder o fio'}
-            </h2>
+            {focusOrder ? (
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <h2 className="shrink-0 text-xl font-semibold tracking-[-0.02em] text-dark">
+                  Onde está o projeto:
+                </h2>
+                {activeOrders.length > 1 ? (
+                  <div className="relative min-w-0 sm:max-w-[420px] sm:flex-1">
+                    <label htmlFor="tracked-project" className="sr-only">
+                      Escolher projeto para acompanhar
+                    </label>
+                    <select
+                      id="tracked-project"
+                      value={focusOrder.reference}
+                      onChange={(event) => setSelectedOrderReference(event.target.value)}
+                      className="h-11 w-full appearance-none truncate rounded-xl border border-[#d7e2da] bg-[#f8faf8] py-2 pl-3 pr-10 text-sm font-semibold text-brand-900 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-50"
+                    >
+                      {activeOrders.map((order) => (
+                        <option key={order.id} value={order.reference}>
+                          {order.reference} — {getOrderLabel(order)}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-700" />
+                  </div>
+                ) : (
+                  <span className="font-mono text-base font-semibold text-brand-800">
+                    {focusOrder.reference}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">
+                Da ideia à entrega, sem perder o fio
+              </h2>
+            )}
             <p className="mt-1 max-w-2xl text-sm leading-6 text-[#718078]">
               {focusOrder
                 ? getClientNextAction(focusOrder).description
@@ -385,7 +414,7 @@ export default function ClientDashboardPage() {
                         {order.status_display || clientOrderStatusLabels[order.status] || order.status}
                       </span>
                     </div>
-                    <p className="mt-1.5 truncate text-sm font-semibold text-dark">{orderLabel(order)}</p>
+                    <p className="mt-1.5 truncate text-sm font-semibold text-dark">{getOrderLabel(order)}</p>
                     <p className="mt-1 text-xs text-[#7b8981]">
                       {order.item_count ?? order.items?.length ?? 0} item(s) ·{' '}
                       {new Date(order.created_at).toLocaleDateString('pt-MZ')}

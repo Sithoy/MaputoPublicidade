@@ -12,15 +12,7 @@ import type { Order } from '@/lib/api';
 import { getClientNextAction, getOrderProgress } from '@/lib/workflow';
 import { clientOrderStatusLabels } from '@/lib/status';
 import { formatMZN } from '@/lib/utils';
-
-function orderLabel(order: Order) {
-  const items = order.items ?? [];
-  if (items.length === 1) return items[0].description;
-  if (items.length > 1) return `${items[0].description} +${items.length - 1}`;
-  if (order.item_count === 1) return '1 item solicitado';
-  if (order.item_count && order.item_count > 1) return `${order.item_count} itens solicitados`;
-  return 'Projeto de marca';
-}
+import { getOrderLabel } from '@/lib/order-display';
 
 export default function ClientOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -46,7 +38,7 @@ export default function ClientOrdersPage() {
       data = data.filter(
         (o) =>
           o.reference.toLowerCase().includes(term) ||
-          orderLabel(o).toLowerCase().includes(term)
+          getOrderLabel(o).toLowerCase().includes(term)
       );
     }
     return data;
@@ -137,7 +129,7 @@ export default function ClientOrdersPage() {
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-2 truncate font-semibold text-dark">{orderLabel(order)}</p>
+                      <p className="mt-2 truncate font-semibold text-dark">{getOrderLabel(order)}</p>
                       <p className="mt-1 text-xs text-[#7b8981]">
                         {order.item_count ?? order.items?.length ?? 0} item(s) ·{' '}
                         {new Date(order.created_at).toLocaleDateString('pt-MZ')}
