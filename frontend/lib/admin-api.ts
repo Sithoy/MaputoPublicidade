@@ -55,7 +55,7 @@ export type DashboardStats = {
 };
 
 export type AdminQuote = Quote & {
-  reception?: { owner_name: string; notes: string; completed_at: string | null } | null;
+  reception?: { owner_name: string; notes: string; completed_at: string | null; briefing?: import('./reception-api').ReceptionBriefing } | null;
   client_name: string;
   client_email: string;
   client_phone?: string;

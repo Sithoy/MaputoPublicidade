@@ -210,7 +210,14 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
         return None
 
     def get_request_attachments(self, obj):
-        return list(obj.request_attachments.values("id", "name", "size"))
+        request = self.context.get("request")
+        queryset = obj.request_attachments.all()
+        if not request or not (
+            has_staff_capability(request.user, StaffCapability.MANAGE_RECEPTION)
+            or has_staff_capability(request.user, StaffCapability.MANAGE_QUOTES)
+        ):
+            queryset = queryset.filter(is_internal=False)
+        return list(queryset.values("id", "name", "size"))
 
     def get_internal_notes(self, obj):
         request = self.context.get("request")
@@ -222,6 +229,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
         return None
 
     def get_reception(self, obj):
+        from apps.core.reception_briefing import reception_briefing
         request = self.context.get("request")
         if not request or not (
             has_staff_capability(request.user, StaffCapability.MANAGE_RECEPTION)
@@ -229,6 +237,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
         ):
             return None
         return {
+            "briefing": reception_briefing(obj),
             "owner_name": (obj.reception_owner.get_full_name() or obj.reception_owner.username) if obj.reception_owner else "",
             "notes": obj.reception_notes,
             "completed_at": obj.reception_completed_at,

@@ -272,6 +272,13 @@ class QuoteRequestViewSet(
         from django.shortcuts import get_object_or_404
 
         file = get_object_or_404(quote.request_attachments, pk=int(attachment_id))
+        if file.is_internal and not (
+            has_staff_capability(request.user, StaffCapability.MANAGE_RECEPTION)
+            or has_staff_capability(request.user, StaffCapability.MANAGE_QUOTES)
+        ):
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound()
         response = FileResponse(BytesIO(bytes(file.content)), as_attachment=True, filename=file.name, content_type="application/octet-stream")
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"

@@ -332,6 +332,16 @@ export default function AdminOrderDetailPage() {
                 <h2 className="font-semibold">Encaminhamento da Recepção</h2>
                 <p className="mt-2 text-sm text-slate-500">{quote.reception.owner_name} · {new Date(quote.reception.completed_at).toLocaleString('pt-MZ')}</p>
                 <p className="mt-3 whitespace-pre-wrap text-sm">{quote.reception.notes || 'Dados mínimos confirmados. Rever o briefing e preparar a proposta.'}</p>
+                {quote.reception.briefing && <div className="mt-4 space-y-2 border-t pt-4 text-sm">
+                  <p className="font-semibold">{quote.reception.briefing.project_name || 'Briefing completado'}</p>
+                  <p className="whitespace-pre-wrap">{quote.reception.briefing.description}</p>
+                  <p>Data pretendida: {quote.reception.briefing.deadline || 'A confirmar'} · não é um compromisso de entrega</p>
+                  <p>Recepção: {({ pickup: 'Levantamento', delivery: 'Entrega', installation: 'Entrega e instalação', '': 'A confirmar' })[quote.reception.briefing.fulfilment]}</p>
+                  {quote.reception.briefing.delivery_address && <p>Local: {quote.reception.briefing.delivery_address}</p>}
+                  {quote.reception.briefing.source_reference && <p>Referência anterior: {quote.reception.briefing.source_reference}</p>}
+                  {quote.reception.briefing.needs_design && <p>Precisa de apoio de design.</p>}
+                  {quote.reception.briefing.questions && <p className="whitespace-pre-wrap rounded-lg bg-amber-50 p-3 text-amber-900">Por confirmar: {quote.reception.briefing.questions}</p>}
+                </div>}
               </CardContent></Card>
             )}
             {quote.notes && (

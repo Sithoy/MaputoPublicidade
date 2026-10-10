@@ -53,6 +53,7 @@ class ActivityEvent(models.Model):
 
     ACTION_CREATED = "created"
     ACTION_RECEPTION_CLAIMED = "reception_claimed"
+    ACTION_RECEPTION_UPDATED = "reception_updated"
     ACTION_RECEPTION_HANDOFF = "reception_handoff"
     ACTION_RECEPTION_RELEASED = "reception_released"
     ACTION_STATUS_CHANGED = "status_changed"
@@ -66,6 +67,7 @@ class ActivityEvent(models.Model):
     ACTION_DELIVERY_UPDATED = "delivery_updated"
     ACTION_DELIVERY_CONFIRMED = "delivery_confirmed"
     ACTION_CHOICES = [
+        (ACTION_RECEPTION_UPDATED, "Briefing completado pela Recepção"),
         (ACTION_RECEPTION_CLAIMED, "Atendimento assumido pela Recepção"),
         (ACTION_RECEPTION_HANDOFF, "Encaminhado ao Comercial"),
         (ACTION_RECEPTION_RELEASED, "Devolvido à fila da Recepção"),

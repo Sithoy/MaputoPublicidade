@@ -20,9 +20,9 @@ describe('ReceptionRequestPanel', () => {
     fireEvent.change(screen.getByLabelText('Telefone'), { target: { value: '841234567' } });
     expect(screen.getByRole('button', { name: 'Encaminhar ao Comercial' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar triagem' }));
-    await waitFor(() => expect(updateReception).toHaveBeenCalledWith(request.reference, 'edit', {
+    await waitFor(() => expect(updateReception).toHaveBeenCalledWith(request.reference, 'edit', expect.objectContaining({
       client_name: request.client_name, client_email: request.client_email, client_phone: '841234567', client_nuit: '', reception_notes: '',
-    }));
+    })));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ client_phone: '841234567' }));
   });
 
@@ -48,5 +48,35 @@ describe('ReceptionRequestPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar triagem' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Falha de ligação');
     expect(screen.getByLabelText('Notas internas para o Comercial')).toHaveValue('Prazo a confirmar.');
+  });
+
+  it('completes the briefing and adds a material without fabricating a quantity', async () => {
+    vi.mocked(updateReception).mockResolvedValue(request);
+    render(<ReceptionRequestPanel request={request} userId={1} onChange={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Descrição da necessidade'), { target: { value: 'Inauguração da loja' } });
+    fireEvent.change(screen.getByLabelText('Data pretendida'), { target: { value: '2026-12-20' } });
+    fireEvent.change(screen.getByLabelText('Forma de recepção'), { target: { value: 'delivery' } });
+    fireEvent.change(screen.getByLabelText('Local / endereço de entrega'), { target: { value: 'Maputo, Rua 1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar material' }));
+    expect(screen.getByLabelText('Quantidade do material 2')).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText('Descrição do material 2'), { target: { value: 'Roll-up' } });
+    fireEvent.change(screen.getByLabelText('Quantidade do material 2'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Dimensões 2'), { target: { value: '85 × 200 cm' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar triagem' }));
+    await waitFor(() => expect(updateReception).toHaveBeenCalledWith(request.reference, 'edit', expect.objectContaining({
+      briefing: expect.objectContaining({ description: 'Inauguração da loja', deadline: '2026-12-20', fulfilment: 'delivery', delivery_address: 'Maputo, Rua 1' }),
+      items: expect.arrayContaining([expect.objectContaining({ description: 'Roll-up', quantity: 2, size: '85 × 200 cm' })]),
+    })));
+  });
+
+  it('preserves pending references and briefing when the upload fails', async () => {
+    const file = new File(['%PDF-1.4\nreference'], 'referencia.pdf', { type: 'application/pdf' });
+    vi.mocked(updateReception).mockRejectedValue(new Error('Falha no envio'));
+    render(<ReceptionRequestPanel request={request} userId={1} onChange={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Adicionar referências internas'), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar triagem' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Falha no envio');
+    expect(screen.getByText('referencia.pdf · por guardar')).toBeInTheDocument();
+    expect(updateReception).toHaveBeenCalledWith(request.reference, 'edit', expect.any(Object), [file]);
   });
 });
