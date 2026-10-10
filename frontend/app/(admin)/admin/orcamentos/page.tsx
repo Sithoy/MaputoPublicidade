@@ -67,17 +67,17 @@ function AdminQuotesContent() {
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-dark">Orçamentos</h1>
-          <p className="text-sm text-gray-500">Gestão de orçamentos e pedidos</p>
+          <h1 className="text-2xl font-bold text-dark">Pedidos e propostas</h1>
+          <p className="text-sm text-gray-500">Todos os contactos num único fluxo, do pedido à aprovação.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {can('quotes.manage') ? (
+          {can('quotes.manage') || can('intake.create') ? (
             <Link
               href="/admin/orcamentos/novo"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-[0_10px_24px_-12px_rgba(8,114,71,0.75)] transition hover:-translate-y-0.5 hover:bg-brand-600"
             >
               <Plus className="h-4 w-4" />
-              Novo orçamento
+              Novo pedido
             </Link>
           ) : null}
         {can('quotes.export') ? <>

@@ -175,6 +175,7 @@ export type DocumentLineInput = {
 };
 
 export type ManualQuoteInput = {
+  contact_source?: 'walk_in' | 'phone' | 'whatsapp' | 'email' | 'web';
   preparation_id?: number;
   ai_reviewed?: boolean;
   user_id?: number | null;
@@ -192,12 +193,13 @@ export type ManualQuoteInput = {
 };
 
 export type ReceptionIntakeInput = {
+  client_nuit?: string;
   user_id?: number | null;
   client_name?: string;
   client_email?: string;
   client_phone?: string;
   client_company?: string;
-  contact_source: 'walk_in' | 'phone' | 'whatsapp' | 'email';
+  contact_source: 'walk_in' | 'phone' | 'whatsapp' | 'email' | 'web';
   outcome: 'quote' | 'confirmed_order';
   urgency: 'normal' | 'urgent';
   estimated_delivery_days?: number | null;
@@ -224,6 +226,10 @@ export type ReceptionIntakeResult = {
 
 export async function createManualQuote(data: ManualQuoteInput): Promise<Quote> {
   return post<Quote>('/api/quotes/manual/', data, getToken());
+}
+
+export async function prepareExistingQuote(reference: string, data: ManualQuoteInput): Promise<Quote> {
+  return post<Quote>(`/api/quotes/${reference}/proposal/`, data, getToken());
 }
 
 export type ProposalDraft = {

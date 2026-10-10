@@ -324,6 +324,7 @@ class QuoteRequestCreateSerializer(serializers.ModelSerializer):
 
 
 class ManualQuoteItemSerializer(serializers.Serializer):
+    item_id = serializers.IntegerField(required=False, min_value=1)
     product_id = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.filter(is_active=True),
         source="product",
@@ -341,6 +342,7 @@ class ManualQuoteItemSerializer(serializers.Serializer):
 class ManualQuoteCreateSerializer(serializers.Serializer):
     """Create a priced commercial proposal on behalf of a client."""
 
+    contact_source = serializers.ChoiceField(choices=QuoteRequest.CONTACT_SOURCE_CHOICES, required=False)
     user_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(is_staff=False, is_active=True),
         source="user",
@@ -376,9 +378,42 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
             attrs.setdefault("client_nuit", getattr(profile, "nuit", ""))
         if not attrs.get("client_name"):
             raise serializers.ValidationError({"client_name": "Indique o nome do cliente."})
-        if not attrs.get("client_email"):
-            raise serializers.ValidationError({"client_email": "Indique o e-mail do cliente."})
+        if not (attrs.get("client_email") or attrs.get("client_phone")):
+            raise serializers.ValidationError({"client_phone": "Indique pelo menos um telefone ou e-mail."})
+        ids = [item["item_id"] for item in attrs["items"] if "item_id" in item]
+        if ids and (not self.instance or len(ids) != len(set(ids)) or not set(ids).issubset(set(self.instance.items.values_list("id", flat=True)))):
+            raise serializers.ValidationError({"items": "Itens inválidos para este pedido."})
+        if self.instance:
+            removed = self.instance.items.exclude(id__in=ids)
+            if any(item.artwork_file for item in removed):
+                raise serializers.ValidationError({"items": "Mantenha os itens com anexos para preservar os ficheiros originais."})
         return attrs
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop("items")
+        # Origin belongs to the original request, not the pricing operation.
+        validated_data.pop("contact_source", None)
+        existing = {item.id: item for item in instance.items.all()}
+        retained = []
+        for position, data in enumerate(items_data):
+            item_id = data.pop("item_id", None)
+            item = existing[item_id] if item_id else QuoteItem(quote=instance)
+            if "product" in data and item.product_id != getattr(data["product"], "id", None):
+                item.product_variant = None
+            for field, value in data.items():
+                setattr(item, field, value)
+            item.position = position
+            item.save()
+            retained.append(item.id)
+        instance.items.exclude(id__in=retained).delete()
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.final_price = sum(item["unit_price"] * Decimal(item["quantity"]) for item in items_data)
+        instance.estimated_price = instance.final_price
+        instance.status = QuoteRequest.STATUS_QUOTED
+        instance.save()
+        return instance
 
     @transaction.atomic
     def create(self, validated_data):
@@ -433,6 +468,7 @@ class ReceptionIntakeSerializer(serializers.Serializer):
         (OUTCOME_CONFIRMED_ORDER, "Encomenda confirmada"),
     ]
 
+    client_nuit = serializers.CharField(max_length=50, required=False, allow_blank=True)
     user_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(is_staff=False, is_active=True),
         source="user",
@@ -472,7 +508,8 @@ class ReceptionIntakeSerializer(serializers.Serializer):
             attrs["client_name"] = attrs.get("client_name") or user.get_full_name() or user.email
             attrs["client_email"] = attrs.get("client_email") or user.email
             attrs["client_phone"] = attrs.get("client_phone") or getattr(profile, "phone", "")
-            attrs["client_company"] = attrs.get("client_company") or getattr(profile, "company", "")
+            attrs.setdefault("client_company", getattr(profile, "company", ""))
+            attrs.setdefault("client_nuit", getattr(profile, "nuit", ""))
             attrs["delivery_address"] = attrs.get("delivery_address") or getattr(profile, "address", "")
 
         if not attrs.get("client_name"):

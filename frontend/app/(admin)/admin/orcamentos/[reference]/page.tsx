@@ -238,6 +238,11 @@ export default function AdminOrderDetailPage() {
         </div>
         </div>
         <div className="flex items-center gap-2">
+          {canManageQuote && ['received', 'reviewing', 'quoted'].includes(quote.status) && !quote.order_reference ? (
+            <Link href={`/admin/orcamentos/${reference}/proposta`} className="rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white">
+              {quote.status === 'quoted' ? 'Rever proposta' : 'Preparar proposta'}
+            </Link>
+          ) : null}
         <Link
           href={`/admin/orcamentos/${quote.reference}/imprimir`}
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#CBD8D0] bg-white px-3 py-1.5 text-sm font-semibold text-dark transition hover:border-brand/40 hover:bg-brand-50"

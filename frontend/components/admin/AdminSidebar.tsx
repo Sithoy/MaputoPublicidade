@@ -15,7 +15,6 @@ import {
   LogOut,
   Package,
   ShoppingCart,
-  UserRoundPlus,
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,7 +27,6 @@ const navGroups = [
     label: 'Operações',
     items: [
       { href: '/admin', label: 'Visão geral', icon: BarChart3, capability: 'dashboard.view' },
-      { href: '/admin/atendimento/novo', label: 'Novo atendimento', icon: UserRoundPlus, capability: 'intake.create' },
       { href: '/admin/quadro', label: 'Pipeline de trabalhos', icon: Columns3, capability: 'quotes.view' },
       { href: '/admin/orcamentos', label: 'Pedidos e propostas', icon: ShoppingCart, capability: 'quotes.view' },
       { href: '/admin/encomendas', label: 'Produção e entregas', icon: Package, capability: 'orders.view' },

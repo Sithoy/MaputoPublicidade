@@ -164,13 +164,13 @@ export default function AdminBoardPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {can('intake.create') ? (
+          {can('intake.create') || can('quotes.manage') ? (
             <Link
-              href="/admin/atendimento/novo"
+              href="/admin/orcamentos/novo"
               className="inline-flex items-center gap-2 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
             >
               <UserRoundPlus className="h-4 w-4" />
-              Novo atendimento
+              Novo pedido
             </Link>
           ) : null}
           <button

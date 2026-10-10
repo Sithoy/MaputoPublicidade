@@ -12,7 +12,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.roles import StaffCapability
+from apps.accounts.roles import StaffCapability, has_staff_capability
 from apps.core.activity import record_activity
 from apps.core.documents import build_quote_pdf
 from apps.core.export_utils import export_response
@@ -114,10 +114,12 @@ class QuoteRequestViewSet(
 
     def get_permissions(self):
         if self.action == "intake":
+            if self.request.data.get("outcome") == "quote" and has_staff_capability(self.request.user, StaffCapability.MANAGE_QUOTES):
+                return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
             return [HasStaffCapability(StaffCapability.CREATE_INTAKE)]
         if self.action == "create":
             return [AllowAny()]
-        if self.action in ["manual", "prepare", "source"]:
+        if self.action in ["manual", "prepare", "source", "proposal"]:
             return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
         if self.action in ["approve", "request_change", "approve_price"]:
             return [
@@ -242,6 +244,25 @@ class QuoteRequestViewSet(
             "channel": preparation.source_channel, "text": preparation.source_text,
             "draft": preparation.draft, "files": [file["name"] for file in preparation.source_files],
         }})
+
+    @action(detail=True, methods=["post"], url_path="proposal")
+    @transaction.atomic
+    def proposal(self, request, reference=None):
+        original = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=original.pk)
+        if quote.status not in {QuoteRequest.STATUS_RECEIVED, QuoteRequest.STATUS_REVIEWING, QuoteRequest.STATUS_QUOTED} or Order.objects.filter(quote=quote).exists():
+            raise ValidationError({"detail": "Este pedido já não pode ser preparado como proposta."})
+        if request.data.get("preparation_id") is not None:
+            raise ValidationError({"preparation_id": "Prepare os itens do pedido original sem substituir as fontes."})
+        serializer = ManualQuoteCreateSerializer(quote, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        previous_status = quote.status
+        quote = serializer.save()
+        record_activity(action=ActivityEvent.ACTION_STATUS_CHANGED, quote=quote, actor=request.user,
+                        from_status=previous_status, to_status=quote.status,
+                        comment="Proposta preparada no pedido original; referência e anexos preservados.")
+        notify_quote_ready(quote)
+        return Response(QuoteRequestDetailSerializer(quote, context={"request": request}).data)
 
     @action(detail=False, methods=["post"], url_path="manual")
     @transaction.atomic

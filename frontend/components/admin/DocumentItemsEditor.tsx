@@ -8,6 +8,7 @@ import type { Product } from '@/lib/api';
 import { formatMZN } from '@/lib/utils';
 
 export type EditableDocumentLine = {
+  item_id?: number;
   key: string;
   product_id?: number;
   description: string;

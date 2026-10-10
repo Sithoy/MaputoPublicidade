@@ -9,11 +9,11 @@ import { PortalNotifications } from '@/components/PortalNotifications';
 
 function getPageTitle(pathname: string) {
   if (pathname === '/admin') return 'Visão geral';
-  if (pathname.startsWith('/admin/atendimento')) return 'Novo atendimento';
+  if (pathname.startsWith('/admin/atendimento')) return 'Novo pedido';
   if (pathname.startsWith('/admin/quadro')) return 'Pipeline de trabalhos';
   if (pathname.startsWith('/admin/encomendas/')) return 'Acompanhamento da produção';
   if (pathname === '/admin/encomendas') return 'Produção e entregas';
-  if (pathname === '/admin/orcamentos/novo') return 'Nova proposta';
+  if (pathname === '/admin/orcamentos/novo') return 'Novo pedido';
   if (pathname.startsWith('/admin/orcamentos/')) return 'Pedido e proposta';
   if (pathname === '/admin/orcamentos') return 'Pedidos e propostas';
   if (pathname.includes('/faturas/nova')) return 'Nova fatura';
