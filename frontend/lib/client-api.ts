@@ -180,7 +180,8 @@ export type BrandRequestIntent = 'quote' | 'catalogue' | 'reorder' | 'campaign' 
 export type BrandRequestData = {
   intent: BrandRequestIntent;
   projectName: string;
-  items: Array<{ description: string; quantity: number; specifications?: string }>;
+  items: Array<{ description: string; quantity: number; specifications?: string; material_briefing?: import('./material-briefing').MaterialBriefing }>;
+  deliveryAddress?: string;
   files?: File[];
   deadline?: string;
   fulfilment: 'pickup' | 'delivery' | 'installation';
@@ -215,6 +216,7 @@ export async function createBrandRequest(data: BrandRequestData): Promise<Quote>
   form.append('payload', JSON.stringify({
     intent: data.intent, project_name: data.projectName, items: data.items,
     deadline: data.deadline || null, fulfilment: data.fulfilment,
+    delivery_address: data.deliveryAddress || '',
     source_reference: data.sourceReference || '', needs_design: data.needsDesign,
     urgency: data.urgency, notes: data.notes || '',
   }));

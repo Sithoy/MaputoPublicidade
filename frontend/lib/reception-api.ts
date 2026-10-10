@@ -1,4 +1,5 @@
 import { fetchWithAuth } from './auth';
+import type { MaterialBriefing } from './material-briefing';
 
 export interface ReceptionBriefing {
   project_name: string; description: string; deadline: string | null;
@@ -6,6 +7,7 @@ export interface ReceptionBriefing {
   source_reference: string; needs_design: boolean; questions: string;
 }
 export interface ReceptionItem {
+  material_briefing?: MaterialBriefing;
   id?: number; description: string; quantity: number;
   size?: string; material?: string; colors?: string; specifications?: string; needs_design?: boolean;
 }

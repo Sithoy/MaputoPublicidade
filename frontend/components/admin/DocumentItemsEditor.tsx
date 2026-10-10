@@ -6,8 +6,11 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import type { Product } from '@/lib/api';
 import { formatMZN } from '@/lib/utils';
+import type { MaterialBriefing } from '@/lib/material-briefing';
+import { MaterialBriefingSummary } from '@/components/MaterialBriefingSummary';
 
 export type EditableDocumentLine = {
+  material_briefing?: MaterialBriefing;
   item_id?: number;
   key: string;
   product_id?: number;
@@ -80,6 +83,7 @@ export function DocumentItemsEditor({
             key={line.key}
             className="grid gap-3 rounded-2xl border border-[#e1e8e3] bg-[#f8faf8] p-4 lg:grid-cols-12"
           >
+            {line.material_briefing ? <div className="rounded-xl bg-white p-3 lg:col-span-12"><p className="text-xs font-semibold text-brand-800">Contexto recebido no briefing</p><MaterialBriefingSummary value={line.material_briefing} /></div> : null}
             {products ? (
               <div className="lg:col-span-3">
                 <Label htmlFor={`product-${line.key}`}>Produto</Label>

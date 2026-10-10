@@ -16,6 +16,55 @@ def clear_throttle_cache():
     cache.clear()
 
 
+@pytest.mark.django_db
+def test_context_flows_from_branddesk_through_reception_to_commercial(authenticated_client, staff_client):
+    context = {"work_type": "vehicle", "needs_installation": True, "installation_notes": "Logótipos nas portas"}
+    with patch("apps.quotes.views.notify_quote_received"):
+        response = authenticated_client.post(reverse("quote-brand-request"), {
+            "payload": payload(fulfilment="delivery", delivery_address="Maputo",
+                items=[{"description": "Cadernos", "quantity": 200, "material_briefing": {"work_type": "paper"}},
+                       {"description": "Viatura", "quantity": 1, "material_briefing": context}])
+        }, format="multipart")
+    assert response.status_code == 201, response.data
+    quote = QuoteRequest.objects.get(reference=response.data["reference"])
+    url = f"/api/reception/{quote.reference}/"
+    assert staff_client.post(url + "claim/").status_code == 200
+    triage = staff_client.get(url).data
+    assert triage["briefing"]["delivery_address"] == "Maputo"
+    assert triage["items"][1]["material_briefing"] == context
+    context = {**context, "needs_visit": True, "visit_notes": "Avaliar na MP"}
+    edited = staff_client.patch(url, {"items": [
+        {"id": item["id"], "description": item["description"], "quantity": item["quantity"],
+         "material_briefing": context if index == 1 else item["material_briefing"]}
+        for index, item in enumerate(triage["items"])
+    ]}, format="json")
+    assert edited.status_code == 200, edited.data
+    assert staff_client.post(url + "handoff/").status_code == 200
+    commercial = staff_client.get(reverse("quote-detail", args=[quote.reference])).data
+    assert commercial["items"][1]["material_briefing"] == context
+    with patch("apps.quotes.views.notify_quote_ready"):
+        priced = staff_client.post(reverse("quote-proposal", args=[quote.reference]), {
+            "client_name": quote.client_name, "client_email": quote.client_email,
+            "estimated_delivery_days": 10, "payment_option": "deposit_50",
+            "items": [{"item_id": item.id, "description": item.description,
+                       "quantity": item.quantity, "unit_price": "20.00"} for item in quote.items.all()],
+        }, format="json")
+    assert priced.status_code == 200, priced.data
+    assert quote.items.last().material_briefing == context
+    quote.refresh_from_db()
+    assert quote.reception_briefing["_original"]["items"][1]["material_briefing"]["installation_notes"] == "Logótipos nas portas"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("context", [{"work_type": "invalid"}, {"unit_price": 1}, {"visit_notes": "x" * 2001}])
+def test_material_context_validated_before_creating_request(authenticated_client, context):
+    response = authenticated_client.post(reverse("quote-brand-request"), {
+        "payload": payload(items=[{"description": "Material", "quantity": 1, "material_briefing": context}])
+    }, format="multipart")
+    assert response.status_code == 400
+    assert not QuoteRequest.objects.exists()
+
+
 def payload(**changes):
     import json
 

@@ -4,6 +4,7 @@ import { FormEvent, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Download, Plus, Trash2 } from 'lucide-react';
 import { BriefingDisclosure } from '@/components/BriefingDisclosure';
+import { MaterialBriefingFields } from '@/components/MaterialBriefingFields';
 import { downloadRequestAttachment } from '@/lib/client-api';
 import { type ReceptionBriefing, type ReceptionItem, type ReceptionRequest, updateReception } from '@/lib/reception-api';
 
@@ -15,12 +16,14 @@ function initialBriefing(request: ReceptionRequest): ReceptionBriefing {
 function itemDraft(item: ReceptionItem, index: number): ItemDraft {
   return { ...item, key: item.id ? `item-${item.id}` : `initial-${index}`, quantity: String(item.quantity),
     size: item.size || '', material: item.material || '', colors: item.colors || '',
-    specifications: item.specifications || '', needs_design: item.needs_design || false };
+    specifications: item.specifications || '', needs_design: item.needs_design || false,
+    ...(item.material_briefing ? { material_briefing: item.material_briefing } : {}) };
 }
 function itemPayload(item: ItemDraft): ReceptionItem {
   return { ...(item.id ? { id: item.id } : {}), description: item.description, quantity: Number(item.quantity),
     size: item.size || '', material: item.material || '', colors: item.colors || '',
-    specifications: item.specifications || '', needs_design: item.needs_design || false };
+    specifications: item.specifications || '', needs_design: item.needs_design || false,
+    ...(item.material_briefing ? { material_briefing: item.material_briefing } : {}) };
 }
 
 export function ReceptionRequestPanel({ request, userId, canReleaseOthers = false, onChange, onClose }: {
@@ -108,7 +111,7 @@ export function ReceptionRequestPanel({ request, userId, canReleaseOthers = fals
         <label className="block text-sm font-medium">Nome do projeto<input maxLength={255} value={briefing.project_name} onChange={(event) => setBriefing((current) => ({ ...current, project_name: event.target.value }))} className={inputClass} placeholder="Ex.: Materiais para a inauguração" /></label>
         <label className="block text-sm font-medium">Descrição da necessidade<textarea rows={4} maxLength={20000} value={briefing.description} onChange={(event) => setBriefing((current) => ({ ...current, description: event.target.value }))} className={inputClass} placeholder="Complete o que o cliente pretende e onde vai utilizar os materiais…" /></label>
         <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium">Data pretendida<input type="date" value={briefing.deadline || ''} onChange={(event) => setBriefing((current) => ({ ...current, deadline: event.target.value || null }))} className={inputClass} /></label>
-          <label className="text-sm font-medium">Forma de recepção<select value={briefing.fulfilment} onChange={(event) => setBriefing((current) => ({ ...current, fulfilment: event.target.value as ReceptionBriefing['fulfilment'] }))} className={inputClass}><option value="">A confirmar</option><option value="pickup">Levantamento na MP</option><option value="delivery">Entrega</option><option value="installation">Entrega e instalação</option></select></label></div>
+          <div className="rounded-xl border p-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={briefing.fulfilment === 'delivery' || briefing.fulfilment === 'installation'} onChange={(event) => setBriefing((current) => ({ ...current, fulfilment: event.target.checked ? 'delivery' : 'pickup' }))} />O cliente precisa de entrega</label><p className="mt-2 text-xs text-slate-500">{briefing.fulfilment === 'installation' ? 'Entrega e instalação registadas anteriormente. Confirme também o contexto de cada material.' : 'Sem entrega: levantamento na MP. Instalação e visita são indicadas por material.'}</p></div></div>
         <p className="text-xs text-slate-500">A data é uma preferência do cliente, não uma promessa de entrega nem o prazo comercial.</p>
         {(briefing.fulfilment === 'delivery' || briefing.fulfilment === 'installation' || briefing.delivery_address) && <label className="block text-sm font-medium">Local / endereço de entrega<textarea rows={2} maxLength={2000} value={briefing.delivery_address} onChange={(event) => setBriefing((current) => ({ ...current, delivery_address: event.target.value }))} className={inputClass} /></label>}
         <BriefingDisclosure title="Relacionar trabalho anterior" hint="Abra apenas se este pedido repetir ou alterar um trabalho." defaultOpen={Boolean(briefing.source_reference)}>
@@ -120,9 +123,10 @@ export function ReceptionRequestPanel({ request, userId, canReleaseOthers = fals
         <p className="text-xs leading-5 text-slate-500">Não invente quantidades. Se ainda não forem conhecidas, descreva a necessidade e registe a dúvida abaixo. Os materiais já recebidos são mantidos; indique nas dúvidas se algum deve ser excluído.</p>
         {items.map((item, index) => <div key={item.key} className="space-y-3 rounded-2xl border bg-slate-50/70 p-4"><div className="flex justify-between gap-3"><h3 className="text-sm font-semibold">Material {index + 1}</h3>{!item.id && <button type="button" onClick={() => setItems((current) => current.filter((row) => row.key !== item.key))} className="inline-flex items-center gap-1 text-xs text-red-700"><Trash2 className="h-3 w-3" />Remover material {index + 1}</button>}</div>
           <div className="grid gap-3 sm:grid-cols-[1fr_150px]"><label className="text-sm">Descrição do material {index + 1}<input required maxLength={255} value={item.description} onChange={(event) => changeItem(item.key, { description: event.target.value })} className={inputClass} /></label><label className="text-sm">Quantidade do material {index + 1}<input required type="number" min={1} max={1000000} step={1} value={item.quantity} onChange={(event) => changeItem(item.key, { quantity: event.target.value })} className={inputClass} /></label></div>
-          <BriefingDisclosure title={`Detalhes técnicos do material ${index + 1}`} hint="Medidas, acabamento e cores, quando conhecidos." defaultOpen={Boolean(item.size || item.material || item.colors || item.specifications || item.needs_design)}>
-          <div className="grid gap-3 sm:grid-cols-3">{([['size', 'Dimensões'], ['material', 'Material / acabamento'], ['colors', 'Cores']] as const).map(([key, label]) => <label key={key} className="text-sm">{label} {index + 1}<input maxLength={100} value={item[key] || ''} onChange={(event) => changeItem(item.key, { [key]: event.target.value })} className={inputClass} /></label>)}</div>
-          <label className="block text-sm">Especificações adicionais {index + 1}<textarea rows={2} maxLength={2000} value={item.specifications || ''} onChange={(event) => changeItem(item.key, { specifications: event.target.value })} className={inputClass} /></label>
+          <MaterialBriefingFields id={`reception-${item.key}`} value={item.material_briefing} onChange={(value) => changeItem(item.key, { material_briefing: value })} />
+          <label className="block text-sm">Descrição livre e referências do material {index + 1}<textarea rows={3} maxLength={2000} value={item.specifications || ''} onChange={(event) => changeItem(item.key, { specifications: event.target.value })} className={inputClass} placeholder="Descreva o que importa para este material. Fotografias e exemplos podem complementar o texto." /></label>
+          <BriefingDisclosure title={`Detalhes técnicos do material ${index + 1}`} hint="Apenas indicações adicionais já conhecidas; não é necessário preencher tudo." defaultOpen={Boolean(item.size || item.material || item.colors || item.needs_design)}>
+          <div className="grid gap-3 sm:grid-cols-3">{([['size', 'Dimensões'], ['material', 'Material / acabamento'], ['colors', 'Cores']] as const).filter(([key]) => key !== 'size' || Boolean(item.size)).map(([key, label]) => <label key={key} className="text-sm">{label} {index + 1}<input maxLength={100} value={item[key] || ''} onChange={(event) => changeItem(item.key, { [key]: event.target.value })} className={inputClass} /></label>)}</div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={item.needs_design || false} onChange={(event) => changeItem(item.key, { needs_design: event.target.checked })} />Precisa de design para este material</label>
           </BriefingDisclosure>
         </div>)}

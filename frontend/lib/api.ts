@@ -292,6 +292,7 @@ export type Package = {
 };
 
 export type QuoteItem = {  id: number;
+  material_briefing?: import('./material-briefing').MaterialBriefing;
   product?: number;
   product_slug?: string;
   product_name?: string;

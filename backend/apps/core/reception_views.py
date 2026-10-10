@@ -13,6 +13,7 @@ from apps.accounts.roles import StaffCapability, has_staff_capability
 from apps.core.activity import record_activity
 from apps.orders.models import Order
 from apps.quotes.brand_requests import validated_attachments
+from apps.quotes.material_briefing import MaterialBriefingSerializer
 from apps.quotes.models import QuoteItem, QuoteRequest, QuoteRequestAttachment
 
 from .models import PortalNotification, SupportConversation
@@ -69,6 +70,7 @@ class ReceptionSerializer(serializers.ModelSerializer):
                 "material": item.material,
                 "colors": item.colors,
                 "specifications": item.notes,
+                "material_briefing": item.material_briefing,
                 "needs_design": item.needs_design,
             }
             for item in obj.items.all()
@@ -109,6 +111,7 @@ class ReceptionSerializer(serializers.ModelSerializer):
 
 
 class ReceptionItemSerializer(serializers.Serializer):
+    material_briefing = MaterialBriefingSerializer(required=False)
     id = serializers.IntegerField(min_value=1, required=False)
     description = serializers.CharField(max_length=255)
     quantity = serializers.IntegerField(min_value=1, max_value=1000000)
@@ -294,6 +297,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
                         "material": item.material,
                         "colors": item.colors,
                         "specifications": item.notes,
+                        "material_briefing": item.material_briefing,
                         "needs_design": item.needs_design,
                         "product_id": item.product_id,
                         "product_variant_id": item.product_variant_id,

@@ -20,21 +20,19 @@ describe('ReceptionRequestPanel', () => {
     expect(screen.getByLabelText('Dimensões 1')).toBeVisible();
     expect(screen.getByText('Pronto para o Comercial')).toBeInTheDocument();
   });
-  it('saves technical values even after the section is closed', async () => {
+  it('saves optional dimensions even after the checkbox is cleared', async () => {
     vi.mocked(updateReception).mockResolvedValue(request);
     render(<ReceptionRequestPanel request={request} userId={1} onChange={vi.fn()} onClose={vi.fn()} />);
-    const summary = screen.getByText('Detalhes técnicos do material 1').closest('summary')!;
-    fireEvent.click(summary);
-    await waitFor(() => expect(screen.getByLabelText('Dimensões 1')).toBeVisible());
-    fireEvent.change(screen.getByLabelText('Dimensões 1'), { target: { value: '85 cm' } });
-    fireEvent.click(summary);
-    await waitFor(() => expect(screen.getByLabelText('Dimensões 1')).not.toBeVisible());
+    fireEvent.click(screen.getByLabelText('Tenho medidas a indicar'));
+    fireEvent.change(screen.getByLabelText('Medidas conhecidas'), { target: { value: '85 cm' } });
+    fireEvent.click(screen.getByLabelText('Tenho medidas a indicar'));
+    expect(screen.queryByLabelText('Medidas conhecidas')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar triagem' }));
-    await waitFor(() => expect(updateReception).toHaveBeenCalledWith(request.reference, 'edit', expect.objectContaining({ items: [expect.objectContaining({ size: '85 cm' })] })));
+    await waitFor(() => expect(updateReception).toHaveBeenCalledWith(request.reference, 'edit', expect.objectContaining({ items: [expect.objectContaining({ material_briefing: { needs_dimensions: false, dimensions: '85 cm' } })] })));
   });
   it('does not hide a saved delivery address when changing to pickup', () => {
     render(<ReceptionRequestPanel request={{ ...request, briefing: { project_name: '', description: 'Entrega de cartões', deadline: null, fulfilment: 'delivery', delivery_address: 'Maputo, Rua 1', source_reference: '', needs_design: false, questions: '' } }} userId={1} onChange={vi.fn()} onClose={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText('Forma de recepção'), { target: { value: 'pickup' } });
+    fireEvent.click(screen.getByLabelText('O cliente precisa de entrega'));
     expect(screen.getByLabelText('Local / endereço de entrega')).toBeVisible();
     expect(screen.getByLabelText('Local / endereço de entrega')).toHaveValue('Maputo, Rua 1');
   });
@@ -80,17 +78,18 @@ describe('ReceptionRequestPanel', () => {
     render(<ReceptionRequestPanel request={request} userId={1} onChange={vi.fn()} onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText('Descrição da necessidade'), { target: { value: 'Inauguração da loja' } });
     fireEvent.change(screen.getByLabelText('Data pretendida'), { target: { value: '2026-12-20' } });
-    fireEvent.change(screen.getByLabelText('Forma de recepção'), { target: { value: 'delivery' } });
+    fireEvent.click(screen.getByLabelText('O cliente precisa de entrega'));
     fireEvent.change(screen.getByLabelText('Local / endereço de entrega'), { target: { value: 'Maputo, Rua 1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar material' }));
     expect(screen.getByLabelText('Quantidade do material 2')).toHaveValue(null);
     fireEvent.change(screen.getByLabelText('Descrição do material 2'), { target: { value: 'Roll-up' } });
     fireEvent.change(screen.getByLabelText('Quantidade do material 2'), { target: { value: '2' } });
-    fireEvent.change(screen.getByLabelText('Dimensões 2'), { target: { value: '85 × 200 cm' } });
+    fireEvent.click(screen.getAllByLabelText('Tenho medidas a indicar')[1]);
+    fireEvent.change(screen.getByLabelText('Medidas conhecidas'), { target: { value: '85 × 200 cm' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar triagem' }));
     await waitFor(() => expect(updateReception).toHaveBeenCalledWith(request.reference, 'edit', expect.objectContaining({
       briefing: expect.objectContaining({ description: 'Inauguração da loja', deadline: '2026-12-20', fulfilment: 'delivery', delivery_address: 'Maputo, Rua 1' }),
-      items: expect.arrayContaining([expect.objectContaining({ description: 'Roll-up', quantity: 2, size: '85 × 200 cm' })]),
+      items: expect.arrayContaining([expect.objectContaining({ description: 'Roll-up', quantity: 2, material_briefing: { needs_dimensions: true, dimensions: '85 × 200 cm' } })]),
     })));
   });
 

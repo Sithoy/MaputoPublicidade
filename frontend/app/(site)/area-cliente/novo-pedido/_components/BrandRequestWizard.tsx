@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { BriefingDisclosure } from '@/components/BriefingDisclosure';
+import { MaterialBriefingFields } from '@/components/MaterialBriefingFields';
+import { materialBriefingLines, type MaterialBriefing } from '@/lib/material-briefing';
 import { createBrandRequest, getMe, fulfilmentLabels, type BrandRequestIntent } from '@/lib/client-api';
 
 const intents = [
@@ -19,7 +21,7 @@ const intents = [
   { id: 'campaign', title: 'Tenho um evento ou campanha', description: 'Reúna vários materiais num único pedido.', icon: Layers3 },
   { id: 'guidance', title: 'Preciso de ajuda para escolher', description: 'Conte-nos o objetivo; não precisa de saber os produtos ou quantidades.', icon: CircleHelp },
 ] as const;
-type Material = { key: number; description: string; quantity: string; specifications: string };
+type Material = { key: number; description: string; quantity: string; specifications: string; material_briefing?: MaterialBriefing };
 const fieldClass = 'mt-2 rounded-xl';
 
 export function BrandRequestWizard() {
@@ -32,6 +34,7 @@ export function BrandRequestWizard() {
   const [sourceReference, setSourceReference] = useState(source);
   const [deadline, setDeadline] = useState('');
   const [fulfilment, setFulfilment] = useState<'pickup' | 'delivery' | 'installation'>('pickup');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [urgency, setUrgency] = useState<'normal' | 'urgent'>('normal');
   const [needsDesign, setNeedsDesign] = useState(false);
   const [notes, setNotes] = useState('');
@@ -84,9 +87,9 @@ export function BrandRequestWizard() {
     if (step !== 3 || !intent || loading || !contact.email || submitting.current) return;
     submitting.current = true; setSaving(true); setError('');
     try {
-      const quote = await createBrandRequest({ intent, projectName: projectName.trim(), deadline, fulfilment,
+      const quote = await createBrandRequest({ intent, projectName: projectName.trim(), deadline, fulfilment, deliveryAddress,
         sourceReference: intent === 'reorder' ? sourceReference.trim() : '', needsDesign, urgency, notes: notes.trim(), contact,
-        items: items.map((item) => ({ description: item.description.trim(), quantity: Number(item.quantity), specifications: item.specifications.trim() })), files });
+        items: items.map((item) => ({ description: item.description.trim(), quantity: Number(item.quantity), specifications: item.specifications.trim(), ...(item.material_briefing ? { material_briefing: item.material_briefing } : {}) })), files });
       setCreatedReference(quote.reference);
     } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível enviar o pedido.'); }
     finally { submitting.current = false; setSaving(false); }
@@ -125,14 +128,16 @@ export function BrandRequestWizard() {
           <BriefingDisclosure title="Materiais que já conhece" hint="Se ainda não sabe os produtos ou quantidades, explique acima. A equipa ajuda a definir." defaultOpen={Boolean(items.length || intent !== 'guidance')}>
             {items.map((item, index) => <fieldset key={item.key} className="space-y-3 rounded-2xl border bg-[#f8faf7] p-4"><legend className="px-2 text-sm font-semibold">Material {index + 1}</legend>
               <div className="grid gap-4 sm:grid-cols-[1fr_150px]"><div><Label htmlFor={`description-${item.key}`}>Produto ou serviço *</Label><Input id={`description-${item.key}`} required maxLength={255} value={item.description} onChange={(event) => updateItem(item.key, { description: event.target.value })} className={fieldClass} /></div><div><Label htmlFor={`quantity-${item.key}`}>Quantidade *</Label><Input id={`quantity-${item.key}`} type="number" min={1} max={1000000} step={1} required value={item.quantity} onChange={(event) => updateItem(item.key, { quantity: event.target.value })} className={fieldClass} /></div></div>
-              <BriefingDisclosure title={`Detalhes do material ${index + 1}`} hint="Opcional: indique apenas o que já sabe." defaultOpen={Boolean(item.specifications)}>
-                <div><Label htmlFor={`specifications-${item.key}`}>Medidas, acabamentos ou outras indicações</Label><Textarea id={`specifications-${item.key}`} rows={2} maxLength={2000} value={item.specifications} onChange={(event) => updateItem(item.key, { specifications: event.target.value })} className={fieldClass} /></div>
-              </BriefingDisclosure>
+              <MaterialBriefingFields id={`brand-${item.key}`} value={item.material_briefing} onChange={(value) => updateItem(item.key, { material_briefing: value })} />
+              <div><Label htmlFor={`specifications-${item.key}`}>Descrição livre e referências</Label><Textarea id={`specifications-${item.key}`} rows={3} maxLength={2000} value={item.specifications} onChange={(event) => updateItem(item.key, { specifications: event.target.value })} placeholder="Descreva o que pretende. Uma imagem e um texto podem ser suficientes; não precisa de conhecer os detalhes técnicos." className={fieldClass} /></div>
               <Button type="button" variant="ghost" aria-label={`Remover material ${index + 1}`} onClick={() => setItems((current) => current.filter((line) => line.key !== item.key))}><Trash2 className="mr-2 h-4 w-4" /> Remover</Button>
             </fieldset>)}
             <Button type="button" variant="outline" disabled={items.length >= 50} onClick={() => { const key = nextKey.current++; setItems((current) => [...current, { key, description: '', quantity: '', specifications: '' }]); }}><Plus className="mr-2 h-4 w-4" /> Adicionar material</Button>
           </BriefingDisclosure>
-          <div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="deadline">Data pretendida</Label><Input id="deadline" type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} className={fieldClass} /><p className="mt-2 text-xs text-gray-500">A MP confirma a viabilidade na proposta.</p></div><div><Label htmlFor="fulfilment">Como pretende receber?</Label><Select id="fulfilment" value={fulfilment} onChange={(event) => setFulfilment(event.target.value as typeof fulfilment)} className={fieldClass}>{Object.entries(fulfilmentLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div></div>
+          <div><Label htmlFor="deadline">Data pretendida</Label><Input id="deadline" type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} className={fieldClass} /><p className="mt-2 text-xs text-gray-500">A MP confirma a viabilidade na proposta.</p></div>
+          <div className="space-y-3 rounded-xl border p-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fulfilment === 'delivery'} onChange={(event) => setFulfilment(event.target.checked ? 'delivery' : 'pickup')} />Preciso de entrega</label>
+            {fulfilment === 'delivery' ? <div><Label htmlFor="delivery-address">Endereço e indicações para entrega</Label><Textarea id="delivery-address" rows={2} maxLength={2000} value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} className={fieldClass} /><p className="mt-2 text-xs text-gray-500">Pode deixar por confirmar. Sem entrega, o levantamento será na MP.</p></div> : <p className="text-xs text-gray-500">Levantamento na MP. A instalação, quando necessária, é indicada no material.</p>}
+          </div>
           {intent === 'reorder' ? <div><Label htmlFor="source-reference">Referência anterior *</Label><Input id="source-reference" required maxLength={50} value={sourceReference} onChange={(event) => setSourceReference(event.target.value)} className={fieldClass} /><p className="mt-2 text-xs text-gray-500">Indique nas observações o que pretende manter ou alterar. A equipa confirma o trabalho de origem.</p></div> : null}
           <BriefingDisclosure title="Pedido urgente?" hint="Abra se precisar de solicitar prioridade." defaultOpen={urgency === 'urgent'}>
             <div><Label htmlFor="urgency">Prioridade</Label><Select id="urgency" value={urgency} onChange={(event) => setUrgency(event.target.value as typeof urgency)} className={fieldClass}><option value="normal">Planeada</option><option value="urgent">Urgente</option></Select><p className="mt-2 text-xs text-gray-500">A equipa confirma a disponibilidade; prioridade não garante o prazo.</p></div>
@@ -146,7 +151,8 @@ export function BrandRequestWizard() {
           </BriefingDisclosure>
         </> : <>
           <h3 className="font-semibold">{projectName}</h3><p className="whitespace-pre-wrap text-sm text-gray-600">{notes || 'Sem observações adicionais.'}</p>
-          {items.length ? <ul className="divide-y">{items.map((item) => <li key={item.key} className="py-4"><p className="font-medium">{item.description} · {item.quantity} unidades</p><p className="mt-1 whitespace-pre-wrap text-sm text-gray-500">{item.specifications || 'Especificações a confirmar pela MP.'}</p></li>)}</ul> : <p className="rounded-xl bg-brand-50 p-4 text-sm">A equipa ajudará a definir os materiais e quantidades. Não serão assumidos valores.</p>}
+          {items.length ? <ul className="divide-y">{items.map((item) => <li key={item.key} className="py-4"><p className="font-medium">{item.description} · {item.quantity} unidades</p><p className="mt-1 whitespace-pre-wrap text-sm text-gray-500">{item.specifications || 'Especificações a confirmar pela MP.'}</p>{materialBriefingLines(item.material_briefing).map((line) => <p key={line} className="mt-1 whitespace-pre-wrap text-sm text-gray-600">{line}</p>)}</li>)}</ul> : <p className="rounded-xl bg-brand-50 p-4 text-sm">A equipa ajudará a definir os materiais e quantidades. Não serão assumidos valores.</p>}
+          {fulfilment === 'delivery' && deliveryAddress ? <p className="whitespace-pre-wrap text-sm">Entrega: {deliveryAddress}</p> : null}
           <dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-gray-500">Data pretendida</dt><dd>{deadline || 'A combinar'} · sujeita a confirmação</dd></div><div><dt className="text-gray-500">Recepção</dt><dd>{fulfilmentLabels[fulfilment]}</dd></div><div><dt className="text-gray-500">Design</dt><dd>{needsDesign ? 'Solicitado' : 'Não solicitado'}</dd></div><div><dt className="text-gray-500">Prioridade</dt><dd>{urgency === 'urgent' ? 'Urgente' : 'Planeada'}</dd></div>{intent === 'reorder' ? <div><dt>Referência anterior</dt><dd>{sourceReference}</dd></div> : null}</dl>
           <div><h3 className="font-semibold">Anexos ({files.length})</h3><ul className="mt-2 space-y-2 text-sm">{files.map((file, index) => <li key={index} className="break-all">{file.name} · {Math.ceil(file.size / 1024)} KB</li>)}</ul></div>
           <Button type="button" variant="outline" disabled={saving} onClick={() => setStep(2)}><ArrowLeft className="mr-2 h-4 w-4" />Editar briefing</Button>

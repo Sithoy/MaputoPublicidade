@@ -109,6 +109,7 @@ export default function RequestForm({ reference }: { reference?: string }) {
           setPaymentOption(quote.payment_option || 'deposit_50');
           setContactSource(quote.contact_source || 'web');
           setLines(quote.items.map((item) => ({ ...newDocumentLine(), item_id: item.id, product_id: item.product,
+            material_briefing: item.material_briefing,
             description: item.description, quantity: String(item.quantity),
             unit_price: item.unit_price == null ? '' : String(item.unit_price), notes: item.notes || '',
           })));

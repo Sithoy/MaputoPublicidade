@@ -291,6 +291,7 @@ class QuoteItem(models.Model):
         "ficheiro de arte", upload_to="uploads/quote_item_files/", blank=True, null=True
     )
     notes = models.TextField("observações", blank=True)
+    material_briefing = models.JSONField(default=dict, blank=True)
     unit_price = models.DecimalField(
         "preço unitário", max_digits=12, decimal_places=2, null=True, blank=True
     )

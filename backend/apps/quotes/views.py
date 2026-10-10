@@ -255,7 +255,8 @@ class QuoteRequestViewSet(
             urgency=data["urgency"], briefing=briefing, notes="\n".join(filter(None, notes)))
         for position, item in enumerate(data["items"]):
             QuoteItem.objects.create(quote=quote, description=item["description"], quantity=item["quantity"],
-                notes=item.get("specifications", ""), needs_design=data["needs_design"], position=position)
+                notes=item.get("specifications", ""), material_briefing=item.get("material_briefing", {}),
+                needs_design=data["needs_design"], position=position)
         for file in files:
             QuoteRequestAttachment.objects.create(quote=quote, **file)
         record_activity(action=ActivityEvent.ACTION_CREATED, quote=quote, actor=request.user,

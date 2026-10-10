@@ -31,11 +31,12 @@ describe('Proposal client identity', () => {
 
   it('prices the original request using its reference and item identifiers', async () => {
     vi.mocked(getQuote).mockResolvedValue({ reference: 'MP-0003-2026', status: 'received', client_name: 'Empresa', client_email: '', client_phone: '841234567', contact_source: 'phone', estimated_delivery_days: 5,
-      items: [{ id: 17, description: 'Vinil', quantity: 2, unit_price: null, notes: 'A3' }],
+      items: [{ id: 17, description: 'Vinil', quantity: 2, unit_price: null, notes: 'A3', material_briefing: { work_type: 'vehicle', needs_installation: true, installation_notes: 'Aplicar nas portas' } }],
     } as unknown as Awaited<ReturnType<typeof getQuote>>);
     vi.mocked(prepareExistingQuote).mockResolvedValue({ reference: 'MP-0003-2026' } as Awaited<ReturnType<typeof prepareExistingQuote>>);
     render(<RequestForm reference="MP-0003-2026" />);
     await waitFor(() => expect(screen.getByLabelText('Descrição')).toHaveValue('Vinil'));
+    expect(screen.getByText('Instalação / aplicação: Aplicar nas portas')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Encomenda já confirmada' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Preço unitário'), { target: { value: '25' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar proposta' }));

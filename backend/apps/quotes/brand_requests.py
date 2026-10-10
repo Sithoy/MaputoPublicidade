@@ -8,6 +8,8 @@ from PIL import Image
 from rest_framework import serializers
 from rest_framework.throttling import UserRateThrottle
 
+from .material_briefing import MaterialBriefingSerializer
+
 
 class BrandRequestThrottle(UserRateThrottle):
     scope = "brand_request"
@@ -15,6 +17,7 @@ class BrandRequestThrottle(UserRateThrottle):
 
 
 class BrandItemSerializer(serializers.Serializer):
+    material_briefing = MaterialBriefingSerializer(required=False)
     description = serializers.CharField(max_length=255)
     quantity = serializers.IntegerField(min_value=1, max_value=1000000)
     specifications = serializers.CharField(max_length=2000, required=False, allow_blank=True)
@@ -27,6 +30,7 @@ class BrandRequestSerializer(serializers.Serializer):
     project_name = serializers.CharField(max_length=255)
     deadline = serializers.DateField(required=False, allow_null=True)
     fulfilment = serializers.ChoiceField(choices=["pickup", "delivery", "installation"])
+    delivery_address = serializers.CharField(max_length=2000, required=False, allow_blank=True)
     source_reference = serializers.CharField(max_length=50, required=False, allow_blank=True)
     needs_design = serializers.BooleanField(default=False)
     urgency = serializers.ChoiceField(choices=["normal", "urgent"], default="normal")

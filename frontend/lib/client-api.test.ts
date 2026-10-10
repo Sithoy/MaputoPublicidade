@@ -9,13 +9,14 @@ describe('createBrandRequest', () => {
   it('sends independent materials and files without pricing or client ownership fields', async () => {
     const file = new File(['%PDF-1.4'], 'brief.pdf', { type: 'application/pdf' });
     await createBrandRequest({ intent: 'campaign', projectName: 'Campanha', fulfilment: 'installation', needsDesign: true, urgency: 'urgent',
-      items: [{ description: 'Rollups', quantity: 2 }, { description: 'Polos', quantity: 50 }], files: [file],
+      items: [{ description: 'Rollups', quantity: 2, material_briefing: { work_type: 'signage', needs_visit: true } }, { description: 'Polos', quantity: 50 }], files: [file], deliveryAddress: 'Matola',
       contact: { name: 'Dário', email: 'dario@example.com', company: 'Empresa' }, notes: 'Na sede' });
     const [path, options] = fetchWithAuthMock.mock.calls[0];
     expect(path).toBe('/api/quotes/brand-request/');
     expect(options.body).toBeInstanceOf(FormData);
     const payload = JSON.parse(options.body.get('payload'));
-    expect(payload.items).toEqual([{ description: 'Rollups', quantity: 2 }, { description: 'Polos', quantity: 50 }]);
+    expect(payload.items).toEqual([{ description: 'Rollups', quantity: 2, material_briefing: { work_type: 'signage', needs_visit: true } }, { description: 'Polos', quantity: 50 }]);
+    expect(payload.delivery_address).toBe('Matola');
     expect(payload).not.toHaveProperty('client_name');
     expect(payload).not.toHaveProperty('final_price');
     expect(options.body.getAll('files')).toEqual([file]);

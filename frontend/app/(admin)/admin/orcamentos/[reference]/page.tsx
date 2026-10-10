@@ -1,6 +1,7 @@
 'use client';
 
 import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
+import { MaterialBriefingSummary } from '@/components/MaterialBriefingSummary';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -314,7 +315,7 @@ export default function AdminOrderDetailPage() {
                 <tbody>
                   {quote.items.map((item) => (
                     <tr key={item.id} className="border-b border-gray-50 last:border-0">
-                      <td className="py-3 font-medium text-dark">{item.description}</td>
+                      <td className="py-3 font-medium text-dark">{item.description}<MaterialBriefingSummary value={item.material_briefing} notes={item.notes} /></td>
                       <td className="py-3">{item.quantity}</td>
                       <td className="py-3">{item.size || '—'}</td>
                       <td className="py-3">{item.material || '—'}</td>

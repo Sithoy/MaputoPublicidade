@@ -22,6 +22,7 @@ class QuoteItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     variant_name = serializers.CharField(source="product_variant.name", read_only=True)
     artwork_file = RelativeFileField(required=False)
+    material_briefing = serializers.JSONField(read_only=True)
 
     class Meta:
         model = QuoteItem
@@ -40,6 +41,7 @@ class QuoteItemSerializer(serializers.ModelSerializer):
             "needs_design",
             "artwork_file",
             "notes",
+            "material_briefing",
             "unit_price",
             "position",
             "created_at",
