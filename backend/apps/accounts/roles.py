@@ -30,6 +30,8 @@ class StaffCapability:
     VIEW_ORDERS = "orders.view"
     MANAGE_ORDERS = "orders.manage"
     MANAGE_ORDER_STATUS = "orders.manage_status"
+    MANAGE_ORDER_NOTES = "orders.manage_notes"
+    MANAGE_DELIVERY = "orders.manage_delivery"
     EXPORT_ORDERS = "orders.export"
     VIEW_PAYMENTS = "payments.view"
     MANAGE_PAYMENTS = "payments.manage"
@@ -62,6 +64,8 @@ ROLE_CAPABILITIES = {
             StaffCapability.EXPORT_QUOTES,
             StaffCapability.VIEW_ORDERS,
             StaffCapability.MANAGE_ORDERS,
+            StaffCapability.MANAGE_ORDER_NOTES,
+            StaffCapability.MANAGE_DELIVERY,
             StaffCapability.EXPORT_ORDERS,
             StaffCapability.VIEW_PAYMENTS,
             StaffCapability.VIEW_INVOICES,
@@ -73,6 +77,8 @@ ROLE_CAPABILITIES = {
             StaffCapability.MANAGE_ARTWORK,
             StaffCapability.VIEW_ORDERS,
             StaffCapability.MANAGE_ORDER_STATUS,
+            StaffCapability.MANAGE_ORDER_NOTES,
+            StaffCapability.MANAGE_DELIVERY,
             StaffCapability.VIEW_PAYMENTS,
         }
     ),

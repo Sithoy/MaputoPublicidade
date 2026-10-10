@@ -91,6 +91,18 @@ class TestOrderApi:
         assert order.delivery_responsible == staff_user
         assert order.activity_events.filter(action="delivery_updated").exists()
 
+    def test_staff_updates_internal_notes(self, staff_client, order):
+        url = reverse("order-set-notes", kwargs={"reference": order.reference})
+        response = staff_client.post(
+            url,
+            {"internal_notes": "Material separado para acabamento."},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        order.refresh_from_db()
+        assert order.internal_notes == "Material separado para acabamento."
+
     def test_client_confirms_delivery_when_ready(self, authenticated_client, order, staff_client):
         order.status = Order.STATUS_READY
         order.save(update_fields=["status"])

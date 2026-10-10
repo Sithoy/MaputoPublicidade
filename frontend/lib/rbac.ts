@@ -20,6 +20,8 @@ export type StaffCapability =
   | 'orders.view'
   | 'orders.manage'
   | 'orders.manage_status'
+  | 'orders.manage_notes'
+  | 'orders.manage_delivery'
   | 'orders.export'
   | 'payments.view'
   | 'payments.manage'

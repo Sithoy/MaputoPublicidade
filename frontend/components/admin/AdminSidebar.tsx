@@ -25,11 +25,11 @@ import { getDefaultAdminPath, hasCapability, type StaffCapability } from '@/lib/
 
 const navGroups = [
   {
-    label: 'Fluxo comercial',
+    label: 'Operações',
     items: [
       { href: '/admin', label: 'Visão geral', icon: BarChart3, capability: 'dashboard.view' },
       { href: '/admin/atendimento/novo', label: 'Novo atendimento', icon: UserRoundPlus, capability: 'intake.create' },
-      { href: '/admin/quadro', label: 'Quadro de produção', icon: Columns3, capability: 'quotes.view' },
+      { href: '/admin/quadro', label: 'Pipeline de trabalhos', icon: Columns3, capability: 'quotes.view' },
       { href: '/admin/orcamentos', label: 'Pedidos e propostas', icon: ShoppingCart, capability: 'quotes.view' },
       { href: '/admin/encomendas', label: 'Produção e entregas', icon: Package, capability: 'orders.view' },
     ],

@@ -188,10 +188,11 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     def get_internal_notes(self, obj):
         request = self.context.get("request")
-        if request and request.user.is_authenticated and (
-            has_staff_capability(request.user, StaffCapability.MANAGE_ORDERS)
-            or has_staff_capability(
-                request.user, StaffCapability.MANAGE_ORDER_STATUS
+        if (
+            request
+            and request.user.is_authenticated
+            and has_staff_capability(
+                request.user, StaffCapability.MANAGE_ORDER_NOTES
             )
         ):
             return obj.internal_notes
@@ -346,6 +347,12 @@ class OrderDeliverySerializer(serializers.Serializer):
         allow_null=True,
     )
     completion_photo = serializers.ImageField(required=False, allow_null=True)
+
+
+class OrderNotesSerializer(serializers.Serializer):
+    """Internal operational notes visible only to authorised staff."""
+
+    internal_notes = serializers.CharField(required=True, allow_blank=True)
 
 
 class OrderStatusSerializer(serializers.Serializer):

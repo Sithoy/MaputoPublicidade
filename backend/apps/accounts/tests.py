@@ -350,13 +350,25 @@ class TestStaffRbac:
         assert quote_response.status_code == 200
         assert catalog_response.status_code == 403
 
-    def test_production_can_advance_order_but_not_record_payment(self, order):
+    def test_production_can_manage_operations_but_not_record_payment(self, order):
         _user, client = self.staff_client(StaffRole.PRODUCTION, "order")
         status_url = reverse("order-set-status", kwargs={"reference": order.reference})
+        delivery_url = reverse("order-set-delivery", kwargs={"reference": order.reference})
+        notes_url = reverse("order-set-notes", kwargs={"reference": order.reference})
         payment_url = reverse("order-set-payment", kwargs={"reference": order.reference})
 
         status_response = client.post(
             status_url, {"status": "in_production"}, format="json"
+        )
+        delivery_response = client.post(
+            delivery_url,
+            {"delivery_method": "delivery", "delivery_address": "Maputo"},
+            format="json",
+        )
+        notes_response = client.post(
+            notes_url,
+            {"internal_notes": "Aguardar acabamento."},
+            format="json",
         )
         payment_response = client.post(
             payment_url,
@@ -365,7 +377,12 @@ class TestStaffRbac:
         )
 
         assert status_response.status_code == 200
+        assert delivery_response.status_code == 200
+        assert notes_response.status_code == 200
         assert payment_response.status_code == 403
+        order.refresh_from_db()
+        assert order.delivery_address == "Maputo"
+        assert order.internal_notes == "Aguardar acabamento."
 
     def test_production_cannot_cancel_an_order(self, order):
         _user, client = self.staff_client(StaffRole.PRODUCTION, "cancel")
@@ -477,3 +494,11 @@ class TestStaffRbac:
         assert finance_response.status_code == 200
         assert finance_response.json()["internal_notes"] is None
         assert production_response.json()["internal_notes"] == order.internal_notes
+
+        notes_url = reverse("order-set-notes", kwargs={"reference": order.reference})
+        denied_update = finance_client.post(
+            notes_url,
+            {"internal_notes": "Não autorizado"},
+            format="json",
+        )
+        assert denied_update.status_code == 403

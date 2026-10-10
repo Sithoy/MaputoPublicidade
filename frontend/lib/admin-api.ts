@@ -423,6 +423,14 @@ export async function updateOrderStatus(reference: string, status: string) {
   return post(`/api/orders/${reference}/set-status/`, { status }, getToken());
 }
 
+export async function updateOrderNotes(reference: string, internalNotes: string) {
+  return post<{ detail: string; internal_notes: string }>(
+    `/api/orders/${reference}/set-notes/`,
+    { internal_notes: internalNotes },
+    getToken()
+  );
+}
+
 export type DeliveryInput = {
   delivery_method?: 'pickup' | 'delivery';
   delivery_address?: string;

@@ -27,7 +27,6 @@ type BoardColumn = {
   key: string;
   label: string;
   description: string;
-  match: (card: BoardCard) => boolean;
   tone: string;
 };
 
@@ -36,52 +35,56 @@ const columns: BoardColumn[] = [
     key: 'new',
     label: 'Novos pedidos',
     description: 'Por analisar',
-    match: (c) => c.type === 'quote' && c.status === 'received',
     tone: 'border-t-sky-400',
   },
   {
     key: 'reviewing',
     label: 'Em análise',
     description: 'A preparar proposta',
-    match: (c) => c.type === 'quote' && c.status === 'reviewing',
     tone: 'border-t-amber-400',
   },
   {
     key: 'awaiting_client',
     label: 'Aguarda cliente',
     description: 'Proposta ou arte por aprovar',
-    match: (c) => c.status === 'quoted' || c.needsArtwork,
     tone: 'border-t-orange-400',
   },
   {
     key: 'approved',
     label: 'Aprovado',
     description: 'Pronto para produção',
-    match: (c) => c.status === 'approved',
     tone: 'border-t-brand',
   },
   {
     key: 'production',
     label: 'Em produção',
     description: 'Em execução',
-    match: (c) => c.status === 'in_production',
     tone: 'border-t-violet-400',
   },
   {
     key: 'ready',
     label: 'Pronto',
     description: 'Entrega ou levantamento',
-    match: (c) => c.status === 'ready',
     tone: 'border-t-emerald-400',
   },
   {
     key: 'done',
     label: 'Concluído',
     description: 'Entregue',
-    match: (c) => c.status === 'delivered',
     tone: 'border-t-gray-300',
   },
 ];
+
+function getBoardColumnKey(card: BoardCard) {
+  if (card.status === 'quoted' || card.needsArtwork) return 'awaiting_client';
+  if (card.type === 'quote' && card.status === 'received') return 'new';
+  if (card.type === 'quote' && card.status === 'reviewing') return 'reviewing';
+  if (card.status === 'approved') return 'approved';
+  if (card.status === 'in_production') return 'production';
+  if (card.status === 'ready') return 'ready';
+  if (card.status === 'delivered') return 'done';
+  return null;
+}
 
 export default function AdminBoardPage() {
   const { loading: authLoading, can } = useAdminAuth();
@@ -155,7 +158,7 @@ export default function AdminBoardPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-dark">Quadro de produção</h1>
+          <h1 className="text-2xl font-bold text-dark">Pipeline de trabalhos</h1>
           <p className="text-sm text-gray-500">
             Todos os trabalhos em curso, por etapa. Clique num cartão para abrir o detalhe.
           </p>
@@ -185,7 +188,7 @@ export default function AdminBoardPage() {
 
       <div className="flex gap-4 overflow-x-auto pb-4">
         {columns.map((column) => {
-          const columnCards = cards.filter(column.match);
+          const columnCards = cards.filter((card) => getBoardColumnKey(card) === column.key);
           return (
             <div
               key={column.key}

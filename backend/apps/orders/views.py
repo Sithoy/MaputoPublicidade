@@ -19,6 +19,7 @@ from .serializers import (
     OrderDeliverySerializer,
     OrderDetailSerializer,
     OrderListSerializer,
+    OrderNotesSerializer,
     OrderPaymentSerializer,
     OrderStatusSerializer,
     OrderUpdateSerializer,
@@ -51,10 +52,14 @@ class OrderViewSet(
         return self.serializer_classes.get(self.action, OrderListSerializer)
 
     def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "set_delivery"]:
+        if self.action in ["create", "update", "partial_update"]:
             return [HasStaffCapability(StaffCapability.MANAGE_ORDERS)]
         if self.action == "set_status":
             return [HasStaffCapability(StaffCapability.MANAGE_ORDER_STATUS)]
+        if self.action == "set_delivery":
+            return [HasStaffCapability(StaffCapability.MANAGE_DELIVERY)]
+        if self.action == "set_notes":
+            return [HasStaffCapability(StaffCapability.MANAGE_ORDER_NOTES)]
         if self.action == "set_payment":
             return [HasStaffCapability(StaffCapability.MANAGE_PAYMENTS)]
         if self.action == "export":
@@ -256,6 +261,21 @@ class OrderViewSet(
             ),
         )
         return Response(OrderDetailSerializer(order, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="set-notes")
+    def set_notes(self, request, reference=None):
+        order = self.get_object()
+        serializer = OrderNotesSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order.internal_notes = serializer.validated_data["internal_notes"]
+        order.save(update_fields=["internal_notes", "updated_at"])
+        return Response(
+            {
+                "detail": "Notas internas actualizadas.",
+                "internal_notes": order.internal_notes,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["post"], url_path="confirm-delivery")
     def confirm_delivery(self, request, reference=None):
