@@ -82,7 +82,13 @@ class OrderViewSet(
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated and user.is_staff:
-            return self.queryset
+            queryset = self.queryset
+            user_filter = self.request.query_params.get("user")
+            if user_filter:
+                if not user_filter.isdigit():
+                    return queryset.none()
+                queryset = queryset.filter(user_id=int(user_filter))
+            return queryset
         return self.queryset.filter(user=user)
 
     @action(detail=False, methods=["get"], url_path="export")

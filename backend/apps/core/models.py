@@ -2,6 +2,18 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+class PortalNotification(models.Model):
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="portal_notifications")
+    title = models.CharField(max_length=255)
+    href = models.CharField(max_length=255)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["recipient", "read_at"], name="core_portal_recipie_00c358_idx")]
+
+
 class ActivityEvent(models.Model):
     """Immutable record of something that happened to a quote or order.
 

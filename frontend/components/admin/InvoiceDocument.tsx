@@ -9,6 +9,7 @@ import { formatMZN } from '@/lib/utils';
 
 type InvoiceDocumentProps = {
   invoice: Invoice;
+  audience?: 'admin' | 'client';
 };
 
 function formatDate(value: string) {
@@ -37,7 +38,7 @@ function MetaItem({
   );
 }
 
-export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
+export function InvoiceDocument({ invoice, audience = 'admin' }: InvoiceDocumentProps) {
   const hasSupplementaryInformation = Boolean(
     invoice.notes ||
       invoice.terms ||
@@ -94,7 +95,7 @@ export function InvoiceDocument({ invoice }: InvoiceDocumentProps) {
         </MetaItem>
         <MetaItem icon={FileText} label="Referência">
           {invoice.order_reference ? (
-            <Link className="text-brand-700 hover:underline" href={`/admin/encomendas/${invoice.order_reference}`}>
+            <Link className="text-brand-700 hover:underline" href={`${audience === 'client' ? '/area-cliente' : '/admin'}/encomendas/${invoice.order_reference}`}>
               {invoice.order_reference}
             </Link>
           ) : (

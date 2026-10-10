@@ -27,6 +27,21 @@ class TestOrderApi:
         assert response.status_code == 200
         assert len(response.json()["results"]) == 2
 
+    def test_staff_can_filter_orders_by_client(self, staff_client, order, staff_user):
+        Order.objects.create(user=staff_user, final_price="300.00")
+
+        response = staff_client.get(reverse("order-list"), {"user": order.user_id})
+
+        assert response.status_code == 200
+        results = response.json()["results"]
+        assert [result["reference"] for result in results] == [order.reference]
+
+    def test_staff_order_filter_rejects_invalid_user_id(self, staff_client, order):
+        response = staff_client.get(reverse("order-list"), {"user": "invalid"})
+
+        assert response.status_code == 200
+        assert response.json()["results"] == []
+
     def test_order_list_includes_operational_summary(self, staff_client, order, staff_user):
         OrderItem.objects.create(
             order=order,

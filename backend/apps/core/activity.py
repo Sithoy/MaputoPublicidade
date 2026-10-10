@@ -14,7 +14,7 @@ def record_activity(
     comment: str = "",
     is_internal: bool = False,
 ) -> ActivityEvent:
-    return ActivityEvent.objects.create(
+    event = ActivityEvent.objects.create(
         quote=quote,
         order=order,
         actor=actor if getattr(actor, "is_authenticated", False) else None,
@@ -24,6 +24,10 @@ def record_activity(
         comment=comment,
         is_internal=is_internal,
     )
+    from .portal_notifications import notify_activity
+
+    notify_activity(event)
+    return event
 
 
 class ActivityEventSerializer(serializers.ModelSerializer):

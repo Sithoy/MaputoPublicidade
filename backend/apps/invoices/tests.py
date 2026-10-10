@@ -80,9 +80,62 @@ class TestInvoiceApi:
         assert response.status_code == 400
         assert "due_date" in response.json()
 
-    def test_client_cannot_access_invoices(self, authenticated_client):
+    def test_client_can_list_own_issued_invoices(self, authenticated_client, client_user, staff_user):
+        invoice = Invoice.objects.create(user=client_user, client_name="Cliente", status="issued")
+        Invoice.objects.create(user=client_user, client_name="Rascunho")
+        Invoice.objects.create(user=staff_user, client_name="Outro", status="issued")
         response = authenticated_client.get(reverse("invoice-list"))
-        assert response.status_code == 403
+        assert response.status_code == 200
+        assert [item["reference"] for item in response.json()["results"]] == [invoice.reference]
+        assert authenticated_client.get(reverse("invoice-list"), {"user": staff_user.id}).json()["results"] == []
+
+    def test_client_cannot_read_draft_or_other_clients_pdf(self, authenticated_client, client_user, staff_user):
+        draft = Invoice.objects.create(user=client_user, client_name="Rascunho")
+        other = Invoice.objects.create(user=staff_user, client_name="Outro", status="issued")
+        for invoice in (draft, other):
+            for route in ("invoice-detail", "invoice-pdf"):
+                response = authenticated_client.get(reverse(route, kwargs={"reference": invoice.reference}))
+                assert response.status_code == 404
+
+    def test_client_downloads_own_invoice_but_cannot_modify_it(self, authenticated_client, client_user):
+        invoice = Invoice.objects.create(user=client_user, client_name="Cliente", status="issued")
+        response = authenticated_client.get(reverse("invoice-pdf", kwargs={"reference": invoice.reference}))
+        assert response.status_code == 200
+        assert b"".join(response.streaming_content).startswith(b"%PDF")
+        assert authenticated_client.patch(
+            reverse("invoice-detail", kwargs={"reference": invoice.reference}),
+            {"client_name": "Alterado"}, format="json",
+        ).status_code == 403
+        assert authenticated_client.post(reverse("invoice-list"), {}, format="json").status_code == 403
+        assert authenticated_client.post(
+            reverse("invoice-set-status", kwargs={"reference": invoice.reference}),
+            {"status": "paid"}, format="json",
+        ).status_code == 403
+
+    def test_invoice_issue_notifies_client_once(self, staff_client, client_user):
+        from apps.core.models import PortalNotification
+
+        invoice = Invoice.objects.create(user=client_user, client_name="Cliente")
+        url = reverse("invoice-set-status", kwargs={"reference": invoice.reference})
+        for _ in range(2):
+            assert staff_client.post(url, {"status": "issued"}, format="json").status_code == 200
+        assert PortalNotification.objects.filter(recipient=client_user).count() == 1
+
+    def test_staff_can_filter_invoices_by_client(self, staff_client, client_user, staff_user):
+        client_invoice = Invoice.objects.create(user=client_user, client_name="Cliente")
+        Invoice.objects.create(user=staff_user, client_name="Outro cliente")
+
+        response = staff_client.get(reverse("invoice-list"), {"user": client_user.id})
+
+        assert response.status_code == 200
+        results = response.json()["results"]
+        assert [result["reference"] for result in results] == [client_invoice.reference]
+
+    def test_staff_invoice_filter_rejects_invalid_user_id(self, staff_client):
+        response = staff_client.get(reverse("invoice-list"), {"user": "invalid"})
+
+        assert response.status_code == 200
+        assert response.json()["results"] == []
 
     def test_commercial_can_view_but_not_create_invoice(self):
         commercial = User.objects.create_user(

@@ -19,13 +19,22 @@ import {
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import { ClientWorkspace, type ClientWorkspaceData } from '@/components/admin/ClientWorkspace';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { getApiErrorMessage } from '@/lib/api-errors';
-import { getUser, setUserPassword, updateUser } from '@/lib/admin-api';
+import {
+  getClientBrandAssets,
+  getInvoices,
+  getOrders,
+  getQuotes,
+  getUser,
+  setUserPassword,
+  updateUser,
+} from '@/lib/admin-api';
 import type { User } from '@/lib/api';
 import { getRoleLabel, hasCapability, STAFF_ROLE_OPTIONS } from '@/lib/rbac';
 
@@ -52,11 +61,21 @@ function formatDate(value?: string | null, includeTime = false) {
   }).format(new Date(value));
 }
 
+const EMPTY_WORKSPACE: ClientWorkspaceData = {
+  quotes: [],
+  orders: [],
+  invoices: [],
+  assets: [],
+};
+
 export default function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user: currentUser, loading: authLoading } = useAdminAuth();
   const [user, setUser] = useState<User | null>(null);
+  const [workspace, setWorkspace] = useState<ClientWorkspaceData>(EMPTY_WORKSPACE);
+  const [workspaceLoading, setWorkspaceLoading] = useState(true);
+  const [workspaceError, setWorkspaceError] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -77,6 +96,9 @@ export default function AdminUserDetailPage() {
 
     let cancelled = false;
     setInitialLoading(true);
+    setWorkspaceLoading(true);
+    setWorkspaceError('');
+    setWorkspace(EMPTY_WORKSPACE);
     getUser(userId)
       .then((data) => {
         if (!cancelled) setUser(data);
@@ -88,6 +110,26 @@ export default function AdminUserDetailPage() {
       })
       .finally(() => {
         if (!cancelled) setInitialLoading(false);
+      });
+
+    Promise.all([
+      getQuotes(`?user=${userId}`),
+      getOrders(`?user=${userId}`),
+      getInvoices(`?user=${userId}`),
+      getClientBrandAssets(userId),
+    ])
+      .then(([quotes, orders, invoices, assets]) => {
+        if (!cancelled) setWorkspace({ quotes, orders, invoices, assets });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setWorkspaceError(
+            getApiErrorMessage(err, 'Não foi possível carregar toda a relação com este cliente.')
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setWorkspaceLoading(false);
       });
 
     return () => {
@@ -274,6 +316,15 @@ export default function AdminUserDetailPage() {
           </Card>
         ))}
       </div>
+
+      {!user.is_staff ? (
+        <ClientWorkspace
+          user={user}
+          {...workspace}
+          loading={workspaceLoading}
+          error={workspaceError}
+        />
+      ) : null}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-5 lg:grid-cols-2">

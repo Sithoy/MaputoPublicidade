@@ -1,5 +1,5 @@
 import { fetchWithAuth, downloadWithAuth } from './auth';
-import type { BrandAsset, Cart, CartItem, Order, Payment, Quote, User, UserProfile } from './api';
+import type { BrandAsset, Cart, CartItem, Invoice, Order, Payment, Quote, User, UserProfile } from './api';
 
 function emitCartUpdate() {
   if (typeof window !== 'undefined') {
@@ -157,6 +157,18 @@ export async function createQuoteFromCart(_cart: Cart, contact: {
 
 export async function getClientOrders(): Promise<Order[]> {
   return fetchAllPages<Order>('/api/orders/');
+}
+
+export async function getClientInvoices(): Promise<Invoice[]> {
+  return fetchAllPages<Invoice>('/api/invoices/');
+}
+
+export async function getClientInvoice(reference: string): Promise<Invoice> {
+  return fetchWithAuth(`/api/invoices/${encodeURIComponent(reference)}/`) as Promise<Invoice>;
+}
+
+export async function downloadClientInvoicePdf(reference: string) {
+  return downloadWithAuth(`/api/invoices/${encodeURIComponent(reference)}/pdf/`, `Fatura-${reference}.pdf`);
 }
 
 export async function getClientQuotes(): Promise<Quote[]> {

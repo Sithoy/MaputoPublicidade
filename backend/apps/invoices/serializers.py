@@ -122,6 +122,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
         }
 
     def get_created_by_name(self, obj):
+        request = self.context.get("request")
+        if request and not request.user.is_staff:
+            return "Equipa MP"
         if not obj.created_by:
             return None
         return obj.created_by.get_full_name() or obj.created_by.email

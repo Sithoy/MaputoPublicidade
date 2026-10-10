@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { ArrowUpRight, Menu } from 'lucide-react';
 import type { User } from '@/lib/api';
 import { getRoleLabel } from '@/lib/rbac';
+import { PortalNotifications } from '@/components/PortalNotifications';
 
 function getPageTitle(pathname: string) {
   if (pathname === '/admin') return 'Visão geral';
@@ -66,6 +67,7 @@ export function AdminHeader({ user, onMenuOpen }: { user: User; onMenuOpen: () =
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
+        <PortalNotifications userId={user.id} />
         <Link
           href="/"
           className="hidden items-center gap-1.5 text-sm font-semibold text-[#5d6d65] transition hover:text-brand-700 sm:inline-flex"

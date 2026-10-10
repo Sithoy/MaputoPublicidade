@@ -1,6 +1,6 @@
 import { getToken, downloadWithAuth } from './auth';
 import { del, get, getAllPages, patch, post, put } from './api';
-import type { Category, ClientOption, Invoice, InvoiceStatus, Order, Package, PaginatedResponse, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
+import type { BrandAsset, Category, ClientOption, Invoice, InvoiceStatus, Order, Package, PaginatedResponse, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
 
 export type DashboardStats = {
   quotes: {
@@ -386,6 +386,12 @@ export async function getUserSummary(): Promise<UserSummary> {
 
 export async function getUser(id: number): Promise<User> {
   return get<User>(`/api/auth/users/${id}/`, { headers: authHeaders() });
+}
+
+export async function getClientBrandAssets(userId: number): Promise<BrandAsset[]> {
+  return getAllPages<BrandAsset>(`/api/brand-assets/?user=${userId}`, {
+    headers: authHeaders(),
+  });
 }
 
 export async function updateUser(id: number, data: UserFormData): Promise<User> {

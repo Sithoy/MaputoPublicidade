@@ -17,11 +17,13 @@ import {
   LogOut,
   Menu,
   Plus,
+  ReceiptText,
   X,
 } from 'lucide-react';
 import { useClientAuth } from '@/hooks/useClientAuth';
 import { removeToken } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { PortalNotifications } from '@/components/PortalNotifications';
 
 const portalNav = [
   { href: '/area-cliente', label: 'Visão geral', icon: LayoutDashboard },
@@ -29,6 +31,7 @@ const portalNav = [
   { href: '/area-cliente/historico', label: 'Histórico', icon: History },
   { href: '/area-cliente/aprovacoes', label: 'Aprovações', icon: BadgeCheck },
   { href: '/area-cliente/orcamentos', label: 'Propostas', icon: FileText },
+  { href: '/area-cliente/faturas', label: 'Faturas', icon: ReceiptText },
   { href: '/area-cliente/marca', label: 'Biblioteca da marca', icon: LibraryBig },
   { href: '/area-cliente/perfil', label: 'Perfil da empresa', icon: Building2 },
 ];
@@ -37,6 +40,8 @@ const SUPPORT_URL =
   'https://wa.me/25882555736?text=Ol%C3%A1%21%20Preciso%20de%20ajuda%20com%20um%20projeto%20no%20BrandDesk.';
 
 function getPageTitle(pathname: string) {
+  if (pathname.startsWith('/area-cliente/faturas/')) return 'Detalhe da fatura';
+  if (pathname === '/area-cliente/faturas') return 'Faturas';
   if (pathname === '/area-cliente/novo-pedido') return 'Novo pedido';
   if (pathname.startsWith('/area-cliente/encomendas/')) return 'Acompanhamento do pedido';
   if (pathname === '/area-cliente/encomendas') return 'Projetos';
@@ -256,6 +261,7 @@ export default function ClientAreaLayout({ children }: { children: React.ReactNo
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
+            {user ? <PortalNotifications userId={user.id} /> : null}
             <Link
               href="/"
               className="hidden items-center gap-1.5 text-sm font-semibold text-[#5d6d65] transition hover:text-brand-700 sm:inline-flex"

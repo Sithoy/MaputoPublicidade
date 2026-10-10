@@ -24,6 +24,25 @@ class TestQuoteApi:
         client.force_authenticate(user=user)
         return user, client
 
+    def test_staff_can_filter_quotes_by_client(self, staff_client, quote, staff_user):
+        QuoteRequest.objects.create(
+            user=staff_user,
+            client_name="Outro cliente",
+            client_email="outro@example.com",
+        )
+
+        response = staff_client.get(reverse("quote-list"), {"user": quote.user_id})
+
+        assert response.status_code == 200
+        results = response.json()["results"]
+        assert [result["reference"] for result in results] == [quote.reference]
+
+    def test_staff_quote_filter_rejects_invalid_user_id(self, staff_client, quote):
+        response = staff_client.get(reverse("quote-list"), {"user": "invalid"})
+
+        assert response.status_code == 200
+        assert response.json()["results"] == []
+
     def test_receptionist_creates_phone_quote_without_email(self, product):
         receptionist, client = self.receptionist_client("phone")
 
