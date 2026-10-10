@@ -13,6 +13,31 @@ const request: ReceptionRequest = {
 };
 
 describe('ReceptionRequestPanel', () => {
+  it('hides empty optional fields and shows saved specifications immediately', () => {
+    render(<ReceptionRequestPanel request={{ ...request, items: [{ ...request.items[0], size: '85 cm' }] }} userId={1} onChange={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByLabelText('NUIT')).not.toBeVisible();
+    expect(screen.getByLabelText('Referência de trabalho anterior')).not.toBeVisible();
+    expect(screen.getByLabelText('Dimensões 1')).toBeVisible();
+    expect(screen.getByText('Pronto para o Comercial')).toBeInTheDocument();
+  });
+  it('saves technical values even after the section is closed', async () => {
+    vi.mocked(updateReception).mockResolvedValue(request);
+    render(<ReceptionRequestPanel request={request} userId={1} onChange={vi.fn()} onClose={vi.fn()} />);
+    const summary = screen.getByText('Detalhes técnicos do material 1').closest('summary')!;
+    fireEvent.click(summary);
+    await waitFor(() => expect(screen.getByLabelText('Dimensões 1')).toBeVisible());
+    fireEvent.change(screen.getByLabelText('Dimensões 1'), { target: { value: '85 cm' } });
+    fireEvent.click(summary);
+    await waitFor(() => expect(screen.getByLabelText('Dimensões 1')).not.toBeVisible());
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar triagem' }));
+    await waitFor(() => expect(updateReception).toHaveBeenCalledWith(request.reference, 'edit', expect.objectContaining({ items: [expect.objectContaining({ size: '85 cm' })] })));
+  });
+  it('does not hide a saved delivery address when changing to pickup', () => {
+    render(<ReceptionRequestPanel request={{ ...request, briefing: { project_name: '', description: 'Entrega de cartões', deadline: null, fulfilment: 'delivery', delivery_address: 'Maputo, Rua 1', source_reference: '', needs_design: false, questions: '' } }} userId={1} onChange={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Forma de recepção'), { target: { value: 'pickup' } });
+    expect(screen.getByLabelText('Local / endereço de entrega')).toBeVisible();
+    expect(screen.getByLabelText('Local / endereço de entrega')).toHaveValue('Maputo, Rua 1');
+  });
   it('saves contact details without price fields and requires saving before handoff', async () => {
     const onChange = vi.fn();
     vi.mocked(updateReception).mockResolvedValue({ ...request, client_phone: '841234567' });
