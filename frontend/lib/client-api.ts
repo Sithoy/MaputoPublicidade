@@ -180,8 +180,8 @@ export type BrandRequestIntent = 'quote' | 'catalogue' | 'reorder' | 'campaign' 
 export type BrandRequestData = {
   intent: BrandRequestIntent;
   projectName: string;
-  serviceType?: string;
-  quantity: number;
+  items: Array<{ description: string; quantity: number; specifications?: string }>;
+  files?: File[];
   deadline?: string;
   fulfilment: 'pickup' | 'delivery' | 'installation';
   sourceReference?: string;
@@ -196,7 +196,7 @@ export type BrandRequestData = {
   };
 };
 
-const brandRequestIntentLabels: Record<BrandRequestIntent, string> = {
+export const brandRequestIntentLabels: Record<BrandRequestIntent, string> = {
   quote: 'Pedido de orçamento',
   catalogue: 'Produto do catálogo',
   reorder: 'Repetição de encomenda',
@@ -204,43 +204,29 @@ const brandRequestIntentLabels: Record<BrandRequestIntent, string> = {
   guidance: 'Apoio para escolher uma solução',
 };
 
-const fulfilmentLabels: Record<BrandRequestData['fulfilment'], string> = {
+export const fulfilmentLabels: Record<BrandRequestData['fulfilment'], string> = {
   pickup: 'Levantamento nas instalações da MP',
   delivery: 'Entrega no endereço do cliente',
   installation: 'Entrega e instalação',
 };
 
 export async function createBrandRequest(data: BrandRequestData): Promise<Quote> {
-  const requestDetails = [
-    'Pedido criado no BrandDesk.',
-    `Objetivo: ${brandRequestIntentLabels[data.intent]}.`,
-    data.serviceType ? `Produto ou serviço: ${data.serviceType}.` : '',
-    data.deadline ? `Data pretendida: ${data.deadline}.` : '',
-    `Entrega: ${fulfilmentLabels[data.fulfilment]}.`,
-    data.sourceReference ? `Pedido de origem: ${data.sourceReference}.` : '',
-    data.notes ? `Briefing: ${data.notes}` : '',
-  ].filter(Boolean);
-
-  return fetchWithAuth('/api/quotes/', {
+  const form = new FormData();
+  form.append('payload', JSON.stringify({
+    intent: data.intent, project_name: data.projectName, items: data.items,
+    deadline: data.deadline || null, fulfilment: data.fulfilment,
+    source_reference: data.sourceReference || '', needs_design: data.needsDesign,
+    urgency: data.urgency, notes: data.notes || '',
+  }));
+  data.files?.forEach((file) => form.append('files', file));
+  return fetchWithAuth('/api/quotes/brand-request/', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_name: data.contact.name,
-      client_email: data.contact.email,
-      client_phone: data.contact.phone || '',
-      client_company: data.contact.company || '',
-      urgency: data.urgency,
-      notes: requestDetails.join('\n'),
-      items: [
-        {
-          description: data.projectName,
-          quantity: Math.max(1, Math.round(data.quantity || 1)),
-          needs_design: data.needsDesign,
-          notes: requestDetails.slice(1).join('\n'),
-        },
-      ],
-    }),
+    body: form,
   }) as Promise<Quote>;
+}
+
+export async function downloadRequestAttachment(reference: string, id: number, name: string) {
+  return downloadWithAuth(`/api/quotes/${reference}/attachment/?id=${id}`, name);
 }
 
 export async function getClientQuote(reference: string): Promise<Quote> {

@@ -137,6 +137,7 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
 
 
 class QuoteRequestDetailSerializer(serializers.ModelSerializer):
+    request_attachments = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     urgency_display = serializers.CharField(source="get_urgency_display", read_only=True)
     payment_option_display = serializers.CharField(
@@ -176,6 +177,8 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "urgency",
             "urgency_display",
             "notes",
+            "briefing",
+            "request_attachments",
             "internal_notes",
             "status",
             "status_display",
@@ -203,6 +206,9 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
         if obj.price_approved_by:
             return obj.price_approved_by.get_full_name() or obj.price_approved_by.email
         return None
+
+    def get_request_attachments(self, obj):
+        return list(obj.request_attachments.values("id", "name", "size"))
 
     def get_internal_notes(self, obj):
         request = self.context.get("request")

@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 from io import BytesIO
 
@@ -27,7 +28,15 @@ from apps.core.notifications import (
 from apps.core.permissions import HasStaffCapability, IsOwnerOrStaff
 from apps.orders.models import Order, OrderItem
 
-from .models import ArtworkApproval, ArtworkProofVersion, ProposalPreparation, QuoteRequest
+from .brand_requests import BrandRequestSerializer, BrandRequestThrottle, validated_attachments
+from .models import (
+    ArtworkApproval,
+    ArtworkProofVersion,
+    ProposalPreparation,
+    QuoteItem,
+    QuoteRequest,
+    QuoteRequestAttachment,
+)
 from .proposal_assistant import PreparationThrottle, extract_draft, prepare_sources
 from .serializers import (
     ArtworkApprovalSerializer,
@@ -113,6 +122,8 @@ class QuoteRequestViewSet(
         return QuoteRequestListSerializer
 
     def get_permissions(self):
+        if self.action == "brand_request":
+            return [IsAuthenticated()]
         if self.action == "intake":
             if self.request.data.get("outcome") == "quote" and has_staff_capability(self.request.user, StaffCapability.MANAGE_QUOTES):
                 return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
@@ -212,6 +223,59 @@ class QuoteRequestViewSet(
         notify_quote_received(quote)
         detail = QuoteRequestDetailSerializer(quote, context={"request": request})
         return Response(detail.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"], url_path="brand-request", throttle_classes=[BrandRequestThrottle])
+    @transaction.atomic
+    def brand_request(self, request):
+        try:
+            payload = json.loads(request.data.get("payload", "{}"))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"detail": "Briefing inválido."}) from exc
+        serializer = BrandRequestSerializer(data=payload)
+        serializer.is_valid(raise_exception=True)
+        files = validated_attachments(request.FILES.getlist("files"))
+        data = serializer.validated_data
+        profile = getattr(request.user, "profile", None)
+        company = getattr(profile, "company", "")
+        briefing = {key: value for key, value in data.items() if key != "items"}
+        if briefing.get("deadline"):
+            briefing["deadline"] = briefing["deadline"].isoformat()
+        labels = {"quote": "Pedido de orçamento", "catalogue": "Produto do catálogo", "reorder": "Repetição de encomenda", "campaign": "Evento ou campanha", "guidance": "Apoio para escolher uma solução"}
+        fulfilment_labels = {"pickup": "Levantamento na MP", "delivery": "Entrega", "installation": "Entrega e instalação"}
+        notes = [f"Projeto: {data['project_name']}", f"Objetivo: {labels[data['intent']]}",
+                 f"Recepção: {fulfilment_labels[data['fulfilment']]}", data.get("notes", "")]
+        if data.get("deadline"):
+            notes.append(f"Data pretendida (a confirmar pela MP): {data['deadline']}")
+        if data.get("source_reference"):
+            notes.append(f"Referência anterior: {data['source_reference']}")
+        quote = QuoteRequest.objects.create(user=request.user,
+            client_name=company or request.user.get_full_name() or request.user.email,
+            client_email=request.user.email, client_phone=getattr(profile, "phone", ""),
+            client_company="", client_nuit=getattr(profile, "nuit", ""),
+            urgency=data["urgency"], briefing=briefing, notes="\n".join(filter(None, notes)))
+        for position, item in enumerate(data["items"]):
+            QuoteItem.objects.create(quote=quote, description=item["description"], quantity=item["quantity"],
+                notes=item.get("specifications", ""), needs_design=data["needs_design"], position=position)
+        for file in files:
+            QuoteRequestAttachment.objects.create(quote=quote, **file)
+        record_activity(action=ActivityEvent.ACTION_CREATED, quote=quote, actor=request.user,
+                        comment="Pedido recebido pelo BrandDesk; briefing e anexos aguardam análise comercial.")
+        notify_quote_received(quote)
+        return Response(QuoteRequestDetailSerializer(quote, context={"request": request}).data, status=201)
+
+    @action(detail=True, methods=["get"], url_path="attachment")
+    def attachment(self, request, reference=None):
+        quote = self.get_object()
+        attachment_id = request.query_params.get("id", "")
+        if not attachment_id.isdigit():
+            raise ValidationError({"detail": "Anexo inválido."})
+        from django.shortcuts import get_object_or_404
+
+        file = get_object_or_404(quote.request_attachments, pk=int(attachment_id))
+        response = FileResponse(BytesIO(bytes(file.content)), as_attachment=True, filename=file.name, content_type="application/octet-stream")
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
     @action(detail=False, methods=["post"], url_path="prepare", throttle_classes=[PreparationThrottle])
     def prepare(self, request):

@@ -311,6 +311,8 @@ export type QuoteItem = {  id: number;
 };
 
 export type Quote = {
+  briefing?: { project_name?: string; notes?: string; deadline?: string | null; fulfilment?: string; source_reference?: string; needs_design?: boolean; intent?: string };
+  request_attachments?: Array<{ id: number; name: string; size: number }>;
   id: number;
   reference: string;
   user?: number;

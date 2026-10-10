@@ -1,5 +1,7 @@
 'use client';
 
+import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
+
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Printer, Save, Upload } from 'lucide-react';
@@ -324,6 +326,7 @@ export default function AdminOrderDetailPage() {
               </table>
             </div>
 
+            <QuoteRequestEvidence quote={quote} />
             {quote.notes && (
               <>
                 <hr className="border-gray-100" />

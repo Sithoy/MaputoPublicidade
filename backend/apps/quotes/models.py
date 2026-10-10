@@ -92,6 +92,7 @@ class QuoteRequest(models.Model):
         "urgência", max_length=20, choices=URGENCY_CHOICES, default=URGENCY_NORMAL
     )
     notes = models.TextField("observações gerais", blank=True)
+    briefing = models.JSONField(default=dict, blank=True)
 
     status = models.CharField(
         "estado", max_length=30, choices=STATUS_CHOICES, default=STATUS_RECEIVED
@@ -200,6 +201,15 @@ class QuoteRequest(models.Model):
         from django.utils import timezone
 
         return timezone.now()
+
+
+class QuoteRequestAttachment(models.Model):
+    """Bounded private request evidence; downloaded only through an owner-checked API."""
+
+    quote = models.ForeignKey(QuoteRequest, on_delete=models.CASCADE, related_name="request_attachments")
+    name = models.CharField(max_length=255)
+    size = models.PositiveIntegerField()
+    content = models.BinaryField()
 
 
 class QuoteItem(models.Model):

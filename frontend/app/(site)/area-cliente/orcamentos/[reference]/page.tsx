@@ -1,5 +1,7 @@
 'use client';
 
+import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -123,9 +125,11 @@ export default function ClientQuoteDetailPage() {
         </CardContent>
       </Card>
 
+      <QuoteRequestEvidence quote={quote} />
       <Card>
         <CardContent className="p-5">
           <h2 className="mb-4 text-lg font-semibold text-dark">Itens do pedido</h2>
+          {!quote.items.length ? <p className="mb-4 text-sm text-gray-500">A equipa MP ajudará a definir os materiais e quantidades a partir do briefing.</p> : null}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b text-left text-gray-500">
