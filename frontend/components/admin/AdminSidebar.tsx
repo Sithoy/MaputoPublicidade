@@ -27,6 +27,7 @@ const navGroups = [
   {
     label: 'Operações',
     items: [
+      { href: '/admin/recepcao', label: 'Recepção', icon: Headphones, capability: 'reception.manage' },
       { href: '/admin/apoio', label: 'Mensagens e apoio', icon: Headphones, capability: 'support.manage' },
       { href: '/admin', label: 'Visão geral', icon: BarChart3, capability: 'dashboard.view' },
       { href: '/admin/quadro', label: 'Pipeline de trabalhos', icon: Columns3, capability: 'quotes.view' },
@@ -97,7 +98,8 @@ export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: ()
       <nav className="flex-1 overflow-y-auto px-3 py-5" aria-label="Navegação administrativa">
         {navGroups.map((group, groupIndex) => {
           const visibleItems = group.items.filter((item) =>
-            hasCapability(user, item.capability as StaffCapability)
+            hasCapability(user, item.capability as StaffCapability) &&
+            !(user.role === 'receptionist' && item.href === '/admin/quadro')
           );
           if (visibleItems.length === 0) return null;
           return (

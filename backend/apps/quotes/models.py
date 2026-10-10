@@ -77,6 +77,11 @@ class QuoteRequest(models.Model):
     )
 
     client_name = models.CharField("nome do cliente", max_length=255)
+    reception_owner = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="reception_requests"
+    )
+    reception_notes = models.TextField(blank=True)
+    reception_completed_at = models.DateTimeField(null=True, blank=True)
     client_email = models.EmailField("email do cliente", blank=True)
     client_phone = models.CharField("telefone do cliente", max_length=50, blank=True)
     client_company = models.CharField("empresa", max_length=255, blank=True)

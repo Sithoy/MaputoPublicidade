@@ -21,6 +21,7 @@ class StaffRole(models.TextChoices):
 
 
 class StaffCapability:
+    MANAGE_RECEPTION = "reception.manage"
     MANAGE_SUPPORT = "support.manage"
     CREATE_INTAKE = "intake.create"
     VIEW_DASHBOARD = "dashboard.view"
@@ -106,6 +107,7 @@ ROLE_CAPABILITIES = {
     ),
     StaffRole.RECEPTIONIST: frozenset(
         {
+            StaffCapability.MANAGE_RECEPTION,
             StaffCapability.MANAGE_SUPPORT,
             StaffCapability.CREATE_INTAKE,
             StaffCapability.VIEW_QUOTES,

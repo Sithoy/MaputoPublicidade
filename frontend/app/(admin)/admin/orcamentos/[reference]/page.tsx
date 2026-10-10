@@ -327,6 +327,13 @@ export default function AdminOrderDetailPage() {
             </div>
 
             <QuoteRequestEvidence quote={quote} />
+            {quote.reception?.completed_at && (
+              <Card><CardContent className="p-5">
+                <h2 className="font-semibold">Encaminhamento da Recepção</h2>
+                <p className="mt-2 text-sm text-slate-500">{quote.reception.owner_name} · {new Date(quote.reception.completed_at).toLocaleString('pt-MZ')}</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm">{quote.reception.notes || 'Dados mínimos confirmados. Rever o briefing e preparar a proposta.'}</p>
+              </CardContent></Card>
+            )}
             {quote.notes && (
               <>
                 <hr className="border-gray-100" />

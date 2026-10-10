@@ -8,6 +8,7 @@ import { getRoleLabel } from '@/lib/rbac';
 import { PortalNotifications } from '@/components/PortalNotifications';
 
 function getPageTitle(pathname: string) {
+  if (pathname.startsWith('/admin/recepcao')) return 'Recepção';
   if (pathname.startsWith('/admin/apoio')) return 'Mensagens e apoio';
   if (pathname === '/admin') return 'Visão geral';
   if (pathname.startsWith('/admin/atendimento')) return 'Novo pedido';

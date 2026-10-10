@@ -137,6 +137,7 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
 
 
 class QuoteRequestDetailSerializer(serializers.ModelSerializer):
+    reception = serializers.SerializerMethodField()
     request_attachments = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     urgency_display = serializers.CharField(source="get_urgency_display", read_only=True)
@@ -180,6 +181,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "briefing",
             "request_attachments",
             "internal_notes",
+            "reception",
             "status",
             "status_display",
             "estimated_price",
@@ -218,6 +220,19 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
         ):
             return obj.internal_notes
         return None
+
+    def get_reception(self, obj):
+        request = self.context.get("request")
+        if not request or not (
+            has_staff_capability(request.user, StaffCapability.MANAGE_RECEPTION)
+            or has_staff_capability(request.user, StaffCapability.MANAGE_QUOTES)
+        ):
+            return None
+        return {
+            "owner_name": (obj.reception_owner.get_full_name() or obj.reception_owner.username) if obj.reception_owner else "",
+            "notes": obj.reception_notes,
+            "completed_at": obj.reception_completed_at,
+        }
 
     def get_activity(self, obj):
         from apps.core.activity import serialize_activity

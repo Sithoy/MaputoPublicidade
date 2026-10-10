@@ -46,9 +46,9 @@ describe('staff RBAC helpers', () => {
     ).toBe('/admin/faturas');
     expect(
       getDefaultAdminPath(
-        user({ role: 'receptionist', capabilities: ['intake.create', 'quotes.view', 'orders.view'] })
+        user({ role: 'receptionist', capabilities: ['reception.manage', 'intake.create', 'quotes.view', 'orders.view'] })
       )
-    ).toBe('/admin/atendimento/novo');
+    ).toBe('/admin/recepcao');
   });
 
   it('maps protected routes and displays the assigned role', () => {
@@ -56,6 +56,7 @@ describe('staff RBAC helpers', () => {
     expect(getRequiredCapability('/admin/utilizadores/12')).toBe('users.manage');
     expect(getRequiredCapability('/admin/faturas/FT-2026-0001')).toBe('invoices.view');
     expect(getRequiredCapability('/admin/atendimento/novo')).toBe('intake.create');
+    expect(getRequiredCapability('/admin/recepcao')).toBe('reception.manage');
     expect(getRoleLabel(user())).toBe('Comercial');
   });
 });
