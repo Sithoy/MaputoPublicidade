@@ -80,6 +80,7 @@ class QuoteRequest(models.Model):
     client_email = models.EmailField("email do cliente", blank=True)
     client_phone = models.CharField("telefone do cliente", max_length=50, blank=True)
     client_company = models.CharField("empresa", max_length=255, blank=True)
+    client_nuit = models.CharField("NUIT", max_length=50, blank=True)
     contact_source = models.CharField(
         "origem do atendimento",
         max_length=20,

@@ -170,6 +170,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "client_email",
             "client_phone",
             "client_company",
+            "client_nuit",
             "contact_source",
             "contact_source_display",
             "urgency",
@@ -271,6 +272,7 @@ class QuoteRequestCreateSerializer(serializers.ModelSerializer):
             "client_email",
             "client_phone",
             "client_company",
+            "client_nuit",
             "urgency",
             "notes",
             "items",
@@ -349,6 +351,7 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
     client_email = serializers.EmailField(required=False, allow_blank=True)
     client_phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
     client_company = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    client_nuit = serializers.CharField(max_length=50, required=False, allow_blank=True)
     urgency = serializers.ChoiceField(
         choices=QuoteRequest.URGENCY_CHOICES,
         default=QuoteRequest.URGENCY_NORMAL,
@@ -369,7 +372,8 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
             attrs["client_name"] = attrs.get("client_name") or user.get_full_name() or user.email
             attrs["client_email"] = attrs.get("client_email") or user.email
             attrs["client_phone"] = attrs.get("client_phone") or getattr(profile, "phone", "")
-            attrs["client_company"] = attrs.get("client_company") or getattr(profile, "company", "")
+            attrs.setdefault("client_company", getattr(profile, "company", ""))
+            attrs.setdefault("client_nuit", getattr(profile, "nuit", ""))
         if not attrs.get("client_name"):
             raise serializers.ValidationError({"client_name": "Indique o nome do cliente."})
         if not attrs.get("client_email"):
@@ -547,6 +551,9 @@ class QuoteRequestUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuoteRequest
         fields = [
+            "client_name",
+            "client_company",
+            "client_nuit",
             "status",
             "estimated_price",
             "final_price",

@@ -182,6 +182,7 @@ export type ManualQuoteInput = {
   client_email?: string;
   client_phone?: string;
   client_company?: string;
+  client_nuit?: string;
   urgency?: 'normal' | 'urgent';
   notes?: string;
   internal_notes?: string;
@@ -230,6 +231,7 @@ export type ProposalDraft = {
   client_email: string;
   client_phone: string;
   client_company: string;
+  client_nuit?: string;
   summary: string;
   requested_deadline: string;
   questions: string[];
@@ -274,6 +276,9 @@ export async function updateQuoteInternalNotes(reference: string, internal_notes
 export async function updateQuoteDocument(
   reference: string,
   data: {
+    client_name?: string;
+    client_company?: string;
+    client_nuit?: string;
     valid_until?: string | null;
     terms?: string;
     estimated_delivery_days?: number | null;

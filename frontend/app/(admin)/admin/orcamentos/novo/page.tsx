@@ -27,7 +27,7 @@ export default function NewQuotePage() {
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
-  const [clientCompany, setClientCompany] = useState('');
+  const [clientNuit, setClientNuit] = useState('');
   const [urgency, setUrgency] = useState<'normal' | 'urgent'>('normal');
   const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState('10');
   const [paymentOption, setPaymentOption] = useState<'deposit_50' | 'on_delivery'>('deposit_50');
@@ -44,10 +44,10 @@ export default function NewQuotePage() {
     setPreparationId(preparation.id);
     setReviewed(false);
     setClientId('');
-    setClientName(draft.client_name);
+    setClientName(draft.client_company || draft.client_name);
     setClientEmail(draft.client_email);
     setClientPhone(draft.client_phone);
-    setClientCompany(draft.client_company);
+    setClientNuit(draft.client_nuit ?? '');
     setNotes('');
     setUrgency('normal');
     setEstimatedDeliveryDays('');
@@ -79,10 +79,10 @@ export default function NewQuotePage() {
     setClientId(value);
     const client = clients.find((item) => item.id === Number(value));
     if (!client) return;
-    setClientName(client.name);
+    setClientName(client.company || client.name);
     setClientEmail(client.email);
     setClientPhone(client.phone ?? '');
-    setClientCompany(client.company ?? '');
+    setClientNuit(client.nuit ?? '');
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -123,7 +123,8 @@ export default function NewQuotePage() {
         client_name: clientName.trim(),
         client_email: clientEmail.trim(),
         client_phone: clientPhone.trim(),
-        client_company: clientCompany.trim(),
+        client_company: '',
+        client_nuit: clientNuit.trim(),
         urgency,
         estimated_delivery_days: deliveryDays,
         payment_option: paymentOption,
@@ -208,7 +209,7 @@ export default function NewQuotePage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="client-name">Nome *</Label>
+              <Label htmlFor="client-name">Nome do cliente ou empresa *</Label>
               <Input id="client-name" value={clientName} onChange={(event) => setClientName(event.target.value)} className="mt-1" />
             </div>
             <div>
@@ -220,8 +221,8 @@ export default function NewQuotePage() {
               <Input id="client-phone" value={clientPhone} onChange={(event) => setClientPhone(event.target.value)} className="mt-1" />
             </div>
             <div>
-              <Label htmlFor="client-company">Empresa</Label>
-              <Input id="client-company" value={clientCompany} onChange={(event) => setClientCompany(event.target.value)} className="mt-1" />
+              <Label htmlFor="client-nuit">NUIT</Label>
+              <Input id="client-nuit" value={clientNuit} maxLength={50} onChange={(event) => setClientNuit(event.target.value)} className="mt-1" />
             </div>
           </div>
         </CardContent>

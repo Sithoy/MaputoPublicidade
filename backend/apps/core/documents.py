@@ -6,6 +6,7 @@ Uses ReportLab only (pure Python) so it deploys without native dependencies.
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from django.conf import settings
 from reportlab.lib import colors
@@ -396,7 +397,7 @@ def _invoice_client_card(styles, invoice):
 
 def _client_block(styles, title, lines):
     content = [Paragraph(title.upper(), styles["label"])]
-    content += [Paragraph(line, styles["body"]) for line in lines if line]
+    content += [Paragraph(escape(str(line)), styles["body"]) for line in lines if line]
     return content
 
 
@@ -616,7 +617,7 @@ def build_quote_pdf(quote) -> bytes:
 
     client_lines = [
         quote.client_company or quote.client_name,
-        quote.client_name if quote.client_company else None,
+        f"NUIT {quote.client_nuit}" if quote.client_nuit else None,
         quote.client_email,
         quote.client_phone,
     ]

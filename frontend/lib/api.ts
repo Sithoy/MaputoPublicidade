@@ -318,6 +318,7 @@ export type Quote = {
   client_email: string;
   client_phone?: string;
   client_company?: string;
+  client_nuit?: string;
   contact_source?: 'walk_in' | 'phone' | 'whatsapp' | 'email' | 'web';
   contact_source_display?: string;
   status: string;

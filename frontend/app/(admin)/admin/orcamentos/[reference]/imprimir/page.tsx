@@ -71,7 +71,7 @@ export default function PrintableQuotePage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Preparado para</p>
               <p className="mt-2 text-lg font-semibold text-dark">{quote.client_company || quote.client_name}</p>
-              {quote.client_company ? <p className="text-sm text-gray-600">{quote.client_name}</p> : null}
+              {quote.client_nuit ? <p className="text-sm text-gray-600">NUIT {quote.client_nuit}</p> : null}
               <p className="mt-1 text-sm text-gray-600">{quote.client_email}</p>
               {quote.client_phone ? <p className="text-sm text-gray-600">{quote.client_phone}</p> : null}
             </div>

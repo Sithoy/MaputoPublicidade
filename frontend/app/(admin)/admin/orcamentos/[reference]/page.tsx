@@ -44,6 +44,8 @@ export default function AdminOrderDetailPage() {
   const [estimatedPrice, setEstimatedPrice] = useState('');
   const [finalPrice, setFinalPrice] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
+  const [clientIdentity, setClientIdentity] = useState('');
+  const [clientNuit, setClientNuit] = useState('');
   const [designerComment, setDesignerComment] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,6 +62,8 @@ export default function AdminOrderDetailPage() {
     getQuote(reference)
       .then((data) => {
         setQuote(data);
+        setClientIdentity(data.client_company || data.client_name);
+        setClientNuit(data.client_nuit ?? '');
         setStatus(data.status);
         setEstimatedPrice(data.estimated_price?.toString() || '');
         setFinalPrice(data.final_price?.toString() || '');
@@ -71,6 +75,26 @@ export default function AdminOrderDetailPage() {
       })
       .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar orçamento')));
   }, [authLoading, reference]);
+
+  async function handleClientUpdate() {
+    if (!quote || !clientIdentity.trim()) {
+      setError('Indique o nome do cliente ou empresa.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const identity = { client_name: clientIdentity.trim(), client_company: '', client_nuit: clientNuit.trim() };
+      await updateQuoteDocument(reference, identity);
+      setQuote({ ...quote, ...identity });
+      setMessage('Dados do cliente guardados.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Erro ao guardar dados do cliente'));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleDocumentUpdate() {
     if (!reference) return;
@@ -246,8 +270,8 @@ export default function AdminOrderDetailPage() {
             <h2 className="text-lg font-semibold text-dark">Dados do cliente</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label className="text-gray-500">Nome</Label>
-                <p className="font-medium text-dark">{quote.client_name}</p>
+                <Label htmlFor="quote-client-name" className="text-gray-500">Nome do cliente ou empresa</Label>
+                {canManageQuote ? <Input id="quote-client-name" value={clientIdentity} maxLength={255} onChange={(event) => setClientIdentity(event.target.value)} className="mt-1" /> : <p className="font-medium text-dark">{quote.client_company || quote.client_name}</p>}
               </div>
               <div>
                 <Label className="text-gray-500">E-mail</Label>
@@ -258,10 +282,12 @@ export default function AdminOrderDetailPage() {
                 <p className="font-medium text-dark">{quote.client_phone || '-'}</p>
               </div>
               <div>
-                <Label className="text-gray-500">Empresa</Label>
-                <p className="font-medium text-dark">{quote.client_company || '-'}</p>
+                <Label htmlFor="quote-client-nuit" className="text-gray-500">NUIT</Label>
+                {canManageQuote ? <Input id="quote-client-nuit" value={clientNuit} maxLength={50} onChange={(event) => setClientNuit(event.target.value)} className="mt-1" /> : <p className="font-medium text-dark">{quote.client_nuit || '-'}</p>}
               </div>
             </div>
+
+            {canManageQuote ? <Button type="button" variant="outline" size="sm" disabled={loading} onClick={handleClientUpdate} className="gap-2"><Save className="h-4 w-4" />Guardar dados do cliente</Button> : null}
 
             <hr className="border-gray-100" />
 

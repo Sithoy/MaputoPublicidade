@@ -147,7 +147,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
             attrs["client_email"] = attrs.get("client_email") or user.email
             attrs["client_phone"] = attrs.get("client_phone") or getattr(profile, "phone", "")
             attrs["client_company"] = attrs.get("client_company") or getattr(profile, "company", "")
-            attrs["client_nuit"] = attrs.get("client_nuit") or getattr(profile, "nuit", "")
+            attrs["client_nuit"] = attrs.get("client_nuit") or (
+                order.quote.client_nuit if order and order.quote else ""
+            ) or getattr(profile, "nuit", "")
             attrs["billing_address"] = attrs.get("billing_address") or (
                 getattr(profile, "billing_address", "") or getattr(profile, "address", "")
             )
@@ -157,6 +159,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             attrs["client_email"] = attrs.get("client_email") or quote.client_email
             attrs["client_phone"] = attrs.get("client_phone") or quote.client_phone
             attrs["client_company"] = attrs.get("client_company") or quote.client_company
+            attrs["client_nuit"] = attrs.get("client_nuit") or quote.client_nuit
         client_name = attrs.get(
             "client_name", getattr(self.instance, "client_name", "")
         )
