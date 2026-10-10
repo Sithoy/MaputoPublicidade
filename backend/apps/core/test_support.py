@@ -10,6 +10,12 @@ BASE = "/api/support-conversations/"
 
 @pytest.mark.django_db
 class TestSupport:
+    def test_portal_reads_do_not_consume_support_write_limit(self, authenticated_client):
+        for _ in range(35):
+            assert authenticated_client.get("/api/notifications/unread_count/").status_code == 200
+        response = authenticated_client.post(BASE, {"subject": "Ajuda", "body": "Olá"})
+        assert response.status_code == 201
+
     def test_create_context_notification_and_no_sender_spoof(
         self, authenticated_client, client_user, staff_user, quote
     ):

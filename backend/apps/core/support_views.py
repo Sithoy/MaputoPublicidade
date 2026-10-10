@@ -17,6 +17,7 @@ from .models import PortalNotification, SupportConversation, SupportMessage
 
 
 class SupportWriteThrottle(UserRateThrottle):
+    scope = "support_write"
     rate = "30/min"
 
     def allow_request(self, request, view):
