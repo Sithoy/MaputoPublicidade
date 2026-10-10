@@ -13,6 +13,7 @@ export type EditableDocumentLine = {
   description: string;
   quantity: string;
   unit_price: string;
+  notes?: string;
 };
 
 export function newDocumentLine(): EditableDocumentLine {
@@ -146,6 +147,12 @@ export function DocumentItemsEditor({
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
+            {line.notes !== undefined ? (
+              <div className="lg:col-span-12">
+                <Label htmlFor={`notes-${line.key}`}>Especificações do pedido</Label>
+                <Input id={`notes-${line.key}`} value={line.notes} onChange={(event) => updateLine(line.key, { notes: event.target.value })} className="mt-1" />
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

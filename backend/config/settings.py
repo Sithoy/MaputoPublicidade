@@ -343,6 +343,9 @@ LOGGING = {
 }
 
 # Sentry
+AI_GATEWAY_API_KEY = os.getenv("AI_GATEWAY_API_KEY", "")
+AI_GATEWAY_MODEL = os.getenv("AI_GATEWAY_MODEL", "openai/gpt-4.1-mini")
+
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 if SENTRY_DSN:
     import sentry_sdk

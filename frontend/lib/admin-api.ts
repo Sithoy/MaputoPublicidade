@@ -175,6 +175,8 @@ export type DocumentLineInput = {
 };
 
 export type ManualQuoteInput = {
+  preparation_id?: number;
+  ai_reviewed?: boolean;
   user_id?: number | null;
   client_name?: string;
   client_email?: string;
@@ -221,6 +223,27 @@ export type ReceptionIntakeResult = {
 
 export async function createManualQuote(data: ManualQuoteInput): Promise<Quote> {
   return post<Quote>('/api/quotes/manual/', data, getToken());
+}
+
+export type ProposalDraft = {
+  client_name: string;
+  client_email: string;
+  client_phone: string;
+  client_company: string;
+  summary: string;
+  requested_deadline: string;
+  questions: string[];
+  items: Array<{ description: string; quantity: number | null; specifications: string; source: string }>;
+};
+
+export type ProposalPreparation = { id: number; draft: ProposalDraft; files: string[] };
+
+export async function prepareProposal(text: string, channel: string, files: File[]): Promise<ProposalPreparation> {
+  const data = new FormData();
+  data.append('text', text);
+  data.append('source_channel', channel);
+  files.forEach((file) => data.append('files', file));
+  return post<ProposalPreparation>('/api/quotes/prepare/', data, getToken());
 }
 
 export async function createReceptionIntake(

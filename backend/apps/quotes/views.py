@@ -1,3 +1,4 @@
+import base64
 import os
 from io import BytesIO
 
@@ -6,6 +7,7 @@ from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -25,7 +27,8 @@ from apps.core.notifications import (
 from apps.core.permissions import HasStaffCapability, IsOwnerOrStaff
 from apps.orders.models import Order, OrderItem
 
-from .models import ArtworkApproval, ArtworkProofVersion, QuoteRequest
+from .models import ArtworkApproval, ArtworkProofVersion, ProposalPreparation, QuoteRequest
+from .proposal_assistant import PreparationThrottle, extract_draft, prepare_sources
 from .serializers import (
     ArtworkApprovalSerializer,
     ArtworkProofSerializer,
@@ -114,7 +117,7 @@ class QuoteRequestViewSet(
             return [HasStaffCapability(StaffCapability.CREATE_INTAKE)]
         if self.action == "create":
             return [AllowAny()]
-        if self.action == "manual":
+        if self.action in ["manual", "prepare", "source"]:
             return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
         if self.action in ["approve", "request_change", "approve_price"]:
             return [
@@ -208,11 +211,63 @@ class QuoteRequestViewSet(
         detail = QuoteRequestDetailSerializer(quote, context={"request": request})
         return Response(detail.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=["post"], url_path="prepare", throttle_classes=[PreparationThrottle])
+    def prepare(self, request):
+        channel = request.data.get("source_channel", "other")
+        if channel not in {"email", "whatsapp", "phone", "walk_in", "other"}:
+            raise ValidationError({"source_channel": "Origem inválida."})
+        text = request.data.get("text", "")
+        parts, originals = prepare_sources(text, request.FILES.getlist("files"))
+        draft = extract_draft(parts)
+        preparation = ProposalPreparation.objects.create(
+            created_by=request.user, source_channel=channel, source_text=text,
+            source_files=originals, draft=draft,
+        )
+        return Response({"id": preparation.id, "draft": draft, "files": [item["name"] for item in originals]}, status=201)
+
+    @action(detail=True, methods=["get"], url_path="source")
+    def source(self, request, reference=None):
+        quote = self.get_object()
+        preparation = ProposalPreparation.objects.filter(quote=quote).first()
+        if not preparation:
+            return Response({"source": None})
+        file_index = request.query_params.get("file")
+        if file_index is not None:
+            if not file_index.isdigit() or int(file_index) >= len(preparation.source_files):
+                raise ValidationError({"file": "Anexo não encontrado."})
+            file = preparation.source_files[int(file_index)]
+            return FileResponse(BytesIO(base64.b64decode(file["data"])), as_attachment=True,
+                                filename=file["name"], content_type="application/octet-stream")
+        return Response({"source": {
+            "channel": preparation.source_channel, "text": preparation.source_text,
+            "draft": preparation.draft, "files": [file["name"] for file in preparation.source_files],
+        }})
+
     @action(detail=False, methods=["post"], url_path="manual")
+    @transaction.atomic
     def manual(self, request):
+        preparation = None
+        preparation_id = request.data.get("preparation_id")
+        if preparation_id is not None:
+            if not isinstance(preparation_id, int) or isinstance(preparation_id, bool):
+                raise ValidationError({"preparation_id": "Rascunho inválido."})
+            preparation = ProposalPreparation.objects.select_for_update().filter(
+                pk=preparation_id, created_by=request.user,
+            ).first()
+            if not preparation:
+                raise ValidationError({"preparation_id": "Rascunho não encontrado."})
+            if preparation.quote_id:
+                return Response(QuoteRequestDetailSerializer(preparation.quote, context={"request": request}).data)
+            if request.data.get("ai_reviewed") is not True:
+                raise ValidationError({"ai_reviewed": "Confirme a revisão dos dados, preços e condições."})
         serializer = ManualQuoteCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         quote = serializer.save()
+        if preparation:
+            preparation.quote = quote
+            preparation.save(update_fields=["quote"])
+            quote.contact_source = preparation.source_channel if preparation.source_channel != "other" else "web"
+            quote.save(update_fields=["contact_source"])
         record_activity(
             action=ActivityEvent.ACTION_CREATED,
             quote=quote,

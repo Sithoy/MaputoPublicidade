@@ -5,6 +5,18 @@ from django.db import models
 from apps.catalog.models import Product, ProductVariant
 
 
+class ProposalPreparation(models.Model):
+    """Private intake evidence. Never serialise original attachments to clients."""
+
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    source_channel = models.CharField(max_length=20)
+    source_text = models.TextField(blank=True)
+    source_files = models.JSONField(default=list)
+    draft = models.JSONField(default=dict)
+    quote = models.OneToOneField("QuoteRequest", null=True, blank=True, on_delete=models.CASCADE)
+
+
 class QuoteRequest(models.Model):
     CONTACT_WALK_IN = "walk_in"
     CONTACT_PHONE = "phone"

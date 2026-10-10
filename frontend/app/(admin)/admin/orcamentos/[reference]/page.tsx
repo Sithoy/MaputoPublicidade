@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { ProofVersionHistory } from '@/components/ProofVersionHistory';
+import { ProposalSources } from '@/components/admin/ProposalSources';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   convertQuoteToOrder,
@@ -600,6 +601,8 @@ export default function AdminOrderDetailPage() {
           <ActivityTimeline events={quote.activity ?? []} />
         </CardContent>
       </Card>
+
+      {canManageQuote ? <ProposalSources reference={reference} /> : null}
 
       <ConfirmDialog
         open={confirmCancel}

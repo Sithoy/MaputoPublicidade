@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FilePlus2 } from 'lucide-react';
 import { DocumentItemsEditor, newDocumentLine, type EditableDocumentLine } from '@/components/admin/DocumentItemsEditor';
+import { ProposalAssistant } from '@/components/admin/ProposalAssistant';
+import type { ProposalPreparation } from '@/lib/admin-api';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -34,6 +36,34 @@ export default function NewQuotePage() {
   const [lines, setLines] = useState<EditableDocumentLine[]>([newDocumentLine()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [preparationId, setPreparationId] = useState<number>();
+  const [reviewed, setReviewed] = useState(false);
+
+  function applyPreparation(preparation: ProposalPreparation) {
+    const draft = preparation.draft;
+    setPreparationId(preparation.id);
+    setReviewed(false);
+    setClientId('');
+    setClientName(draft.client_name);
+    setClientEmail(draft.client_email);
+    setClientPhone(draft.client_phone);
+    setClientCompany(draft.client_company);
+    setNotes('');
+    setUrgency('normal');
+    setEstimatedDeliveryDays('');
+    setInternalNotes([
+      'Pedido organizado com IA — confirmar com as fontes originais.',
+      draft.summary,
+      draft.requested_deadline ? `Prazo solicitado: ${draft.requested_deadline}` : '',
+      ...draft.items.map((item, index) => `Fonte do item ${index + 1}: ${item.source}`),
+      ...draft.questions.map((question) => `Confirmar: ${question}`),
+    ].filter(Boolean).join('\n'));
+    setLines(draft.items.map((item) => ({
+      ...newDocumentLine(), description: item.description,
+      quantity: item.quantity === null ? '' : String(item.quantity),
+      unit_price: '', notes: item.specifications,
+    })));
+  }
 
   useEffect(() => {
     if (authLoading || !canManage) return;
@@ -58,12 +88,17 @@ export default function NewQuotePage() {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError('');
+    if (preparationId && !reviewed) {
+      setError('Confirme a revisão dos dados, quantidades, preços e condições antes de criar a proposta.');
+      return;
+    }
     const invalidLine = lines.find(
       (line) =>
         !line.description.trim() ||
         !Number.isInteger(Number(line.quantity)) ||
         Number(line.quantity) < 1 ||
         line.unit_price === '' ||
+        !Number.isFinite(Number(line.unit_price)) ||
         Number(line.unit_price) < 0
     );
     if (invalidLine) {
@@ -82,6 +117,8 @@ export default function NewQuotePage() {
     setSaving(true);
     try {
       const quote = await createManualQuote({
+        preparation_id: preparationId,
+        ai_reviewed: reviewed,
         user_id: clientId ? Number(clientId) : null,
         client_name: clientName.trim(),
         client_email: clientEmail.trim(),
@@ -97,6 +134,7 @@ export default function NewQuotePage() {
           description: line.description.trim(),
           quantity: Number(line.quantity),
           unit_price: Number(line.unit_price),
+          notes: line.notes?.trim(),
         })),
       });
       router.push(`/admin/orcamentos/${quote.reference}`);
@@ -121,7 +159,9 @@ export default function NewQuotePage() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-6xl space-y-6">
+    <form onSubmit={handleSubmit} onChangeCapture={(event) => {
+      if (preparationId && (event.target as HTMLElement).id !== 'ai-reviewed') setReviewed(false);
+    }} className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Button type="button" variant="outline" size="sm" onClick={() => router.back()}>
@@ -140,6 +180,14 @@ export default function NewQuotePage() {
       </div>
 
       {error ? <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
+
+      <ProposalAssistant onApply={applyPreparation} />
+      {preparationId ? (
+        <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <input id="ai-reviewed" type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} className="mt-1" />
+          Confirmei com as fontes os dados do cliente, especificações, quantidades, preços, prazo e pagamento. Resolvi as dúvidas do pedido.
+        </label>
+      ) : null}
 
       <Card>
         <CardContent className="space-y-5 p-6">
