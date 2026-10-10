@@ -11,8 +11,8 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { createInvoice, getClientOptions, getOrders, getProducts } from '@/lib/admin-api';
-import type { ClientOption, Order, Product } from '@/lib/api';
+import { createInvoice, getClientOptions, getOrders, getOrder, getQuote, getProducts } from '@/lib/admin-api';
+import type { ClientOption, Order, Product, Quote } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { formatMZN } from '@/lib/utils';
 
@@ -38,6 +38,8 @@ export default function NewInvoicePage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [orderReference, setOrderReference] = useState('');
+  const [linkedQuote, setLinkedQuote] = useState<Quote | null>(null);
+  const [linkReady, setLinkReady] = useState(true);
   const [clientId, setClientId] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
@@ -48,6 +50,7 @@ export default function NewInvoicePage() {
   const [issueDate, setIssueDate] = useState(initialIssueDate);
   const [dueDate, setDueDate] = useState(initialDueDate);
   const [discount, setDiscount] = useState('0');
+  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
   const [taxRate, setTaxRate] = useState('0');
   const [notes, setNotes] = useState('');
   const [terms, setTerms] = useState('');
@@ -78,17 +81,37 @@ export default function NewInvoicePage() {
     setBillingAddress(client.address ?? '');
   }
 
+  useEffect(() => {
+    let active = true;
+    setLinkedQuote(null);
+    if (!orderReference) { setLinkReady(true); setDiscountType('fixed'); setDiscount('0'); setTaxRate('0'); setTerms(''); return; }
+    setLinkReady(false); setError('');
+    getOrder(orderReference).then((order) => order.quote_reference ? getQuote(order.quote_reference) : null).then((quote) => {
+      if (!active) return;
+      setLinkedQuote(quote);
+      if (quote?.commercial_pricing) {
+        setDiscountType(quote.discount_type || 'fixed');
+        setDiscount(String(quote.discount_type === 'percentage' ? quote.discount_percentage || 0 : quote.discount_amount || 0));
+        setTaxRate(String(quote.tax_rate || 0)); setBillingAddress(quote.billing_address || '');
+        setTerms([quote.payment_option_display || (quote.payment_option === 'on_delivery' ? '100% na entrega' : '50% adiantado + 50% na entrega'), quote.terms].filter(Boolean).join('\n'));
+      } else { setDiscountType('fixed'); setDiscount('0'); setTaxRate('0'); }
+      setLinkReady(true);
+    }).catch((err) => { if (active) setError(getApiErrorMessage(err, 'Não foi possível carregar as condições da proposta. Volte a selecionar a encomenda.')); });
+    return () => { active = false; };
+  }, [orderReference]);
+
   const subtotal = lines.reduce(
     (sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unit_price) || 0),
     0
   );
   const selectedOrder = orders.find((order) => order.reference === orderReference);
-  const documentSubtotal = selectedOrder
+  const documentSubtotal = linkedQuote?.commercial_pricing ? Number(linkedQuote.subtotal || 0) : selectedOrder
     ? Number(selectedOrder.final_price ?? selectedOrder.estimated_price ?? 0)
     : subtotal;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (!linkReady) return;
     setError('');
     if (!orderReference) {
       if (!clientName.trim()) {
@@ -117,7 +140,9 @@ export default function NewInvoicePage() {
         billing_address: !orderReference ? billingAddress.trim() : undefined,
         issue_date: issueDate,
         due_date: dueDate,
-        discount_amount: Number(discount) || 0,
+        discount_type: discountType,
+        discount_amount: discountType === 'fixed' ? Number(discount) || 0 : 0,
+        discount_percentage: discountType === 'percentage' ? Number(discount) || 0 : 0,
         tax_rate: Number(taxRate) || 0,
         notes: notes.trim(),
         terms: terms.trim(),
@@ -156,7 +181,7 @@ export default function NewInvoicePage() {
             <p className="text-sm text-gray-500">Emita a partir de uma encomenda ou crie um documento direto.</p>
           </div>
         </div>
-        <Button type="submit" disabled={saving} className="gap-2">
+        <Button type="submit" disabled={saving || !linkReady} className="gap-2">
           <ReceiptText className="h-4 w-4" />
           {saving ? 'A criar...' : 'Criar rascunho'}
         </Button>
@@ -223,6 +248,8 @@ export default function NewInvoicePage() {
         issueDate={issueDate}
         dueDate={dueDate}
         discount={discount}
+        discountType={discountType}
+        onDiscountTypeChange={(value) => { setDiscountType(value); setDiscount('0'); }}
         taxRate={taxRate}
         notes={notes}
         terms={terms}

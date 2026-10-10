@@ -279,7 +279,21 @@ class QuoteRequestViewSet(
             from rest_framework.exceptions import NotFound
 
             raise NotFound()
-        response = FileResponse(BytesIO(bytes(file.content)), as_attachment=True, filename=file.name, content_type="application/octet-stream")
+        preview = request.query_params.get("preview") == "1"
+        content = bytes(file.content)
+        content_type = "application/octet-stream"
+        if preview:
+            from PIL import Image
+
+            try:
+                with Image.open(BytesIO(content)) as image:
+                    content_type = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}.get(image.format)
+                    if not content_type or image.width * image.height > 20000000:
+                        raise ValueError()
+                    image.verify()
+            except (ValueError, OSError, SyntaxError, EOFError, Image.DecompressionBombError) as exc:
+                raise ValidationError({"detail": "Pré-visualização disponível apenas para imagens JPG, PNG e WebP válidas."}) from exc
+        response = FileResponse(BytesIO(content), as_attachment=not preview, filename=file.name, content_type=content_type)
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"
         return response
@@ -533,6 +547,8 @@ class QuoteRequestViewSet(
     @action(detail=True, methods=["post"], url_path="set-price")
     def set_price(self, request, reference=None):
         quote = self.get_object()
+        if quote.commercial_pricing:
+            raise ValidationError({'detail': 'Use Preparar proposta para alterar preços, descontos e IVA deste documento.'})
         serializer = QuotePriceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

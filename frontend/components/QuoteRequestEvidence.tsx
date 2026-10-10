@@ -1,15 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { Quote } from '@/lib/api';
 import { downloadRequestAttachment } from '@/lib/client-api';
+import { AttachmentImageViewer, isImageAttachment } from './AttachmentImageViewer';
 
 export function QuoteRequestEvidence({ quote }: { quote: Quote }) {
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState<number | null>(null);
+  const [previewId, setPreviewId] = useState<number | null>(null);
   const attachments = quote.request_attachments || [];
+  const images = attachments.filter((file) => isImageAttachment(file.name));
   if (!quote.briefing?.project_name && !attachments.length) return null;
   async function download(file: typeof attachments[number]) {
     setError(''); setDownloading(file.id);
@@ -21,6 +24,7 @@ export function QuoteRequestEvidence({ quote }: { quote: Quote }) {
     <h2 className="text-lg font-semibold">Briefing e referências do cliente</h2>
     {quote.briefing?.project_name ? <div className="space-y-2 text-sm"><p className="font-medium">{quote.briefing.project_name}</p><p className="whitespace-pre-wrap text-gray-600">{quote.briefing.notes}</p>{quote.briefing.deadline ? <p>Data pretendida: {quote.briefing.deadline} · a confirmar pela MP</p> : null}</div> : null}
     {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
-    <ul className="space-y-2">{attachments.map((file) => <li key={file.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#f8faf7] p-3"><span className="break-all text-sm">{file.name} · {Math.ceil(file.size / 1024)} KB</span><Button type="button" variant="outline" size="sm" disabled={downloading !== null} onClick={() => download(file)}><Download className="mr-2 h-4 w-4" />{downloading === file.id ? 'A descarregar...' : 'Descarregar'}</Button></li>)}</ul>
+    <ul className="space-y-2">{attachments.map((file) => <li key={file.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#f8faf7] p-3"><span className="break-all text-sm">{file.name} · {Math.ceil(file.size / 1024)} KB</span><div className="flex gap-2">{isImageAttachment(file.name) ? <Button type="button" variant="outline" size="sm" onClick={() => setPreviewId(file.id)} aria-label={`Visualizar ${file.name}`}><Eye className="mr-2 h-4 w-4" />Visualizar</Button> : null}<Button type="button" variant="outline" size="sm" disabled={downloading !== null} onClick={() => download(file)}><Download className="mr-2 h-4 w-4" />{downloading === file.id ? 'A descarregar...' : 'Descarregar'}</Button></div></li>)}</ul>
+    {previewId !== null && images.some((file) => file.id === previewId) ? <AttachmentImageViewer key={`${quote.reference}:${previewId}`} reference={quote.reference} files={images} initialId={previewId} onClose={() => setPreviewId(null)} /> : null}
   </section>;
 }

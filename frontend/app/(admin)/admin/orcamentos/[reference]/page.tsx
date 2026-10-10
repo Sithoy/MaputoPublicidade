@@ -427,7 +427,7 @@ export default function AdminOrderDetailPage() {
                   step="0.01"
                   value={estimatedPrice}
                   onChange={(e) => setEstimatedPrice(e.target.value)}
-                  disabled={!canManageQuote}
+                  disabled={!canManageQuote || quote.commercial_pricing}
                   className="mt-1"
                 />
               </div>
@@ -439,16 +439,17 @@ export default function AdminOrderDetailPage() {
                   step="0.01"
                   value={finalPrice}
                   onChange={(e) => setFinalPrice(e.target.value)}
-                  disabled={!canManageQuote}
+                  disabled={!canManageQuote || quote.commercial_pricing}
                   className="mt-1"
                 />
               </div>
-              {canManageQuote ? (
+              {canManageQuote && !quote.commercial_pricing ? (
                 <Button onClick={handlePriceUpdate} disabled={loading} className="w-full gap-2">
                   <Save className="h-4 w-4" />
                   Guardar preços
                 </Button>
               ) : null}
+              {quote.commercial_pricing ? <p className="text-sm text-gray-500">Totais calculados a partir dos materiais, desconto e IVA. Use “Rever proposta” para alterar estes valores antes da aprovação.</p> : null}
             </CardContent>
           </Card>
 
@@ -551,12 +552,12 @@ export default function AdminOrderDetailPage() {
                 )}
                 <Button
                   onClick={handleConvertToOrder}
-                  disabled={loading || !quote.final_price || !quote.price_approved_at}
+                  disabled={loading || quote.final_price == null || !quote.price_approved_at}
                   className="w-full gap-2"
                 >
                   Converter em encomenda
                 </Button>
-                {!quote.final_price && (
+                {quote.final_price == null && (
                   <p className="text-xs text-red-600">Defina o preço final primeiro.</p>
                 )}
               </CardContent>

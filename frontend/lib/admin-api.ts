@@ -176,6 +176,13 @@ export type DocumentLineInput = {
 };
 
 export type ManualQuoteInput = {
+  billing_address?: string;
+  valid_until?: string | null;
+  terms?: string;
+  discount_type?: 'fixed' | 'percentage';
+  discount_amount?: number;
+  discount_percentage?: number;
+  tax_rate?: number;
   contact_source?: 'walk_in' | 'phone' | 'whatsapp' | 'email' | 'web';
   preparation_id?: number;
   ai_reviewed?: boolean;
@@ -524,6 +531,8 @@ export async function convertQuoteToOrder(reference: string) {
 }
 
 export type InvoiceInput = {
+  discount_type?: 'fixed' | 'percentage';
+  discount_percentage?: number;
   order_reference?: string | null;
   user_id?: number | null;
   client_name?: string;

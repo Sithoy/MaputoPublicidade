@@ -4,12 +4,15 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
 import { formatMZN } from '@/lib/utils';
 
 type InvoiceTermsCardProps = {
   issueDate: string;
   dueDate: string;
   discount: string;
+  discountType?: 'fixed' | 'percentage';
+  onDiscountTypeChange?: (value: 'fixed' | 'percentage') => void;
   taxRate: string;
   notes: string;
   terms: string;
@@ -27,6 +30,8 @@ export function InvoiceTermsCard({
   issueDate,
   dueDate,
   discount,
+  discountType = 'fixed',
+  onDiscountTypeChange,
   taxRate,
   notes,
   terms,
@@ -39,9 +44,9 @@ export function InvoiceTermsCard({
   onNotesChange,
   onTermsChange,
 }: InvoiceTermsCardProps) {
-  const discountAmount = Number(discount) || 0;
+  const discountAmount = discountType === 'percentage' ? Math.round(subtotal * (Number(discount) || 0)) / 100 : Number(discount) || 0;
   const taxable = Math.max(subtotal - discountAmount, 0);
-  const taxAmount = taxable * (Number(taxRate) || 0) / 100;
+  const taxAmount = Math.round(taxable * (Number(taxRate) || 0)) / 100;
   const total = taxable + taxAmount;
 
   return (
@@ -84,11 +89,13 @@ export function InvoiceTermsCard({
             />
           </div>
           <div>
-            <Label htmlFor={`${idPrefix}-discount`}>Desconto (MZN)</Label>
+            {onDiscountTypeChange ? <><Label htmlFor={`${idPrefix}-discount-type`}>Tipo de desconto</Label><Select id={`${idPrefix}-discount-type`} value={discountType} onChange={(event) => onDiscountTypeChange(event.target.value as 'fixed' | 'percentage')} className="mt-1 mb-2"><option value="fixed">Valor fixo (MZN)</option><option value="percentage">Percentagem (%)</option></Select></> : null}
+            <Label htmlFor={`${idPrefix}-discount`}>Desconto ({discountType === 'percentage' ? '%' : 'MZN'})</Label>
             <Input
               id={`${idPrefix}-discount`}
               type="number"
               min="0"
+              max={discountType === 'percentage' ? '100' : undefined}
               step="0.01"
               value={discount}
               onChange={(event) => onDiscountChange(event.target.value)}

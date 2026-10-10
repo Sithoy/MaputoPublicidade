@@ -12,6 +12,7 @@ const thread = { id: 7, subject: 'Entrega', client_name: 'Empresa ABC', status: 
 const message = { id: 9, body: 'Quando estará pronto?', is_staff: false, created_at: '2026-10-10T10:00:00Z' };
 function setup() {
   vi.mocked(fetchWithAuth).mockImplementation(async (path, options) => {
+    if (path.includes('/contexts/')) return { results: [{ kind: 'quote', reference: 'MP-0001-2026', title: 'Campanha', status: 'Em análise', available: true }], next: null };
     if (path.endsWith('/read/') || path.endsWith('/resolve/')) return {};
     if (path.endsWith('/messages/')) return options?.method === 'POST' ? message : { results: [message], next: null };
     if (path.endsWith('/7/')) return thread;
@@ -20,14 +21,53 @@ function setup() {
 }
 
 describe('SupportDesk', () => {
+  it('selects an invoice and sends only that context', async () => {
+    setup();
+    vi.mocked(fetchWithAuth).mockImplementation(async (path, options) => {
+      if (path.includes('/contexts/')) return { results: [{ kind: 'invoice', reference: 'FT-2026-0001', title: 'ABC', status: 'Emitida', available: true }], next: null };
+      return options?.method === 'POST' ? thread : { results: [], next: null };
+    });
+    render(<SupportDesk />);
+    fireEvent.change(screen.getByLabelText('Relacionar com…'), { target: { value: 'invoice' } });
+    await screen.findByRole('option', { name: /FT-2026-0001/ });
+    fireEvent.change(screen.getByLabelText('Escolher registo'), { target: { value: 'FT-2026-0001' } });
+    expect(screen.getByRole('link', { name: 'Abrir fatura' })).toHaveAttribute('href', '/area-cliente/faturas/FT-2026-0001');
+    fireEvent.change(screen.getByLabelText('Assunto'), { target: { value: 'Pagamento' } });
+    fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Confirmar pagamento' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar mensagem' }));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/support-conversations/', expect.objectContaining({ body: JSON.stringify({ subject: 'Pagamento', body: 'Confirmar pagamento', quote_reference: '', order_reference: '', invoice_reference: 'FT-2026-0001' }) })));
+  });
+
+  it('blocks an unavailable deep link and permits switching to general', async () => {
+    query = 'fatura=PRIVATE';
+    vi.mocked(fetchWithAuth).mockResolvedValue({ results: [], next: null });
+    render(<SupportDesk />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Este registo não está disponível');
+    fireEvent.change(screen.getByLabelText('Assunto'), { target: { value: 'Ajuda' } });
+    fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Questão geral' } });
+    expect(screen.getByRole('button', { name: 'Enviar mensagem' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Relacionar com…'), { target: { value: '' } });
+    expect(screen.getByRole('button', { name: 'Enviar mensagem' })).toBeEnabled();
+  });
+
+  it('does not show an invoice link to staff without access', async () => {
+    query = 'conversa=7'; setup();
+    vi.mocked(fetchWithAuth).mockImplementation(async (path) => {
+      if (path.endsWith('/7/')) return { ...thread, quote_reference: '', context: { kind: 'invoice', available: false } };
+      return { results: [], next: null };
+    });
+    render(<SupportDesk staff />);
+    expect(await screen.findByText('Este registo não está disponível para a sua conta ou função.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Abrir fatura' })).not.toBeInTheDocument();
+  });
   it('creates a contextual client conversation and keeps the first message', async () => {
     query = 'pedido=MP-0001-2026'; setup();
     render(<SupportDesk />);
-    expect(screen.getByText('Sobre o pedido / projeto: MP-0001-2026')).toBeInTheDocument();
+    expect(await screen.findByText('MP-0001-2026 · Campanha')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Assunto'), { target: { value: 'Entrega' } });
     fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Quando estará pronto?' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enviar mensagem' }));
-    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/support-conversations/', expect.objectContaining({ method: 'POST', body: JSON.stringify({ subject: 'Entrega', body: 'Quando estará pronto?', quote_reference: 'MP-0001-2026', order_reference: '' }) })));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/support-conversations/', expect.objectContaining({ method: 'POST', body: JSON.stringify({ subject: 'Entrega', body: 'Quando estará pronto?', quote_reference: 'MP-0001-2026', order_reference: '', invoice_reference: '' }) })));
     expect(await screen.findByText('Quando estará pronto?')).toBeInTheDocument();
   });
 

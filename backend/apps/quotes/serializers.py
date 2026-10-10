@@ -75,13 +75,10 @@ class ArtworkProofVersionSerializer(serializers.ModelSerializer):
         if not obj.uploaded_by:
             return None
         request = self.context.get("request")
-        viewer_is_staff = bool(
-            request and request.user.is_authenticated and request.user.is_staff
-        )
+        viewer_is_staff = bool(request and request.user.is_authenticated and request.user.is_staff)
         if obj.uploaded_by.is_staff and not viewer_is_staff:
             return "Equipa MP"
         return obj.uploaded_by.get_full_name() or obj.uploaded_by.email
-
 
 
 class QuoteRequestListSerializer(serializers.ModelSerializer):
@@ -98,9 +95,7 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
-    final_price = serializers.DecimalField(
-        max_digits=12, decimal_places=2, coerce_to_string=False
-    )
+    final_price = serializers.DecimalField(max_digits=12, decimal_places=2, coerce_to_string=False)
 
     class Meta:
         model = QuoteRequest
@@ -137,6 +132,21 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
 
 
 class QuoteRequestDetailSerializer(serializers.ModelSerializer):
+    subtotal = serializers.DecimalField(
+        max_digits=12, decimal_places=2, read_only=True, coerce_to_string=False
+    )
+    tax_amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, read_only=True, coerce_to_string=False
+    )
+    discount_amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, read_only=True, coerce_to_string=False
+    )
+    discount_percentage = serializers.DecimalField(
+        max_digits=5, decimal_places=2, read_only=True, coerce_to_string=False
+    )
+    tax_rate = serializers.DecimalField(
+        max_digits=5, decimal_places=2, read_only=True, coerce_to_string=False
+    )
     reception = serializers.SerializerMethodField()
     request_attachments = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -158,9 +168,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
     estimated_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, coerce_to_string=False
     )
-    final_price = serializers.DecimalField(
-        max_digits=12, decimal_places=2, coerce_to_string=False
-    )
+    final_price = serializers.DecimalField(max_digits=12, decimal_places=2, coerce_to_string=False)
 
     class Meta:
         model = QuoteRequest
@@ -190,6 +198,14 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "price_approved_by_name",
             "price_approval_comment",
             "valid_until",
+            "billing_address",
+            "discount_type",
+            "discount_percentage",
+            "discount_amount",
+            "tax_rate",
+            "tax_amount",
+            "subtotal",
+            "commercial_pricing",
             "terms",
             "estimated_delivery_days",
             "payment_option",
@@ -202,7 +218,16 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["reference", "user", "status", "estimated_price", "final_price"]
+        read_only_fields = [
+            "reference",
+            "user",
+            "status",
+            "estimated_price",
+            "final_price",
+            "billing_address",
+            "discount_type",
+            "commercial_pricing",
+        ]
 
     def get_price_approved_by_name(self, obj):
         if obj.price_approved_by:
@@ -221,15 +246,20 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
 
     def get_internal_notes(self, obj):
         request = self.context.get("request")
-        if request and request.user.is_authenticated and (
-            has_staff_capability(request.user, StaffCapability.MANAGE_QUOTES)
-            or has_staff_capability(request.user, StaffCapability.MANAGE_ARTWORK)
+        if (
+            request
+            and request.user.is_authenticated
+            and (
+                has_staff_capability(request.user, StaffCapability.MANAGE_QUOTES)
+                or has_staff_capability(request.user, StaffCapability.MANAGE_ARTWORK)
+            )
         ):
             return obj.internal_notes
         return None
 
     def get_reception(self, obj):
         from apps.core.reception_briefing import reception_briefing
+
         request = self.context.get("request")
         if not request or not (
             has_staff_capability(request.user, StaffCapability.MANAGE_RECEPTION)
@@ -238,7 +268,9 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
             return None
         return {
             "briefing": reception_briefing(obj),
-            "owner_name": (obj.reception_owner.get_full_name() or obj.reception_owner.username) if obj.reception_owner else "",
+            "owner_name": (obj.reception_owner.get_full_name() or obj.reception_owner.username)
+            if obj.reception_owner
+            else "",
             "notes": obj.reception_notes,
             "completed_at": obj.reception_completed_at,
         }
@@ -363,16 +395,16 @@ class ManualQuoteItemSerializer(serializers.Serializer):
     )
     description = serializers.CharField(max_length=255)
     quantity = serializers.IntegerField(min_value=1)
-    unit_price = serializers.DecimalField(
-        max_digits=12, decimal_places=2, min_value=Decimal("0")
-    )
+    unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
     notes = serializers.CharField(required=False, allow_blank=True)
 
 
 class ManualQuoteCreateSerializer(serializers.Serializer):
     """Create a priced commercial proposal on behalf of a client."""
 
-    contact_source = serializers.ChoiceField(choices=QuoteRequest.CONTACT_SOURCE_CHOICES, required=False)
+    contact_source = serializers.ChoiceField(
+        choices=QuoteRequest.CONTACT_SOURCE_CHOICES, required=False
+    )
     user_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(is_staff=False, is_active=True),
         source="user",
@@ -384,6 +416,27 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
     client_phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
     client_company = serializers.CharField(max_length=255, required=False, allow_blank=True)
     client_nuit = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    billing_address = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+    valid_until = serializers.DateField(required=False, allow_null=True)
+    terms = serializers.CharField(required=False, allow_blank=True, max_length=10000)
+    discount_type = serializers.ChoiceField(choices=["fixed", "percentage"], required=False)
+    discount_amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0"), required=False
+    )
+    discount_percentage = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        required=False,
+    )
+    tax_rate = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        required=False,
+    )
     urgency = serializers.ChoiceField(
         choices=QuoteRequest.URGENCY_CHOICES,
         default=QuoteRequest.URGENCY_NORMAL,
@@ -398,6 +451,29 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
     items = ManualQuoteItemSerializer(many=True, allow_empty=False)
 
     def validate(self, attrs):
+        from apps.core.pricing import document_totals
+
+        subtotal = sum(
+            (item["unit_price"] * item["quantity"] for item in attrs["items"]), Decimal("0")
+        )
+        values = {
+            field: attrs.get(field, getattr(self.instance, field, default))
+            for field, default in [
+                ("discount_type", "fixed"),
+                ("discount_amount", 0),
+                ("discount_percentage", 0),
+                ("tax_rate", 0),
+            ]
+        }
+        try:
+            totals = document_totals(subtotal, **values)
+        except ValueError as exc:
+            raise serializers.ValidationError({"discount_amount": str(exc)}) from exc
+        attrs.update(values)
+        attrs["discount_amount"] = totals["discount_amount"]
+        if values["discount_type"] == "fixed":
+            attrs["discount_percentage"] = 0
+        attrs["commercial_pricing"] = True
         user = attrs.get("user")
         if user:
             profile = getattr(user, "profile", None)
@@ -406,17 +482,29 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
             attrs["client_phone"] = attrs.get("client_phone") or getattr(profile, "phone", "")
             attrs.setdefault("client_company", getattr(profile, "company", ""))
             attrs.setdefault("client_nuit", getattr(profile, "nuit", ""))
+            attrs.setdefault(
+                "billing_address",
+                getattr(profile, "billing_address", "") or getattr(profile, "address", ""),
+            )
         if not attrs.get("client_name"):
             raise serializers.ValidationError({"client_name": "Indique o nome do cliente."})
         if not (attrs.get("client_email") or attrs.get("client_phone")):
-            raise serializers.ValidationError({"client_phone": "Indique pelo menos um telefone ou e-mail."})
+            raise serializers.ValidationError(
+                {"client_phone": "Indique pelo menos um telefone ou e-mail."}
+            )
         ids = [item["item_id"] for item in attrs["items"] if "item_id" in item]
-        if ids and (not self.instance or len(ids) != len(set(ids)) or not set(ids).issubset(set(self.instance.items.values_list("id", flat=True)))):
+        if ids and (
+            not self.instance
+            or len(ids) != len(set(ids))
+            or not set(ids).issubset(set(self.instance.items.values_list("id", flat=True)))
+        ):
             raise serializers.ValidationError({"items": "Itens inválidos para este pedido."})
         if self.instance:
             removed = self.instance.items.exclude(id__in=ids)
             if any(item.artwork_file for item in removed):
-                raise serializers.ValidationError({"items": "Mantenha os itens com anexos para preservar os ficheiros originais."})
+                raise serializers.ValidationError(
+                    {"items": "Mantenha os itens com anexos para preservar os ficheiros originais."}
+                )
         return attrs
 
     @transaction.atomic
@@ -439,7 +527,16 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
         instance.items.exclude(id__in=retained).delete()
         for field, value in validated_data.items():
             setattr(instance, field, value)
-        instance.final_price = sum(item["unit_price"] * Decimal(item["quantity"]) for item in items_data)
+        from apps.core.pricing import document_totals
+
+        subtotal = sum(item["unit_price"] * Decimal(item["quantity"]) for item in items_data)
+        instance.final_price = document_totals(
+            subtotal,
+            instance.discount_type,
+            instance.discount_amount,
+            instance.discount_percentage,
+            instance.tax_rate,
+        )["total"]
         instance.estimated_price = instance.final_price
         instance.status = QuoteRequest.STATUS_QUOTED
         instance.save()
@@ -448,10 +545,16 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
     @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop("items")
-        total = sum(
-            item["unit_price"] * Decimal(item["quantity"])
-            for item in items_data
-        )
+        total = sum(item["unit_price"] * Decimal(item["quantity"]) for item in items_data)
+        from apps.core.pricing import document_totals
+
+        total = document_totals(
+            total,
+            validated_data["discount_type"],
+            validated_data["discount_amount"],
+            validated_data["discount_percentage"],
+            validated_data["tax_rate"],
+        )["total"]
         quote = QuoteRequest.objects.create(
             **validated_data,
             status=QuoteRequest.STATUS_QUOTED,
@@ -540,7 +643,9 @@ class ReceptionIntakeSerializer(serializers.Serializer):
             attrs["client_phone"] = attrs.get("client_phone") or getattr(profile, "phone", "")
             attrs.setdefault("client_company", getattr(profile, "company", ""))
             attrs.setdefault("client_nuit", getattr(profile, "nuit", ""))
-            attrs["delivery_address"] = attrs.get("delivery_address") or getattr(profile, "address", "")
+            attrs["delivery_address"] = attrs.get("delivery_address") or getattr(
+                profile, "address", ""
+            )
 
         if not attrs.get("client_name"):
             raise serializers.ValidationError({"client_name": "Indique o nome do cliente."})
@@ -573,10 +678,7 @@ class ReceptionIntakeSerializer(serializers.Serializer):
         validated_data.pop("delivery_method", None)
         validated_data.pop("delivery_address", None)
         priced_items = [item for item in items_data if item.get("unit_price") is not None]
-        total = sum(
-            item["unit_price"] * Decimal(item["quantity"])
-            for item in priced_items
-        )
+        total = sum(item["unit_price"] * Decimal(item["quantity"]) for item in priced_items)
         quote = QuoteRequest.objects.create(
             **validated_data,
             status=(
@@ -585,9 +687,7 @@ class ReceptionIntakeSerializer(serializers.Serializer):
                 else QuoteRequest.STATUS_RECEIVED
             ),
             estimated_price=total if priced_items else None,
-            final_price=(
-                total if outcome == self.OUTCOME_CONFIRMED_ORDER else None
-            ),
+            final_price=(total if outcome == self.OUTCOME_CONFIRMED_ORDER else None),
         )
         for position, item in enumerate(items_data):
             QuoteItem.objects.create(
@@ -631,6 +731,17 @@ class QuoteRequestUpdateSerializer(serializers.ModelSerializer):
             "estimated_delivery_days",
             "payment_option",
         ]
+
+    def validate(self, attrs):
+        if (
+            self.instance
+            and self.instance.commercial_pricing
+            and ("final_price" in attrs or "estimated_price" in attrs)
+        ):
+            raise serializers.ValidationError(
+                "Altere os materiais, descontos e IVA em Preparar proposta para manter os totais consistentes."
+            )
+        return attrs
 
     def validate_status(self, value):
         if self.instance and not self.instance.can_transition_to(value):

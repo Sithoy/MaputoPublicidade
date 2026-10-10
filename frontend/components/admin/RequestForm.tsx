@@ -16,6 +16,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { createManualQuote, createReceptionIntake, prepareExistingQuote, getQuote, getClientOptions, getProducts } from '@/lib/admin-api';
 import type { ClientOption, Product } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
+import { formatMZN } from '@/lib/utils';
 
 export default function RequestForm({ reference }: { reference?: string }) {
   const router = useRouter();
@@ -40,6 +41,12 @@ export default function RequestForm({ reference }: { reference?: string }) {
   const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState('10');
   const [paymentOption, setPaymentOption] = useState<'deposit_50' | 'on_delivery'>('deposit_50');
   const [notes, setNotes] = useState('');
+  const [billingAddress, setBillingAddress] = useState('');
+  const [validUntil, setValidUntil] = useState('');
+  const [terms, setTerms] = useState('');
+  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
+  const [discount, setDiscount] = useState('0');
+  const [taxRate, setTaxRate] = useState('0');
   const [internalNotes, setInternalNotes] = useState('');
   const [lines, setLines] = useState<EditableDocumentLine[]>([newDocumentLine()]);
   const [saving, setSaving] = useState(false);
@@ -91,6 +98,10 @@ export default function RequestForm({ reference }: { reference?: string }) {
           setClientEmail(quote.client_email);
           setClientPhone(quote.client_phone || '');
           setClientNuit(quote.client_nuit || '');
+          setBillingAddress(quote.billing_address || ''); setValidUntil(quote.valid_until || ''); setTerms(quote.terms || '');
+          setDiscountType(quote.discount_type || 'fixed');
+          setDiscount(String(quote.discount_type === 'percentage' ? quote.discount_percentage || 0 : quote.discount_amount || 0));
+          setTaxRate(String(quote.tax_rate || 0));
           setNotes(quote.notes || '');
           setInternalNotes(quote.internal_notes || '');
           setUrgency(quote.urgency === 'urgent' ? 'urgent' : 'normal');
@@ -116,6 +127,7 @@ export default function RequestForm({ reference }: { reference?: string }) {
     setClientEmail(client.email);
     setClientPhone(client.phone ?? '');
     setClientNuit(client.nuit ?? '');
+    setBillingAddress(client.address ?? '');
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -159,6 +171,9 @@ export default function RequestForm({ reference }: { reference?: string }) {
         client_phone: clientPhone.trim(),
         client_company: '',
         client_nuit: clientNuit.trim(),
+        ...(mode === 'proposal' ? { billing_address: billingAddress.trim(), valid_until: validUntil || null, terms: terms.trim(), discount_type: discountType,
+          discount_amount: discountType === 'fixed' ? Number(discount) : 0,
+          discount_percentage: discountType === 'percentage' ? Number(discount) : 0, tax_rate: Number(taxRate) } : {}),
         contact_source: contactSource,
         urgency,
         estimated_delivery_days: deliveryDays,
@@ -246,6 +261,23 @@ export default function RequestForm({ reference }: { reference?: string }) {
         </Select>
       </CardContent></Card> : null}
       {mode === 'proposal' && !reference ? <ProposalAssistant onApply={applyPreparation} /> : null}
+      {mode === 'proposal' ? <Card><CardContent className="space-y-4 p-6">
+        <h2 className="text-lg font-semibold">Condições da proposta</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div><Label htmlFor="proposal-valid-until">Válida até</Label><Input id="proposal-valid-until" type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} /></div>
+          <div><Label htmlFor="proposal-discount-type">Tipo de desconto</Label><Select id="proposal-discount-type" value={discountType} onChange={(event) => { setDiscountType(event.target.value as 'fixed' | 'percentage'); setDiscount('0'); }}><option value="fixed">Valor fixo (MZN)</option><option value="percentage">Percentagem (%)</option></Select></div>
+          <div><Label htmlFor="proposal-discount">Desconto ({discountType === 'percentage' ? '%' : 'MZN'})</Label><Input id="proposal-discount" type="number" min="0" max={discountType === 'percentage' ? 100 : undefined} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} /></div>
+          <div><Label htmlFor="proposal-tax-rate">IVA (%)</Label><Input id="proposal-tax-rate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} /></div>
+        </div>
+        <div><Label htmlFor="proposal-billing-address">Morada de faturação</Label><Textarea id="proposal-billing-address" maxLength={2000} value={billingAddress} onChange={(event) => setBillingAddress(event.target.value)} rows={2} /></div>
+        <div><Label htmlFor="proposal-terms">Condições comerciais e exclusões</Label><Textarea id="proposal-terms" maxLength={10000} value={terms} onChange={(event) => setTerms(event.target.value)} rows={3} /></div>
+        <p className="rounded-xl bg-brand-50 p-4 text-sm">Total estimado: <strong>{formatMZN((() => {
+          const subtotal = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unit_price) || 0), 0);
+          const deduction = discountType === 'percentage' ? Math.round(subtotal * (Number(discount) || 0)) / 100 : Number(discount) || 0;
+          const taxable = Math.max(0, subtotal - deduction);
+          return taxable + Math.round(taxable * (Number(taxRate) || 0)) / 100;
+        })())}</strong> · Desconto antes do IVA. O valor final é validado ao guardar.</p>
+      </CardContent></Card> : null}
       {preparationId ? (
         <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <input id="ai-reviewed" type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} className="mt-1" />

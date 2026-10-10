@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
 from apps.accounts.roles import StaffCapability, has_staff_capability
+from apps.invoices.models import Invoice
 from apps.orders.models import Order
 from apps.quotes.models import QuoteRequest
 
@@ -32,6 +33,41 @@ class ConversationInput(MessageInput):
     subject = serializers.CharField(max_length=160)
     quote_reference = serializers.CharField(max_length=30, required=False, allow_blank=True)
     order_reference = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    invoice_reference = serializers.CharField(max_length=30, required=False, allow_blank=True)
+
+
+CONTEXT_MODELS = {"quote": QuoteRequest, "order": Order, "invoice": Invoice}
+CONTEXT_CAPABILITIES = {
+    "quote": StaffCapability.VIEW_QUOTES,
+    "order": StaffCapability.VIEW_ORDERS,
+    "invoice": StaffCapability.VIEW_INVOICES,
+}
+
+
+def context_data(kind, target, user):
+    if user.is_staff:
+        allowed = has_staff_capability(user, CONTEXT_CAPABILITIES[kind])
+    else:
+        allowed = target.user_id == user.pk and not (
+            kind == "invoice" and target.status == Invoice.STATUS_DRAFT
+        )
+    if not allowed:
+        return {"kind": kind, "available": False}
+    title = ""
+    if kind == "quote":
+        title = target.briefing.get("project_name", "") if isinstance(target.briefing, dict) else ""
+    elif kind == "order" and target.quote:
+        briefing = target.quote.briefing
+        title = briefing.get("project_name", "") if isinstance(briefing, dict) else ""
+    elif kind == "invoice":
+        title = target.client_company or target.client_name
+    return {
+        "kind": kind,
+        "reference": target.reference,
+        "title": title,
+        "status": target.get_status_display(),
+        "available": True,
+    }
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -42,8 +78,29 @@ class MessageSerializer(serializers.ModelSerializer):
 
 class ConversationSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
-    quote_reference = serializers.CharField(source="quote.reference", default="")
-    order_reference = serializers.CharField(source="order.reference", default="")
+    quote_reference = serializers.SerializerMethodField()
+    order_reference = serializers.SerializerMethodField()
+    context = serializers.SerializerMethodField()
+
+    def visible_reference(self, obj, kind):
+        target = getattr(obj, kind)
+        if target and context_data(kind, target, self.context["request"].user)["available"]:
+            return target.reference
+        return ""
+
+    def get_quote_reference(self, obj):
+        return self.visible_reference(obj, "quote")
+
+    def get_order_reference(self, obj):
+        return self.visible_reference(obj, "order")
+
+    def get_context(self, obj):
+        for kind in CONTEXT_MODELS:
+            target = getattr(obj, kind)
+            if target:
+                return context_data(kind, target, self.context["request"].user)
+        return None
+
     unread_count = serializers.IntegerField(read_only=True)
 
     def get_client_name(self, obj):
@@ -58,6 +115,7 @@ class ConversationSerializer(serializers.ModelSerializer):
             "client_name",
             "quote_reference",
             "order_reference",
+            "context",
             "status",
             "unread_count",
             "updated_at",
@@ -96,7 +154,7 @@ class SupportConversationViewSet(
     def get_queryset(self):
         user = self.request.user
         queryset = SupportConversation.objects.select_related(
-            "client__profile", "quote", "order"
+            "client__profile", "quote", "order__quote", "invoice"
         ).annotate(
             unread_count=Count(
                 "messages",
@@ -112,6 +170,29 @@ class SupportConversationViewSet(
             return queryset.order_by("-updated_at", "-id")
         return queryset.filter(client=user).order_by("-updated_at", "-id")
 
+    @action(detail=False, methods=["get"])
+    def contexts(self, request):
+        if request.user.is_staff:
+            raise PermissionDenied()
+        kind = request.query_params.get("kind", "quote")
+        if kind not in CONTEXT_MODELS:
+            raise serializers.ValidationError({"kind": "Tipo de contexto inválido."})
+        queryset = (
+            CONTEXT_MODELS[kind].objects.filter(user=request.user).order_by("-created_at", "-pk")
+        )
+        if kind == "invoice":
+            queryset = queryset.exclude(status=Invoice.STATUS_DRAFT)
+        if kind == "order":
+            queryset = queryset.select_related("quote")
+        reference = request.query_params.get("reference", "").strip()[:30]
+        search = request.query_params.get("q", "").strip()[:100]
+        if reference:
+            queryset = queryset.filter(reference=reference)
+        elif search:
+            queryset = queryset.filter(reference__icontains=search)
+        page = self.paginate_queryset(queryset)
+        return self.get_paginated_response([context_data(kind, row, request.user) for row in page])
+
     @transaction.atomic
     def create(self, request):
         if request.user.is_staff:
@@ -119,14 +200,14 @@ class SupportConversationViewSet(
         data = ConversationInput(data=request.data)
         data.is_valid(raise_exception=True)
         values = data.validated_data
-        if values.get("quote_reference") and values.get("order_reference"):
-            raise serializers.ValidationError("Escolha apenas um pedido ou projeto.")
+        if sum(bool(values.get(f"{kind}_reference")) for kind in CONTEXT_MODELS) > 1:
+            raise serializers.ValidationError("Escolha apenas uma proposta, projeto ou fatura.")
         links = {}
-        for field, model in (("quote", QuoteRequest), ("order", Order)):
+        for field, model in CONTEXT_MODELS.items():
             ref = values.get(f"{field}_reference")
             if ref:
                 target = model.objects.filter(reference=ref, user=request.user).first()
-                if not target:
+                if not target or not context_data(field, target, request.user)["available"]:
                     raise serializers.ValidationError(
                         {f"{field}_reference": "Referência indisponível nesta conta."}
                     )

@@ -1,4 +1,4 @@
-import { fetchWithAuth, downloadWithAuth } from './auth';
+import { fetchWithAuth, downloadWithAuth, fetchBlobWithAuth } from './auth';
 import type { BrandAsset, Cart, CartItem, Invoice, Order, Payment, Quote, User, UserProfile } from './api';
 
 function emitCartUpdate() {
@@ -227,6 +227,14 @@ export async function createBrandRequest(data: BrandRequestData): Promise<Quote>
 
 export async function downloadRequestAttachment(reference: string, id: number, name: string) {
   return downloadWithAuth(`/api/quotes/${reference}/attachment/?id=${id}`, name);
+}
+
+export async function previewRequestAttachment(reference: string, id: number, signal?: AbortSignal) {
+  const blob = await fetchBlobWithAuth(`/api/quotes/${encodeURIComponent(reference)}/attachment/?id=${id}&preview=1`, { signal });
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(blob.type)) {
+    throw new Error('Este anexo não é uma imagem compatível. Use Descarregar.');
+  }
+  return blob;
 }
 
 export async function getClientQuote(reference: string): Promise<Quote> {

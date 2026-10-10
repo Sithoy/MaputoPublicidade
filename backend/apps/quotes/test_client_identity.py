@@ -66,15 +66,17 @@ def test_quote_nuit_is_carried_to_invoice(staff_client, order, client_user):
 
 @pytest.mark.django_db
 def test_quote_pdf_identity_is_not_duplicated(quote):
-    from apps.core.documents import _client_block, build_quote_pdf
+    from apps.core.documents import _invoice_client_card, build_quote_pdf
     quote.client_company = "Empresa Horizonte"
     quote.client_name = "Contacto antigo"
     quote.client_nuit = "400123456"
     quote.save()
-    with patch("apps.core.documents._client_block", wraps=_client_block) as block:
+    with patch("apps.core.documents._invoice_client_card", wraps=_invoice_client_card) as block:
         result = build_quote_pdf(quote)
     assert result.startswith(b"%PDF")
-    lines = block.call_args.args[2]
-    assert lines[0] == "Empresa Horizonte"
-    assert "NUIT 400123456" in lines
-    assert "Contacto antigo" not in lines
+    # Inspect the actual shared card, not its mock return value.
+    card = _invoice_client_card(*block.call_args.args, **block.call_args.kwargs)
+    text = " ".join(cell.getPlainText() for column in card._cellvalues[0] for cell in column if hasattr(cell, "getPlainText"))
+    assert "Empresa Horizonte" in text
+    assert "NUIT 400123456" in text
+    assert "Contacto antigo" not in text

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -82,6 +84,16 @@ class QuoteRequest(models.Model):
     )
     reception_notes = models.TextField(blank=True)
     reception_briefing = models.JSONField(default=dict, blank=True)
+    billing_address = models.TextField(blank=True)
+    discount_type = models.CharField(
+        max_length=12,
+        choices=[("fixed", "Valor fixo"), ("percentage", "Percentagem")],
+        default="fixed",
+    )
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    commercial_pricing = models.BooleanField(default=False)
     reception_completed_at = models.DateTimeField(null=True, blank=True)
     client_email = models.EmailField("email do cliente", blank=True)
     client_phone = models.CharField("telefone do cliente", max_length=50, blank=True)
@@ -116,9 +128,7 @@ class QuoteRequest(models.Model):
         related_name="price_approvals",
         verbose_name="preço aprovado por",
     )
-    price_approval_comment = models.TextField(
-        "comentário da aprovação de preço", blank=True
-    )
+    price_approval_comment = models.TextField("comentário da aprovação de preço", blank=True)
     valid_until = models.DateField("proposta válida até", null=True, blank=True)
     terms = models.TextField("condições da proposta", blank=True)
     estimated_delivery_days = models.PositiveSmallIntegerField(
@@ -172,6 +182,34 @@ class QuoteRequest(models.Model):
             models.Index(fields=["-created_at"]),
         ]
 
+    @property
+    def commercial_totals(self):
+        from apps.core.pricing import document_totals
+
+        subtotal = sum(
+            (
+                item.unit_price * item.quantity
+                for item in self.items.all()
+                if item.unit_price is not None
+            ),
+            Decimal("0"),
+        )
+        return document_totals(
+            subtotal,
+            self.discount_type,
+            self.discount_amount,
+            self.discount_percentage,
+            self.tax_rate,
+        )
+
+    @property
+    def subtotal(self):
+        return self.commercial_totals["subtotal"]
+
+    @property
+    def tax_amount(self):
+        return self.commercial_totals["tax_amount"]
+
     def __str__(self):
         return f"{self.reference or 'Sem referência'} — {self.client_name}"
 
@@ -185,8 +223,7 @@ class QuoteRequest(models.Model):
         from django.db.models import Q
 
         references = QuoteRequest.objects.filter(
-            Q(reference__endswith=f"-{year}")
-            | Q(reference__startswith=f"MP-{year}-")
+            Q(reference__endswith=f"-{year}") | Q(reference__startswith=f"MP-{year}-")
         ).values_list("reference", flat=True)
         sequences = []
         for reference in references:
@@ -212,7 +249,9 @@ class QuoteRequest(models.Model):
 class QuoteRequestAttachment(models.Model):
     """Bounded private request evidence; downloaded only through an owner-checked API."""
 
-    quote = models.ForeignKey(QuoteRequest, on_delete=models.CASCADE, related_name="request_attachments")
+    quote = models.ForeignKey(
+        QuoteRequest, on_delete=models.CASCADE, related_name="request_attachments"
+    )
     name = models.CharField(max_length=255)
     size = models.PositiveIntegerField()
     is_internal = models.BooleanField(default=False)

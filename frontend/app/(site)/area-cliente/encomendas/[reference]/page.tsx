@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
+import { SupportContextLink } from '@/components/SupportContext';
 import {
   approveArtwork,
   confirmDelivery,
@@ -156,7 +157,8 @@ export default function ClientOrderDetailPage() {
             Consulte o progresso, aprove decisões e mantenha todos os detalhes num só lugar.
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <SupportContextLink kind="order" reference={order.reference} />
           <Badge variant="outline">{order.status_display || order.status}</Badge>
           <Link
             href={`/area-cliente/novo-pedido?repetir=${encodeURIComponent(order.reference)}`}

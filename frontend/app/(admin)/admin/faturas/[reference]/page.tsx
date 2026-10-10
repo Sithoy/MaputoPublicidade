@@ -53,6 +53,7 @@ export default function InvoiceDetailPage() {
     issue_date: string;
     due_date: string;
     discount_amount: string;
+    discount_type: 'fixed' | 'percentage';
     tax_rate: string;
     notes: string;
     terms: string;
@@ -90,7 +91,8 @@ export default function InvoiceDetailPage() {
       billing_address: invoice.billing_address ?? '',
       issue_date: invoice.issue_date,
       due_date: invoice.due_date,
-      discount_amount: String(invoice.discount_amount ?? 0),
+      discount_type: invoice.discount_type || 'fixed',
+      discount_amount: String(invoice.discount_type === 'percentage' ? invoice.discount_percentage ?? 0 : invoice.discount_amount ?? 0),
       tax_rate: String(invoice.tax_rate ?? 0),
       notes: invoice.notes ?? '',
       terms: invoice.terms ?? '',
@@ -146,7 +148,9 @@ export default function InvoiceDetailPage() {
         billing_address: form.billing_address,
         issue_date: form.issue_date,
         due_date: form.due_date,
-        discount_amount: Number(form.discount_amount) || 0,
+        discount_type: form.discount_type,
+        discount_amount: form.discount_type === 'fixed' ? Number(form.discount_amount) || 0 : 0,
+        discount_percentage: form.discount_type === 'percentage' ? Number(form.discount_amount) || 0 : 0,
         tax_rate: Number(form.tax_rate) || 0,
         notes: form.notes,
         terms: form.terms,
@@ -308,6 +312,8 @@ export default function InvoiceDetailPage() {
             issueDate={form.issue_date}
             dueDate={form.due_date}
             discount={form.discount_amount}
+            discountType={form.discount_type}
+            onDiscountTypeChange={(discount_type) => setForm({ ...form, discount_type, discount_amount: '0' })}
             taxRate={form.tax_rate}
             notes={form.notes}
             terms={form.terms}

@@ -311,6 +311,14 @@ export type QuoteItem = {  id: number;
 };
 
 export type Quote = {
+  billing_address?: string;
+  discount_type?: 'fixed' | 'percentage';
+  discount_amount?: number;
+  discount_percentage?: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  subtotal?: number;
+  commercial_pricing?: boolean;
   briefing?: { project_name?: string; notes?: string; deadline?: string | null; fulfilment?: string; source_reference?: string; needs_design?: boolean; intent?: string };
   request_attachments?: Array<{ id: number; name: string; size: number }>;
   id: number;
@@ -383,6 +391,8 @@ export type InvoiceItem = {
 };
 
 export type Invoice = {
+  discount_type?: 'fixed' | 'percentage';
+  discount_percentage?: number;
   id: number;
   reference: string;
   order_reference?: string | null;

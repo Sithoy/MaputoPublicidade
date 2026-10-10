@@ -7,6 +7,7 @@ import { ArrowLeft, Download } from 'lucide-react';
 import { getClientInvoice, downloadClientInvoicePdf } from '@/lib/client-api';
 import type { Invoice } from '@/lib/api';
 import { InvoiceDocument } from '@/components/admin/InvoiceDocument';
+import { SupportContextLink } from '@/components/SupportContext';
 import { formatMZN } from '@/lib/utils';
 
 export default function ClientInvoiceDetailPage() {
@@ -43,6 +44,7 @@ export default function ClientInvoiceDetailPage() {
       </div>
       {error ? <div role="alert" className="rounded-2xl border border-red-200 bg-white p-4 text-sm text-red-700">{error}{!invoice ? <button type="button" onClick={() => setRetry((value) => value + 1)} className="ml-3 font-semibold underline">Tentar novamente</button> : null}</div> : null}
       {loading ? <p role="status" className="p-8 text-sm text-[#68776f]">A carregar fatura...</p> : invoice ? <>
+        <SupportContextLink kind="invoice" reference={invoice.reference} />
         <div className="rounded-2xl border border-[#dfe7e1] bg-white p-5 text-sm text-[#68776f]">
           {invoice.status === 'cancelled' ? 'Esta fatura foi anulada.' : invoice.status === 'paid' ? 'Pagamento confirmado. Obrigado pela sua confiança.' : `Saldo por regularizar: ${formatMZN(invoice.balance_due)}. Consulte os dados bancários e as condições de pagamento no documento.`}
         </div>

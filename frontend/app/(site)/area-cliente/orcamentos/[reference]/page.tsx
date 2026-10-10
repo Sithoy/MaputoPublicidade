@@ -1,6 +1,7 @@
 'use client';
 
 import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
+import { SupportContextLink } from '@/components/SupportContext';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -94,7 +95,8 @@ export default function ClientQuoteDetailPage() {
             Reveja a proposta, aprove o valor e acompanhe a arte até à produção.
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <SupportContextLink kind="quote" reference={quote.reference} />
           <Badge variant="outline">
             {quote.status_display || clientOrderStatusLabels[quote.status] || quote.status}
           </Badge>

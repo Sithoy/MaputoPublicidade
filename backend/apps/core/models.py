@@ -7,6 +7,7 @@ class SupportConversation(models.Model):
     subject = models.CharField(max_length=160)
     quote = models.ForeignKey("quotes.QuoteRequest", null=True, blank=True, on_delete=models.SET_NULL)
     order = models.ForeignKey("orders.Order", null=True, blank=True, on_delete=models.SET_NULL)
+    invoice = models.ForeignKey("invoices.Invoice", null=True, blank=True, on_delete=models.SET_NULL)
     status = models.CharField(max_length=20, default="awaiting_team", choices=[
         ("awaiting_team", "A aguardar a MP"), ("awaiting_client", "A aguardar o cliente"),
         ("resolved", "Resolvida"),

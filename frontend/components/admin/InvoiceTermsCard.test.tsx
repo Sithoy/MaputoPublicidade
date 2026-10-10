@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { InvoiceTermsCard } from './InvoiceTermsCard';
 
 describe('InvoiceTermsCard', () => {
+  it('calculates a percentage discount before configured tax', () => {
+    render(<InvoiceTermsCard issueDate="2026-10-10" dueDate="2026-10-25" discount="10" discountType="percentage" onDiscountTypeChange={vi.fn()} taxRate="16" notes="" terms="" subtotal={1000} onIssueDateChange={vi.fn()} onDueDateChange={vi.fn()} onDiscountChange={vi.fn()} onTaxRateChange={vi.fn()} onNotesChange={vi.fn()} onTermsChange={vi.fn()} />);
+    expect(screen.getByLabelText('Tipo de desconto')).toHaveValue('percentage');
+    expect(screen.getByLabelText('Desconto (%)')).toHaveAttribute('max', '100');
+    expect(screen.getByText('1044 MZN')).toBeInTheDocument();
+  });
   it('renders the financial controls and calculated summary', () => {
     render(
       <InvoiceTermsCard

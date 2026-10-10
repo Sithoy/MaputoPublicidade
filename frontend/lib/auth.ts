@@ -252,18 +252,31 @@ export async function fetchWithAuth(path: string, options: RequestInit = {}) {
 
 /** Authenticated file download (e.g. generated PDF documents). */
 export async function downloadWithAuth(path: string, filename: string) {
-  const token = getToken();
-  const res = await fetch(apiUrl(path), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) throw new Error(`Download falhou: ${res.status}`);
-  const blob = await res.blob();
+  const blob = await fetchBlobWithAuth(path);
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+/** Private file bytes; never place bearer tokens in image URLs. */
+export async function fetchBlobWithAuth(path: string, options: RequestInit = {}): Promise<Blob> {
+  const token = getToken();
+  const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let res = await fetch(apiUrl(path), { ...options, headers, cache: 'no-store' });
+  if (res.status === 401 && getRefreshToken()) {
+    const renewed = await refreshAccessToken();
+    if (renewed) {
+      headers.Authorization = `Bearer ${renewed}`;
+      res = await fetch(apiUrl(path), { ...options, headers, cache: 'no-store' });
+    }
+  }
+  if (res.status === 401) removeToken();
+  if (!res.ok) throw new Error(`Download falhou: ${res.status}`);
+  return res.blob();
 }
 
 export async function fetchSession() {

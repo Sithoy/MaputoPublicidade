@@ -27,6 +27,14 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
+    discount_percentage = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        coerce_to_string=False,
+        required=False,
+    )
     items = InvoiceItemSerializer(many=True, required=False)
     order_reference = serializers.SlugRelatedField(
         queryset=Order.objects.all(),
@@ -94,6 +102,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "currency",
             "subtotal",
             "discount_amount",
+            "discount_type",
+            "discount_percentage",
             "tax_rate",
             "tax_amount",
             "total",
@@ -141,15 +151,41 @@ class InvoiceSerializer(serializers.ModelSerializer):
         if order:
             user = user or order.user
             attrs["user"] = user
-        if user:
+            if self.instance is None and order.quote and order.quote.commercial_pricing:
+                quote = order.quote
+                for field in (
+                    "discount_type",
+                    "discount_amount",
+                    "discount_percentage",
+                    "tax_rate",
+                    "billing_address",
+                    "client_name",
+                    "client_company",
+                    "client_email",
+                    "client_phone",
+                    "client_nuit",
+                ):
+                    attrs.setdefault(field, getattr(quote, field))
+                attrs.setdefault(
+                    "terms",
+                    "\n".join(filter(None, [quote.get_payment_option_display(), quote.terms])),
+                )
+                for field in ('client_name', 'client_company', 'client_email', 'client_phone', 'client_nuit', 'billing_address'):
+                    if not attrs.get(field):
+                        attrs[field] = getattr(quote, field)
+        if user and not (
+            self.instance is None and order and order.quote and order.quote.commercial_pricing
+        ):
             profile = getattr(user, "profile", None)
             attrs["client_name"] = attrs.get("client_name") or user.get_full_name() or user.email
             attrs["client_email"] = attrs.get("client_email") or user.email
             attrs["client_phone"] = attrs.get("client_phone") or getattr(profile, "phone", "")
             attrs["client_company"] = attrs.get("client_company") or getattr(profile, "company", "")
-            attrs["client_nuit"] = attrs.get("client_nuit") or (
-                order.quote.client_nuit if order and order.quote else ""
-            ) or getattr(profile, "nuit", "")
+            attrs["client_nuit"] = (
+                attrs.get("client_nuit")
+                or (order.quote.client_nuit if order and order.quote else "")
+                or getattr(profile, "nuit", "")
+            )
             attrs["billing_address"] = attrs.get("billing_address") or (
                 getattr(profile, "billing_address", "") or getattr(profile, "address", "")
             )
@@ -160,9 +196,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             attrs["client_phone"] = attrs.get("client_phone") or quote.client_phone
             attrs["client_company"] = attrs.get("client_company") or quote.client_company
             attrs["client_nuit"] = attrs.get("client_nuit") or quote.client_nuit
-        client_name = attrs.get(
-            "client_name", getattr(self.instance, "client_name", "")
-        )
+        client_name = attrs.get("client_name", getattr(self.instance, "client_name", ""))
         if not client_name:
             raise serializers.ValidationError({"client_name": "Indique o nome do cliente."})
         items = attrs.get("items")
@@ -170,26 +204,39 @@ class InvoiceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"items": "Adicione pelo menos um item."})
         if self.instance is not None and items is not None and not items:
             raise serializers.ValidationError({"items": "Adicione pelo menos um item."})
-        if self.instance is None:
-            if items:
-                document_subtotal = sum(
-                    item["quantity"] * item["unit_price"] for item in items
-                )
-            elif order:
-                document_subtotal = order.final_price or order.estimated_price
-            else:
-                document_subtotal = Decimal("0")
-            if (
-                document_subtotal is not None
-                and attrs.get("discount_amount", Decimal("0")) > document_subtotal
-            ):
-                raise serializers.ValidationError(
-                    {"discount_amount": "O desconto não pode exceder o subtotal."}
-                )
-        if self.instance and self.instance.status != Invoice.STATUS_DRAFT:
-            raise serializers.ValidationError(
-                "Apenas faturas em rascunho podem ser alteradas."
+        from apps.core.pricing import document_totals
+
+        if items is not None:
+            document_subtotal = sum(
+                (item["quantity"] * item["unit_price"] for item in items), Decimal("0")
             )
+        elif self.instance:
+            document_subtotal = self.instance.subtotal
+        elif order:
+            document_subtotal = sum(
+                (item["quantity"] * item["unit_price"] for item in self._items_from_order(order)),
+                Decimal("0"),
+            )
+        else:
+            document_subtotal = Decimal("0")
+        values = {
+            field: attrs.get(field, getattr(self.instance, field, default))
+            for field, default in [
+                ("discount_type", "fixed"),
+                ("discount_amount", 0),
+                ("discount_percentage", 0),
+                ("tax_rate", 0),
+            ]
+        }
+        try:
+            totals = document_totals(document_subtotal, **values)
+        except ValueError as exc:
+            raise serializers.ValidationError({"discount_amount": str(exc)}) from exc
+        attrs["discount_amount"] = totals["discount_amount"]
+        if values["discount_type"] == "fixed":
+            attrs["discount_percentage"] = 0
+        if self.instance and self.instance.status != Invoice.STATUS_DRAFT:
+            raise serializers.ValidationError("Apenas faturas em rascunho podem ser alteradas.")
         return attrs
 
     @staticmethod
@@ -205,7 +252,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
                 }
                 for position, item in enumerate(order_items)
             ]
-        total = order.final_price or order.estimated_price
+        total = order.final_price if order.final_price is not None else order.estimated_price
         if total is None:
             raise serializers.ValidationError(
                 {"order_reference": "A encomenda ainda não possui um valor faturável."}

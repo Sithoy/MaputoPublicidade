@@ -6,6 +6,7 @@ Uses ReportLab only (pure Python) so it deploys without native dependencies.
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
+from types import SimpleNamespace
 from xml.sax.saxutils import escape
 
 from django.conf import settings
@@ -43,7 +44,7 @@ PAGE_MARGIN_BOTTOM = 20 * mm
 DEFAULT_QUOTE_TERMS = (
     "Esta proposta está sujeita à confirmação de disponibilidade, "
     "especificações finais e aprovação do cliente. Valores em Meticais (MZN), "
-    "com IVA incluído à taxa legal em vigor, quando aplicável."
+    "com IVA conforme indicado no resumo financeiro."
 )
 
 DEFAULT_INVOICE_TERMS = (
@@ -80,52 +81,93 @@ def _date(value) -> str:
 def _styles():
     return {
         "doc_type": ParagraphStyle(
-            "doc_type", fontName="Helvetica-Bold", fontSize=16, textColor=BRAND,
-            alignment=TA_RIGHT, spaceAfter=2,
+            "doc_type",
+            fontName="Helvetica-Bold",
+            fontSize=16,
+            textColor=BRAND,
+            alignment=TA_RIGHT,
+            spaceAfter=2,
         ),
         "doc_ref": ParagraphStyle(
-            "doc_ref", fontName="Helvetica-Bold", fontSize=11,
-            textColor=colors.HexColor("#1A2B23"), alignment=TA_RIGHT,
+            "doc_ref",
+            fontName="Helvetica-Bold",
+            fontSize=11,
+            textColor=colors.HexColor("#1A2B23"),
+            alignment=TA_RIGHT,
         ),
         "meta": ParagraphStyle(
-            "meta", fontName="Helvetica", fontSize=9, textColor=GREY_TEXT,
-            alignment=TA_RIGHT, leading=13,
+            "meta",
+            fontName="Helvetica",
+            fontSize=9,
+            textColor=GREY_TEXT,
+            alignment=TA_RIGHT,
+            leading=13,
         ),
         "label": ParagraphStyle(
-            "label", fontName="Helvetica-Bold", fontSize=8, textColor=GREY_TEXT,
+            "label",
+            fontName="Helvetica-Bold",
+            fontSize=8,
+            textColor=GREY_TEXT,
             spaceAfter=3,
         ),
         "body": ParagraphStyle(
-            "body", fontName="Helvetica", fontSize=9.5, leading=13.5,
+            "body",
+            fontName="Helvetica",
+            fontSize=9.5,
+            leading=13.5,
             textColor=colors.HexColor("#1A2B23"),
         ),
         "small": ParagraphStyle(
-            "small", fontName="Helvetica", fontSize=8.5, leading=12,
+            "small",
+            fontName="Helvetica",
+            fontSize=8.5,
+            leading=12,
             textColor=GREY_TEXT,
         ),
         "section": ParagraphStyle(
-            "section", fontName="Helvetica-Bold", fontSize=9, textColor=BRAND,
-            spaceBefore=6, spaceAfter=3,
+            "section",
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            textColor=BRAND,
+            spaceBefore=6,
+            spaceAfter=3,
         ),
         "invoice_type": ParagraphStyle(
-            "invoice_type", fontName="Helvetica-Bold", fontSize=9.5,
-            textColor=colors.white, alignment=TA_RIGHT, leading=12,
+            "invoice_type",
+            fontName="Helvetica-Bold",
+            fontSize=25,
+            textColor=colors.white,
+            alignment=TA_RIGHT,
+            leading=28,
         ),
         "invoice_ref": ParagraphStyle(
-            "invoice_ref", fontName="Helvetica-Bold", fontSize=18,
-            textColor=colors.white, alignment=TA_RIGHT, leading=22,
+            "invoice_ref",
+            fontName="Helvetica-Bold",
+            fontSize=15,
+            textColor=colors.white,
+            alignment=TA_RIGHT,
+            leading=19,
         ),
         "meta_label": ParagraphStyle(
-            "meta_label", fontName="Helvetica-Bold", fontSize=6.8,
-            textColor=GREY_TEXT, leading=8,
+            "meta_label",
+            fontName="Helvetica-Bold",
+            fontSize=6.8,
+            textColor=GREY_TEXT,
+            leading=8,
         ),
         "meta_value": ParagraphStyle(
-            "meta_value", fontName="Helvetica-Bold", fontSize=9,
-            textColor=INK, leading=12,
+            "meta_value",
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            textColor=INK,
+            leading=12,
         ),
         "client_name": ParagraphStyle(
-            "client_name", fontName="Helvetica-Bold", fontSize=12,
-            textColor=INK, leading=15,
+            "client_name",
+            fontName="Helvetica-Bold",
+            fontSize=15,
+            textColor=INK,
+            leading=18,
         ),
     }
 
@@ -139,15 +181,9 @@ def _footer(canvas, doc, company):
     canvas.line(PAGE_MARGIN_X, y + 5 * mm, width - PAGE_MARGIN_X, y + 5 * mm)
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(GREY_TEXT)
-    contact = " · ".join(
-        part
-        for part in [company["legal_name"], company["email"]]
-        if part
-    )
+    contact = " · ".join(part for part in [company["legal_name"], company["email"]] if part)
     canvas.drawString(PAGE_MARGIN_X, y, contact)
-    canvas.drawRightString(
-        width - PAGE_MARGIN_X, y, f"Página {canvas.getPageNumber()}"
-    )
+    canvas.drawRightString(width - PAGE_MARGIN_X, y, f"Página {canvas.getPageNumber()}")
     canvas.restoreState()
 
 
@@ -156,81 +192,67 @@ def _invoice_page(canvas, doc, company, reference=None):
     canvas.saveState()
     width, height = A4
 
-    # Layered top-right ribbons frame the invoice identity.
-    top_shadow = canvas.beginPath()
-    top_shadow.moveTo(74 * mm, height)
-    top_shadow.lineTo(width, height)
-    top_shadow.lineTo(width, height - 42 * mm)
-    top_shadow.curveTo(
-        width - 24 * mm,
-        height - 31 * mm,
-        width - 58 * mm,
-        height - 38 * mm,
-        width - 91 * mm,
-        height - 36 * mm,
-    )
-    top_shadow.curveTo(94 * mm, height - 35 * mm, 91 * mm, height - 14 * mm, 74 * mm, height)
-    top_shadow.close()
-    canvas.setFillColor(BRAND_DARK)
-    canvas.drawPath(top_shadow, fill=1, stroke=0)
+    # Faceted brand panel: generous white space for the original logo, with
+    # a dark reading surface and a restrained gold edge for document identity.
+    if canvas.getPageNumber() == 1:
+        panel = canvas.beginPath()
+        panel.moveTo(102 * mm, height)
+        panel.lineTo(width, height)
+        panel.lineTo(width, height - 51 * mm)
+        panel.lineTo(123 * mm, height - 51 * mm)
+        panel.close()
+        canvas.setFillColor(BRAND_DARK)
+        canvas.drawPath(panel, fill=1, stroke=0)
 
-    top_ribbon = canvas.beginPath()
-    top_ribbon.moveTo(87 * mm, height)
-    top_ribbon.lineTo(width, height)
-    top_ribbon.lineTo(width, height - 34 * mm)
-    top_ribbon.curveTo(
-        width - 27 * mm,
-        height - 25 * mm,
-        width - 57 * mm,
-        height - 31 * mm,
-        width - 83 * mm,
-        height - 29 * mm,
-    )
-    top_ribbon.curveTo(105 * mm, height - 28 * mm, 103 * mm, height - 10 * mm, 87 * mm, height)
-    top_ribbon.close()
-    canvas.setFillColor(BRAND_BRIGHT)
-    canvas.drawPath(top_ribbon, fill=1, stroke=0)
+        facet = canvas.beginPath()
+        facet.moveTo(188 * mm, height)
+        facet.lineTo(width, height)
+        facet.lineTo(width, height - 51 * mm)
+        facet.lineTo(205 * mm, height - 51 * mm)
+        facet.close()
+        canvas.setFillColor(BRAND_BRIGHT)
+        canvas.drawPath(facet, fill=1, stroke=0)
 
-    canvas.setFillColor(ACCENT)
-    canvas.rect(width - 42 * mm, height - 2.2 * mm, 42 * mm, 2.2 * mm, fill=1, stroke=0)
-
+        canvas.setStrokeColor(ACCENT)
+        canvas.setLineWidth(1.5)
+        canvas.line(98 * mm, height, 119 * mm, height - 51 * mm)
+        canvas.setLineWidth(0.35)
+        canvas.line(102 * mm, height, 123 * mm, height - 51 * mm)
+        canvas.setFillColor(ACCENT)
+        canvas.rect(PAGE_MARGIN_X, height - 3 * mm, 18 * mm, 1 * mm, fill=1, stroke=0)
+    else:
+        canvas.setFillColor(BRAND_DARK)
+        canvas.rect(0, height - 20 * mm, width, 20 * mm, fill=1, stroke=0)
+        canvas.setFillColor(ACCENT)
+        canvas.rect(0, height - 20.6 * mm, width, 0.6 * mm, fill=1, stroke=0)
+        canvas.setFillColor(colors.white)
+        canvas.setFont("Helvetica-Bold", 8.5)
+        canvas.drawString(PAGE_MARGIN_X, height - 11 * mm, "MAPUTO PUBLICIDADE")
     if reference and canvas.getPageNumber() > 1:
         canvas.setFillColor(colors.white)
         canvas.setFont("Helvetica-Bold", 8.5)
         canvas.drawRightString(
             width - PAGE_MARGIN_X,
-            height - 9 * mm,
+            height - 11 * mm,
             f"{reference}  |  CONTINUAÇÃO",
         )
 
-    # Bottom waves carry contact information and anchor the page visually.
-    bottom_shadow = canvas.beginPath()
-    bottom_shadow.moveTo(0, 0)
-    bottom_shadow.lineTo(width, 0)
-    bottom_shadow.lineTo(width, 34 * mm)
-    bottom_shadow.curveTo(width - 37 * mm, 43 * mm, width - 72 * mm, 20 * mm, 0, 25 * mm)
-    bottom_shadow.close()
+    # A compact signature band leaves more room for actual commercial content.
     canvas.setFillColor(BRAND_DARK)
-    canvas.drawPath(bottom_shadow, fill=1, stroke=0)
-
-    bottom_ribbon = canvas.beginPath()
-    bottom_ribbon.moveTo(0, 0)
-    bottom_ribbon.lineTo(width, 0)
-    bottom_ribbon.lineTo(width, 27 * mm)
-    bottom_ribbon.curveTo(width - 38 * mm, 36 * mm, width - 77 * mm, 14 * mm, 0, 20 * mm)
-    bottom_ribbon.close()
+    canvas.rect(0, 0, width, 18 * mm, fill=1, stroke=0)
+    bottom_facet = canvas.beginPath()
+    bottom_facet.moveTo(135 * mm, 0)
+    bottom_facet.lineTo(width, 0)
+    bottom_facet.lineTo(width, 24 * mm)
+    bottom_facet.lineTo(146 * mm, 24 * mm)
+    bottom_facet.close()
     canvas.setFillColor(BRAND_BRIGHT)
-    canvas.drawPath(bottom_ribbon, fill=1, stroke=0)
-
-    accent_wave = canvas.beginPath()
-    accent_wave.moveTo(0, 20 * mm)
-    accent_wave.curveTo(width - 78 * mm, 14 * mm, width - 39 * mm, 36 * mm, width, 27 * mm)
-    accent_wave.lineTo(width, 28.4 * mm)
-    accent_wave.curveTo(width - 39 * mm, 37.4 * mm, width - 78 * mm, 15.4 * mm, 0, 21.4 * mm)
-    accent_wave.close()
-    canvas.setFillColor(ACCENT)
-    canvas.drawPath(accent_wave, fill=1, stroke=0)
-
+    canvas.drawPath(bottom_facet, fill=1, stroke=0)
+    canvas.setStrokeColor(ACCENT)
+    canvas.setLineWidth(1)
+    canvas.line(0, 18 * mm, 139 * mm, 18 * mm)
+    canvas.line(139 * mm, 18 * mm, 142 * mm, 24 * mm)
+    canvas.line(142 * mm, 24 * mm, width, 24 * mm)
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(colors.white)
     canvas.drawString(PAGE_MARGIN_X, 8 * mm, company.get("email", ""))
@@ -252,7 +274,11 @@ def _header_block(styles, doc_title, reference, meta_rows, company):
         left.append(Paragraph(f"NUIT: {company['nuit']}", styles["small"]))
     left.append(Paragraph(company["address"], styles["small"]))
 
-    right = [Paragraph(doc_title, styles["doc_type"]), Paragraph(reference, styles["doc_ref"]), Spacer(1, 2 * mm)]
+    right = [
+        Paragraph(doc_title, styles["doc_type"]),
+        Paragraph(reference, styles["doc_ref"]),
+        Spacer(1, 2 * mm),
+    ]
     right.append(Paragraph("<br/>".join(meta_rows), styles["meta"]))
 
     table = Table([[left, right]], colWidths=[100 * mm, 78 * mm])
@@ -270,7 +296,7 @@ def _header_block(styles, doc_title, reference, meta_rows, company):
     return table
 
 
-def _invoice_header_block(styles, reference, company):
+def _invoice_header_block(styles, reference, company, title="FATURA PROFORMA"):
     left = []
     logo_path = company.get("logo_path")
     try:
@@ -296,8 +322,11 @@ def _invoice_header_block(styles, reference, company):
         left.append(Paragraph(company["phone"], styles["small"]))
 
     right = [
-        Paragraph("FATURA PROFORMA", styles["invoice_type"]),
-        Spacer(1, 1.5 * mm),
+        Paragraph(
+            title.replace(" ", "<br/><font size='9' color='#D6A842'>", 1) + "</font>",
+            styles["invoice_type"],
+        ),
+        Spacer(1, 3 * mm),
         Paragraph(reference, styles["invoice_ref"]),
     ]
 
@@ -316,11 +345,11 @@ def _invoice_header_block(styles, reference, company):
     return table
 
 
-def _invoice_meta_strip(styles, invoice):
+def _invoice_meta_strip(styles, invoice, due_label="VENCIMENTO"):
     order_reference = invoice.order.reference if invoice.order else invoice.reference
     cells = [
         ("EMISSÃO", _date(invoice.issue_date)),
-        ("VENCIMENTO", _date(invoice.due_date)),
+        (due_label, _date(invoice.due_date)),
         ("REFERÊNCIA", order_reference),
         ("MOEDA", invoice.currency),
     ]
@@ -344,7 +373,8 @@ def _invoice_meta_strip(styles, invoice):
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
                 ("TOPPADDING", (0, 0), (-1, -1), 9),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
-                ("BOX", (0, 0), (-1, -1), 0.5, GREY_LINE),
+                ("LINEABOVE", (0, 0), (-1, 0), 0.8, BRAND_DARK),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.5, GREY_LINE),
                 ("LINEAFTER", (0, 0), (-2, -1), 0.5, GREY_LINE),
             ]
         )
@@ -352,17 +382,17 @@ def _invoice_meta_strip(styles, invoice):
     return table
 
 
-def _invoice_client_card(styles, invoice):
+def _invoice_client_card(styles, invoice, label="FATURADO A"):
     client_identity = [
-        Paragraph("FATURADO A", styles["label"]),
+        Paragraph(label, styles["label"]),
         Spacer(1, 1.5 * mm),
         Paragraph(
-            invoice.client_company or invoice.client_name,
+            escape(invoice.client_company or invoice.client_name),
             styles["client_name"],
         ),
     ]
-    if invoice.client_company:
-        client_identity.append(Paragraph(invoice.client_name, styles["body"]))
+    if invoice.client_company and label != "PREPARADO PARA":
+        client_identity.append(Paragraph(escape(invoice.client_name), styles["body"]))
 
     client_details = [
         value
@@ -374,13 +404,15 @@ def _invoice_client_card(styles, invoice):
         ]
         if value
     ]
-    details = [Paragraph(value, styles["small"]) for value in client_details]
+    details = [
+        Paragraph(escape(value).replace("\n", "<br/>"), styles["small"]) for value in client_details
+    ]
 
     table = Table([[client_identity, details]], colWidths=[94 * mm, 84 * mm])
     table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FBFCFA")),
+                ("BACKGROUND", (0, 0), (-1, -1), PAPER_TINT),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 12),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 12),
@@ -413,7 +445,7 @@ def _items_table(styles, rows):
     table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, 0), BRAND_BRIGHT),
+                ("BACKGROUND", (0, 0), (-1, 0), BRAND_DARK),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                 ("FONTSIZE", (0, 0), (-1, 0), 8.5),
@@ -426,8 +458,7 @@ def _items_table(styles, rows):
                 ("TOPPADDING", (0, 0), (-1, -1), 7),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
                 ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#FBFCFA")]),
-                ("LINEAFTER", (0, 0), (-2, 0), 0.8, colors.white),
-                ("LINEAFTER", (0, 1), (0, -1), 0.35, GREY_LINE),
+                ("LINEBELOW", (0, 0), (-1, 0), 1.5, ACCENT),
                 ("LINEBELOW", (0, 1), (-1, -2), 0.4, GREY_LINE),
                 ("LINEBELOW", (0, -1), (-1, -1), 0.8, BRAND),
             ]
@@ -437,43 +468,66 @@ def _items_table(styles, rows):
 
 
 def _totals_table(rows, emphasize=-1):
+    rows = [list(row) for row in rows]
+    emphasize = emphasize if emphasize >= 0 else len(rows) + emphasize
+    label, amount = rows[emphasize]
+    amount_size = 20 if len(amount) <= 19 else 16
+    rows[emphasize] = [
+        Paragraph(
+            f"<font size='8' color='#D6A842'>{escape(label.upper())}</font><br/>"
+            f"<font size='{amount_size}'>{escape(amount)}</font>",
+            ParagraphStyle(
+                "total_display",
+                fontName="Helvetica-Bold",
+                fontSize=amount_size,
+                leading=25,
+                textColor=colors.white,
+                alignment=TA_RIGHT,
+            ),
+        ),
+        "",
+    ]
     table = Table(rows, colWidths=[40 * mm, 40 * mm], hAlign="RIGHT")
     style = [
         ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
         ("FONTSIZE", (0, 0), (-1, -1), 9.5),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
         ("TEXTCOLOR", (0, 0), (0, -1), GREY_TEXT),
+        ("BACKGROUND", (0, 0), (-1, -1), PAPER_TINT),
         ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]
     # Emphasise the grand total row.
     style += [
+        ("SPAN", (0, emphasize), (-1, emphasize)),
         ("FONTNAME", (0, emphasize), (-1, emphasize), "Helvetica-Bold"),
         ("FONTSIZE", (0, emphasize), (-1, emphasize), 11.5),
         ("TEXTCOLOR", (0, emphasize), (-1, emphasize), colors.white),
-        ("BACKGROUND", (0, emphasize), (-1, emphasize), BRAND_BRIGHT),
-        ("TOPPADDING", (0, emphasize), (-1, emphasize), 8),
-        ("BOTTOMPADDING", (0, emphasize), (-1, emphasize), 8),
+        ("BACKGROUND", (0, emphasize), (-1, emphasize), BRAND_DARK),
+        ("LINEBEFORE", (0, emphasize), (0, emphasize), 3, ACCENT),
+        ("TOPPADDING", (0, emphasize), (-1, emphasize), 6),
+        ("BOTTOMPADDING", (0, emphasize), (-1, emphasize), 10),
     ]
     table.setStyle(TableStyle(style))
     return table
 
 
-def _invoice_summary_block(styles, invoice, totals_rows, total_row_index, company):
+def _invoice_summary_block(
+    styles, invoice, totals_rows, total_row_index, company, terms_title="CONDIÇÕES DE PAGAMENTO"
+):
     terms = invoice.terms or DEFAULT_INVOICE_TERMS
     details = [
-        Paragraph("CONDIÇÕES DE PAGAMENTO", styles["section"]),
-        Paragraph(terms.replace("\n", "<br/>"), styles["small"]),
+        Paragraph(terms_title, styles["section"]),
+        Paragraph(escape(terms).replace("\n", "<br/>"), styles["small"]),
     ]
 
     bank_details = [
+        ("Titular", company.get("legal_name")),
         ("Banco", company.get("bank_name")),
         ("N.º de conta", company.get("bank_account")),
         ("NIB", company.get("bank_nib")),
     ]
-    bank_lines = [
-        f"<b>{label}:</b> {value}" for label, value in bank_details if value
-    ]
+    bank_lines = [f"<b>{label}:</b> {value}" for label, value in bank_details if value]
     if bank_lines:
         details.extend(
             [
@@ -483,12 +537,18 @@ def _invoice_summary_block(styles, invoice, totals_rows, total_row_index, compan
             ]
         )
 
+    details.append(
+        Paragraph(
+            f"Indique a referência {escape(invoice.reference)} na transferência e envie o comprovativo à MP.",
+            styles["small"],
+        )
+    )
     if invoice.notes:
         details.extend(
             [
                 Spacer(1, 2 * mm),
                 Paragraph("OBSERVAÇÕES", styles["section"]),
-                Paragraph(invoice.notes.replace("\n", "<br/>"), styles["small"]),
+                Paragraph(escape(invoice.notes).replace("\n", "<br/>"), styles["small"]),
             ]
         )
 
@@ -510,6 +570,7 @@ def _invoice_summary_block(styles, invoice, totals_rows, total_row_index, compan
     table = Table(
         [[details, "", _totals_table(totals_rows, emphasize=total_row_index)]],
         colWidths=[92 * mm, 6 * mm, 80 * mm],
+        splitInRow=1,
     )
     table.setStyle(
         TableStyle(
@@ -604,24 +665,31 @@ def _build(
 def build_quote_pdf(quote) -> bytes:
     company = settings.COMPANY_PROFILE
     styles = _styles()
+    styles["small"] = ParagraphStyle(
+        "proposal_small", parent=styles["small"], fontSize=8, leading=10.5
+    )
+    styles["section"] = ParagraphStyle(
+        "proposal_section", parent=styles["section"], spaceBefore=4, spaceAfter=2
+    )
+    item_style = ParagraphStyle("proposal_item", parent=styles["body"], fontSize=9, leading=11)
 
-    meta = [f"Data: {_date(quote.created_at)}"]
-    if quote.valid_until:
-        meta.append(f"Válida até: {_date(quote.valid_until)}")
-    meta.append("Moeda: MZN")
+    document = SimpleNamespace(
+        reference=quote.reference,
+        issue_date=quote.created_at,
+        due_date=quote.valid_until,
+        order=None,
+        currency="MZN",
+        notes=quote.notes,
+    )
 
     story = [
-        _header_block(styles, "PROPOSTA COMERCIAL", quote.reference, meta, company),
-        Spacer(1, 7 * mm),
+        _invoice_header_block(styles, quote.reference, company, title="PROPOSTA COMERCIAL"),
+        Spacer(1, 5 * mm),
+        _invoice_meta_strip(styles, document, due_label="VALIDADE"),
+        Spacer(1, 5 * mm),
     ]
 
-    client_lines = [
-        quote.client_company or quote.client_name,
-        f"NUIT {quote.client_nuit}" if quote.client_nuit else None,
-        quote.client_email,
-        quote.client_phone,
-    ]
-    story += _client_block(styles, "Preparado para", client_lines)
+    story.append(_invoice_client_card(styles, quote, label="PREPARADO PARA"))
     story.append(Spacer(1, 6 * mm))
 
     rows = []
@@ -633,14 +701,16 @@ def build_quote_pdf(quote) -> bytes:
             has_unit_prices = False
         else:
             items_subtotal += Decimal(str(unit)) * item.quantity
-        details = item.description or "Serviço"
+        details = escape(item.description or "Serviço")
         specs = " · ".join(p for p in [item.size, item.material, item.colors] if p)
         if specs:
-            details = f"{details}<br/><font size='8' color='#5B6B62'>{specs}</font>"
+            details = f"{details}<br/><font size='8' color='#5B6B62'>{escape(specs)}</font>"
+        if item.notes:
+            details += f"<br/><font size='8' color='#5B6B62'>{escape(item.notes).replace(chr(10), '<br/>')}</font>"
         rows.append(
             [
                 f"{index:02d}",
-                Paragraph(details, styles["body"]),
+                Paragraph(details, item_style),
                 _quantity(item.quantity),
                 _money(unit) if unit is not None else "A definir",
                 _money(Decimal(str(unit)) * item.quantity) if unit is not None else "—",
@@ -649,35 +719,65 @@ def build_quote_pdf(quote) -> bytes:
     story.append(_items_table(styles, rows))
     story.append(Spacer(1, 4 * mm))
 
-    total = quote.final_price or quote.estimated_price or (items_subtotal if has_unit_prices else None)
+    total = (
+        quote.final_price
+        if quote.final_price is not None
+        else quote.estimated_price
+        if quote.estimated_price is not None
+        else (items_subtotal if has_unit_prices else None)
+    )
     totals_rows = []
-    if has_unit_prices and quote.final_price is not None and items_subtotal != quote.final_price:
+    if has_unit_prices:
         totals_rows.append(["Subtotal", _money(items_subtotal)])
+    if quote.discount_amount:
+        label = (
+            f"Desconto ({_quantity(quote.discount_percentage)}%)"
+            if quote.discount_type == "percentage"
+            else "Desconto"
+        )
+        totals_rows.append([label, f"-{_money(quote.discount_amount)}"])
+    if quote.commercial_pricing:
+        totals_rows.append([f"IVA ({_quantity(quote.tax_rate)}%)", _money(quote.tax_amount)])
     totals_rows.append(["Total da proposta", _money(total)])
-    story.append(_totals_table(totals_rows))
-
     terms = quote.terms or DEFAULT_QUOTE_TERMS
-    story.append(Spacer(1, 6 * mm))
-    story.append(Paragraph("CONDIÇÕES COMERCIAIS", styles["section"]))
     commercial_terms = []
     if quote.estimated_delivery_days:
         commercial_terms.append(
-            "<b>Prazo estimado de entrega:</b> "
+            "Prazo estimado de entrega: "
             f"{quote.estimated_delivery_days} dias úteis após adjudicação."
         )
-    commercial_terms.append(
-        f"<b>Pagamento:</b> {quote.get_payment_option_display()}."
+    commercial_terms.append(f"Pagamento: {quote.get_payment_option_display()}.")
+    if total is not None:
+        commercial_terms.append(
+            f"Na entrega: {_money(total)}."
+            if quote.payment_option == "on_delivery"
+            else f"Adiantamento previsto (50%): {_money(Decimal(str(total)) / 2)}."
+        )
+    commercial_terms.extend(
+        ["Condições sujeitas à aprovação do cliente. Não constitui uma cobrança.", terms]
     )
-    story.append(Paragraph("<br/>".join(commercial_terms), styles["small"]))
-    story.append(Spacer(1, 2 * mm))
-    story.append(Paragraph(terms.replace("\n", "<br/>"), styles["small"]))
-
-    if quote.notes:
-        story.append(Spacer(1, 3 * mm))
-        story.append(Paragraph("OBSERVAÇÕES", styles["section"]))
-        story.append(Paragraph(quote.notes.replace("\n", "<br/>"), styles["small"]))
-
-    return _build(f"Proposta-{quote.reference}", company, story)
+    document.terms = "\n".join(commercial_terms)
+    story.append(
+        _invoice_summary_block(
+            styles,
+            document,
+            totals_rows,
+            len(totals_rows) - 1,
+            company,
+            terms_title="CONDIÇÕES COMERCIAIS",
+        )
+    )
+    return _build(
+        f"Proposta-{quote.reference}",
+        company,
+        story,
+        page_decorator=lambda canvas, doc, company: _invoice_page(
+            canvas, doc, company, quote.reference
+        ),
+        top_margin=16 * mm,
+        bottom_margin=32 * mm,
+        later_top_margin=29 * mm,
+    )
 
 
 def build_invoice_pdf(invoice) -> bytes:
@@ -709,7 +809,12 @@ def build_invoice_pdf(invoice) -> bytes:
 
     totals_rows = [["Subtotal", _money(invoice.subtotal)]]
     if invoice.discount_amount:
-        totals_rows.append(["Desconto", f"-{_money(invoice.discount_amount)}"])
+        label = (
+            f"Desconto ({_quantity(invoice.discount_percentage)}%)"
+            if invoice.discount_type == "percentage"
+            else "Desconto"
+        )
+        totals_rows.append([label, f"-{_money(invoice.discount_amount)}"])
     if invoice.tax_rate:
         totals_rows.append([f"IVA ({_quantity(invoice.tax_rate)}%)", _money(invoice.tax_amount)])
     totals_rows.append(["Total", _money(invoice.total)])
@@ -737,6 +842,6 @@ def build_invoice_pdf(invoice) -> bytes:
             invoice.reference,
         ),
         top_margin=16 * mm,
-        bottom_margin=44 * mm,
-        later_top_margin=43 * mm,
+        bottom_margin=32 * mm,
+        later_top_margin=29 * mm,
     )

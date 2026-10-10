@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Headphones, Plus, RefreshCw, Send } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
+import { SupportContextCard, SupportContextPicker, type SupportContext } from './SupportContext';
 
 type Conversation = {
   id: number; subject: string; client_name: string; status: string; unread_count: number;
   quote_reference: string; order_reference: string;
+  context?: SupportContext | null;
 };
 type Message = { id: number; body: string; is_staff: boolean; created_at: string };
 type Page<T> = { results: T[]; next: string | null };
@@ -30,6 +32,8 @@ export function SupportDesk({ staff = false }: { staff?: boolean }) {
   const [older, setOlder] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [subject, setSubject] = useState('');
+  const [chosenContext, setChosenContext] = useState<SupportContext | null>(null);
+  const [contextReady, setContextReady] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,11 +44,13 @@ export function SupportDesk({ staff = false }: { staff?: boolean }) {
   const draft = drafts[key] || '';
   const quote = params.get('pedido') || '';
   const order = params.get('projeto') || '';
+  const invoice = params.get('fatura') || '';
+  const initialContext = quote ? { kind: 'quote' as const, reference: quote } : order ? { kind: 'order' as const, reference: order } : invoice ? { kind: 'invoice' as const, reference: invoice } : null;
   const requestedConversation = params.get('conversa');
 
   useEffect(() => {
     setSelected(Number(requestedConversation) || null);
-  }, [requestedConversation]);
+  }, [requestedConversation, quote, order, invoice]);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,14 +79,17 @@ export function SupportDesk({ staff = false }: { staff?: boolean }) {
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (!draft.trim() || busy) return;
+    if (!draft.trim() || busy || (!selected && !contextReady)) return;
     const target = selected;
     setBusy(true); setError('');
     try {
       if (target) await write(`${base}${target}/messages/`, { body: draft.trim() });
       else {
         const created: Conversation = await write(base, {
-          subject: subject.trim(), body: draft.trim(), quote_reference: quote, order_reference: order,
+          subject: subject.trim(), body: draft.trim(),
+          quote_reference: chosenContext?.kind === 'quote' ? chosenContext.reference : '',
+          order_reference: chosenContext?.kind === 'order' ? chosenContext.reference : '',
+          invoice_reference: chosenContext?.kind === 'invoice' ? chosenContext.reference : '',
         });
         if (active.current === null) setSelected(created.id);
         setSubject('');
@@ -117,7 +126,7 @@ export function SupportDesk({ staff = false }: { staff?: boolean }) {
     finally { setBusy(false); }
   }
 
-  const context = detail?.order_reference || detail?.quote_reference;
+  const context = detail?.context === undefined ? detail?.order_reference || detail?.quote_reference : '';
   const contextHref = detail?.order_reference
     ? `${staff ? '/admin' : '/area-cliente'}/encomendas/${encodeURIComponent(detail.order_reference)}`
     : `${staff ? '/admin' : '/area-cliente'}/orcamentos/${encodeURIComponent(detail?.quote_reference || '')}`;
@@ -147,17 +156,19 @@ export function SupportDesk({ staff = false }: { staff?: boolean }) {
             {!detail ? <p className="text-sm text-slate-500">A abrir conversa…</p> : <>
               <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4"><div><h3 className="font-semibold">{detail.subject}</h3><p className="mt-1 text-xs text-slate-500">{statuses[detail.status]}</p>{context && <Link href={contextHref} className="mt-2 inline-block text-sm text-brand-700">Ver pedido / projeto: {context}</Link>}</div>
                 {staff && detail.status !== 'resolved' && <button type="button" disabled={busy} onClick={resolve} className="rounded-lg border px-3 py-2 text-xs">Marcar como resolvida</button>}</div>
+              {detail.context ? <SupportContextCard context={detail.context} staff={staff} /> : null}
               <div className="my-4 max-h-[460px] space-y-4 overflow-y-auto" aria-label="Histórico de mensagens">
                 {older && <button type="button" disabled={busy} onClick={() => loadMore(older, 'messages')} className="text-sm text-brand-800">Mensagens anteriores</button>}
                 {messages.map((message) => <div key={message.id} className={`max-w-[90%] rounded-2xl p-4 ${message.is_staff === staff ? 'ml-auto bg-brand-50' : 'bg-slate-100'}`}><p className="text-xs font-semibold text-brand-800">{message.is_staff ? 'Equipa MP' : detail.client_name}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm">{message.body}</p><time className="mt-2 block text-[11px] text-slate-500" dateTime={message.created_at}>{new Date(message.created_at).toLocaleString('pt-MZ')}</time></div>)}
               </div>
               {detail.status === 'resolved' && <p className="mb-3 text-xs text-slate-500">Enviar uma mensagem reabre esta conversa.</p>}
             </>}
-          </> : staff ? <p className="py-20 text-center text-slate-500">Abra uma conversa para responder.</p> : <div className="mb-5"><h3 className="text-lg font-semibold">Como podemos ajudar?</h3><p className="mt-2 text-sm text-slate-500">As mensagens ficam guardadas na sua conta.</p>{(quote || order) && <p className="mt-3 rounded-xl bg-brand-50 p-3 text-sm">Sobre o pedido / projeto: {quote || order}</p>}</div>}
+          </> : staff ? <p className="py-20 text-center text-slate-500">Abra uma conversa para responder.</p> : <div className="mb-5"><h3 className="text-lg font-semibold">Como podemos ajudar?</h3><p className="mt-2 text-sm text-slate-500">As mensagens ficam guardadas na sua conta.</p></div>}
           {(!staff || selected) && (!selected || detail) && <form onSubmit={send} className="space-y-3">
+            {!selected ? <fieldset disabled={busy}><SupportContextPicker key={`${quote}:${order}:${invoice}`} initial={initialContext} onChange={setChosenContext} onReady={setContextReady} /></fieldset> : null}
             {!selected && <label className="block text-sm font-medium">Assunto<input required maxLength={160} value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-2 w-full rounded-xl border p-3" placeholder="Ex.: Uma dúvida sobre a minha proposta" /></label>}
             <label className="block text-sm font-medium">Mensagem<textarea required maxLength={4000} rows={4} value={draft} disabled={busy} onChange={(event) => setDrafts((current) => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full resize-y rounded-xl border p-3" placeholder="Explique a sua questão…" /></label>
-            <button disabled={busy || !draft.trim() || (!selected && !subject.trim())} className="inline-flex items-center gap-2 rounded-xl bg-brand-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"><Send className="h-4 w-4" />{busy ? 'A enviar…' : 'Enviar mensagem'}</button>
+            <button disabled={busy || !draft.trim() || (!selected && (!subject.trim() || !contextReady))} className="inline-flex items-center gap-2 rounded-xl bg-brand-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"><Send className="h-4 w-4" />{busy ? 'A enviar…' : 'Enviar mensagem'}</button>
           </form>}
         </div>
       </div>

@@ -53,9 +53,7 @@ class Invoice(models.Model):
 
     issue_date = models.DateField("data de emissão", default=timezone.localdate)
     due_date = models.DateField("data de vencimento", default=default_due_date)
-    status = models.CharField(
-        "estado", max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT
-    )
+    status = models.CharField("estado", max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     currency = models.CharField("moeda", max_length=3, default="MZN")
     subtotal = models.DecimalField(
         "subtotal", max_digits=12, decimal_places=2, default=Decimal("0")
@@ -63,15 +61,17 @@ class Invoice(models.Model):
     discount_amount = models.DecimalField(
         "desconto", max_digits=12, decimal_places=2, default=Decimal("0")
     )
+    discount_type = models.CharField(
+        max_length=12,
+        choices=[("fixed", "Valor fixo"), ("percentage", "Percentagem")],
+        default="fixed",
+    )
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     tax_rate = models.DecimalField(
         "taxa de IVA (%)", max_digits=5, decimal_places=2, default=Decimal("0")
     )
-    tax_amount = models.DecimalField(
-        "IVA", max_digits=12, decimal_places=2, default=Decimal("0")
-    )
-    total = models.DecimalField(
-        "total", max_digits=12, decimal_places=2, default=Decimal("0")
-    )
+    tax_amount = models.DecimalField("IVA", max_digits=12, decimal_places=2, default=Decimal("0"))
+    total = models.DecimalField("total", max_digits=12, decimal_places=2, default=Decimal("0"))
     recorded_amount_paid = models.DecimalField(
         "valor pago registado",
         max_digits=12,
@@ -127,24 +127,28 @@ class Invoice(models.Model):
         return f"{prefix}{sequence:04d}"
 
     def recalculate_totals(self, *, save=True):
-        subtotal = sum(
-            (item.line_total for item in self.items.all()), Decimal("0")
+        from apps.core.pricing import document_totals
+
+        subtotal = sum((item.line_total for item in self.items.all()), Decimal("0"))
+        totals = document_totals(
+            subtotal,
+            self.discount_type,
+            self.discount_amount,
+            self.discount_percentage,
+            self.tax_rate,
         )
-        taxable = max(subtotal - (self.discount_amount or Decimal("0")), Decimal("0"))
-        tax_amount = (taxable * (self.tax_rate or Decimal("0")) / Decimal("100")).quantize(
-            Decimal("0.01")
-        )
-        self.subtotal = subtotal
-        self.tax_amount = tax_amount
-        self.total = taxable + tax_amount
+        self.subtotal = totals["subtotal"]
+        self.discount_amount = totals["discount_amount"]
+        self.tax_amount = totals["tax_amount"]
+        self.total = totals["total"]
         if save:
-            self.save(update_fields=["subtotal", "tax_amount", "total", "updated_at"])
+            self.save(
+                update_fields=["subtotal", "discount_amount", "tax_amount", "total", "updated_at"]
+            )
 
     @property
     def amount_paid(self):
-        order_amount = (
-            self.order.amount_paid or Decimal("0") if self.order else Decimal("0")
-        )
+        order_amount = self.order.amount_paid or Decimal("0") if self.order else Decimal("0")
         return max(order_amount, self.recorded_amount_paid or Decimal("0"))
 
     @property
@@ -163,9 +167,7 @@ class InvoiceItem(models.Model):
     quantity = models.DecimalField(
         "quantidade", max_digits=10, decimal_places=2, default=Decimal("1")
     )
-    unit_price = models.DecimalField(
-        "preço unitário", max_digits=12, decimal_places=2
-    )
+    unit_price = models.DecimalField("preço unitário", max_digits=12, decimal_places=2)
     position = models.PositiveSmallIntegerField("ordem", default=0)
 
     class Meta:
