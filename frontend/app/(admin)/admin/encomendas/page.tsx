@@ -55,9 +55,11 @@ const operationsViews: Array<{
 ];
 
 function orderLabel(order: Order) {
-  if (order.items.length === 0) return 'Encomenda';
-  if (order.items.length === 1) return order.items[0].description;
-  return `${order.items[0].description} +${order.items.length - 1}`;
+  if (order.job_summary) return order.job_summary;
+  const items = order.items ?? [];
+  if (items.length === 0) return 'Encomenda';
+  if (items.length === 1) return items[0].description;
+  return `${items[0].description} +${items.length - 1}`;
 }
 
 function clientLabel(order: Order) {

@@ -73,9 +73,11 @@ function toLocalInputValue(iso?: string | null) {
 }
 
 function orderTitle(order: Order) {
-  if (order.items.length === 0) return 'Trabalho sem descrição';
-  if (order.items.length === 1) return order.items[0].description;
-  return `${order.items[0].description} +${order.items.length - 1}`;
+  if (order.job_summary) return order.job_summary;
+  const items = order.items ?? [];
+  if (items.length === 0) return 'Trabalho sem descrição';
+  if (items.length === 1) return items[0].description;
+  return `${items[0].description} +${items.length - 1}`;
 }
 
 export default function AdminOrderDetailPage() {
@@ -277,6 +279,8 @@ export default function AdminOrderDetailPage() {
     );
   }
 
+  const orderItems = order.items ?? [];
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <Link
@@ -427,7 +431,7 @@ export default function AdminOrderDetailPage() {
                   </p>
                   <h2 className="mt-1 text-lg font-semibold text-dark">Itens do trabalho</h2>
                 </div>
-                <Badge variant="outline">{order.items.length} item(ns)</Badge>
+                <Badge variant="outline">{orderItems.length} item(ns)</Badge>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -441,7 +445,7 @@ export default function AdminOrderDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {order.items.map((item) => (
+                    {orderItems.map((item) => (
                       <tr key={item.id} className="border-b border-gray-50 last:border-0">
                         <td className="py-3 font-medium text-dark">{item.description}</td>
                         <td className="py-3">{item.quantity}</td>

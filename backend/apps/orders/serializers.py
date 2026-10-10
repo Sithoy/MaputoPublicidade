@@ -65,11 +65,38 @@ class OrderListSerializer(serializers.ModelSerializer):
     )
     item_count = serializers.IntegerField(source="items.count", read_only=True)
     client_name = serializers.CharField(source="client_name_display", read_only=True)
+    user_email = serializers.SerializerMethodField()
+    job_summary = serializers.SerializerMethodField()
     invoice_reference = serializers.SerializerMethodField()
     artwork_status = serializers.SerializerMethodField()
+    delivery_method_display = serializers.CharField(
+        source="get_delivery_method_display", read_only=True
+    )
+    delivery_responsible_name = serializers.SerializerMethodField()
 
     def get_invoice_reference(self, obj):
         return obj.invoice.reference if hasattr(obj, "invoice") else None
+
+    def get_job_summary(self, obj):
+        items = list(obj.items.all())
+        if not items:
+            return "Encomenda"
+        first_item = items[0]
+        item_count = len(items)
+        if item_count == 1:
+            return first_item.description
+        return f"{first_item.description} +{item_count - 1}"
+
+    def get_user_email(self, obj):
+        return obj.client_email_display
+
+    def get_delivery_responsible_name(self, obj):
+        if not obj.delivery_responsible:
+            return None
+        return (
+            obj.delivery_responsible.get_full_name()
+            or obj.delivery_responsible.email
+        )
 
     class Meta:
         model = Order
@@ -77,6 +104,8 @@ class OrderListSerializer(serializers.ModelSerializer):
             "id",
             "reference",
             "client_name",
+            "user_email",
+            "job_summary",
             "invoice_reference",
             "status",
             "status_display",
@@ -87,6 +116,11 @@ class OrderListSerializer(serializers.ModelSerializer):
             "amount_due",
             "item_count",
             "artwork_status",
+            "delivery_method",
+            "delivery_method_display",
+            "scheduled_date",
+            "delivery_responsible",
+            "delivery_responsible_name",
             "created_at",
         ]
 

@@ -35,7 +35,14 @@ class OrderViewSet(
 ):
     queryset = (
         Order.objects.all()
-        .select_related("user", "user__profile", "quote", "quote__artwork", "invoice")
+        .select_related(
+            "user",
+            "user__profile",
+            "quote",
+            "quote__artwork",
+            "invoice",
+            "delivery_responsible",
+        )
         .prefetch_related("items", "items__product", "items__product_variant")
         .order_by("-created_at")
     )

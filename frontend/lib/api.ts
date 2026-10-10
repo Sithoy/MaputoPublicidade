@@ -553,6 +553,7 @@ export type Order = {
   quote_reference?: string;
   invoice_reference?: string | null;
   client_name?: string;
+  job_summary?: string;
   user?: number;
   user_email?: string;
   user_name?: string;

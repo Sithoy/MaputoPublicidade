@@ -1,7 +1,7 @@
 import pytest
 from django.urls import reverse
 
-from apps.orders.models import Order
+from apps.orders.models import Order, OrderItem
 
 
 @pytest.mark.django_db
@@ -26,6 +26,26 @@ class TestOrderApi:
         response = staff_client.get(reverse("order-list"))
         assert response.status_code == 200
         assert len(response.json()["results"]) == 2
+
+    def test_order_list_includes_operational_summary(self, staff_client, order, staff_user):
+        OrderItem.objects.create(
+            order=order,
+            description="Letreiro luminoso",
+            quantity=1,
+        )
+        order.delivery_method = Order.DELIVERY_DELIVERY
+        order.delivery_responsible = staff_user
+        order.save(update_fields=["delivery_method", "delivery_responsible"])
+
+        response = staff_client.get(reverse("order-list"))
+
+        assert response.status_code == 200
+        result = response.json()["results"][0]
+        assert result["job_summary"] == "Letreiro luminoso"
+        assert result["item_count"] == 1
+        assert result["delivery_method"] == "delivery"
+        assert result["delivery_responsible"] == staff_user.id
+        assert result["delivery_responsible_name"] == staff_user.email
 
     def test_set_status_staff_only(self, authenticated_client, staff_client, order):
         url = reverse("order-set-status", kwargs={"reference": order.reference})
