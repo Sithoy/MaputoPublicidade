@@ -14,7 +14,7 @@ describe('BrandDesk request wizard', () => {
   it('keeps materials and files while navigating and requires review before sending', async () => {
     render(<BrandRequestWizard />);
     fireEvent.click(screen.getByRole('button', { name: /Tenho um evento/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    expect(screen.queryByRole('button', { name: 'Continuar' })).not.toBeInTheDocument();
     await screen.findByText('Empresa Horizonte');
     fireEvent.change(screen.getByLabelText('Nome do pedido *'), { target: { value: 'Conferência' } });
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar material' }));
@@ -23,7 +23,7 @@ describe('BrandDesk request wizard', () => {
     const file = new File(['%PDF-1.4'], 'brief.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByLabelText('Anexos e referências'), { target: { files: [file] } });
     fireEvent.click(screen.getByRole('button', { name: 'Alterar objetivo' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    fireEvent.click(screen.getByRole('button', { name: /Preciso de um orçamento/ }));
     expect(screen.getByLabelText('Nome do pedido *')).toHaveValue('Conferência');
     expect(screen.getByLabelText('Quantidade *')).toHaveValue(2);
     expect(screen.getByText(/brief.pdf/)).toBeInTheDocument();
@@ -41,7 +41,6 @@ describe('BrandDesk request wizard', () => {
   it('accepts guidance without an artificial product or quantity', async () => {
     render(<BrandRequestWizard />);
     fireEvent.click(screen.getByRole('button', { name: /Preciso de ajuda/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await screen.findByText('Empresa Horizonte');
     fireEvent.change(screen.getByLabelText('Nome do pedido *'), { target: { value: 'Abertura de loja' } });
     fireEvent.change(screen.getByLabelText('O que pretende alcançar?'), { target: { value: 'Preciso de visibilidade para a inauguração.' } });

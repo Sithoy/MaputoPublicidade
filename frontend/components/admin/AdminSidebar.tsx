@@ -11,6 +11,7 @@ import {
   FileText,
   FolderOpen,
   Handshake,
+  Headphones,
   ImageIcon,
   LogOut,
   Package,
@@ -26,6 +27,7 @@ const navGroups = [
   {
     label: 'Operações',
     items: [
+      { href: '/admin/apoio', label: 'Mensagens e apoio', icon: Headphones, capability: 'support.manage' },
       { href: '/admin', label: 'Visão geral', icon: BarChart3, capability: 'dashboard.view' },
       { href: '/admin/quadro', label: 'Pipeline de trabalhos', icon: Columns3, capability: 'quotes.view' },
       { href: '/admin/orcamentos', label: 'Pedidos e propostas', icon: ShoppingCart, capability: 'quotes.view' },

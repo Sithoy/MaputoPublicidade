@@ -27,6 +27,7 @@ class PortalNotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         if user.is_staff:
             allowed = Q(pk__in=[])
             for capability, path in (
+                (StaffCapability.MANAGE_SUPPORT, "/admin/apoio"),
                 (StaffCapability.VIEW_QUOTES, "/admin/orcamentos/"),
                 (StaffCapability.VIEW_ORDERS, "/admin/encomendas/"),
             ):

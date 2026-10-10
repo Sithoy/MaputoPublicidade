@@ -2,6 +2,36 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+class SupportConversation(models.Model):
+    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name="support_conversations")
+    subject = models.CharField(max_length=160)
+    quote = models.ForeignKey("quotes.QuoteRequest", null=True, blank=True, on_delete=models.SET_NULL)
+    order = models.ForeignKey("orders.Order", null=True, blank=True, on_delete=models.SET_NULL)
+    status = models.CharField(max_length=20, default="awaiting_team", choices=[
+        ("awaiting_team", "A aguardar a MP"), ("awaiting_client", "A aguardar o cliente"),
+        ("resolved", "Resolvida"),
+    ])
+    client_read_id = models.PositiveBigIntegerField(default=0)
+    staff_read_id = models.PositiveBigIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+        indexes = [models.Index(fields=["client", "-updated_at"]), models.Index(fields=["status", "-updated_at"])]
+
+
+class SupportMessage(models.Model):
+    conversation = models.ForeignKey(SupportConversation, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
+    is_staff = models.BooleanField(default=False)
+    body = models.TextField(max_length=4000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-id"]
+
+
 class PortalNotification(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="portal_notifications")
     title = models.CharField(max_length=255)

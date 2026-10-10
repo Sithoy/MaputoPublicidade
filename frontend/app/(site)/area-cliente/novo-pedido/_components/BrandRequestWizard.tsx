@@ -110,10 +110,9 @@ export function BrandRequestWizard() {
     {error ? <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
     {step === 1 ? <section className="space-y-5">
       <h2 className="text-xl font-semibold">O que pretende fazer?</h2>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{intents.map((option) => { const Icon = option.icon; return <button type="button" key={option.id} aria-pressed={intent === option.id} onClick={() => setIntent(option.id)} className={`rounded-2xl border p-5 text-left focus:outline-none focus:ring-2 focus:ring-brand ${intent === option.id ? 'border-brand bg-brand-50' : 'border-[#dfe7e1] bg-white'}`}>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{intents.map((option) => { const Icon = option.icon; return <button type="button" key={option.id} onClick={() => { setIntent(option.id); setStep(2); setError(''); }} className={`rounded-2xl border p-5 text-left transition hover:border-brand hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand ${intent === option.id ? 'border-brand bg-brand-50' : 'border-[#dfe7e1] bg-white'}`}>
         <Icon className="h-6 w-6 text-brand" /><span className="mt-4 block font-semibold">{option.title}</span><span className="mt-2 block text-sm leading-6 text-gray-500">{option.description}</span>
       </button>; })}</div>
-      <Button disabled={!intent} onClick={() => { setStep(2); setError(''); }} className="gap-2">Continuar <ArrowRight className="h-4 w-4" /></Button>
     </section> : <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
       <section className="space-y-6 rounded-3xl border border-[#dfe7e1] bg-white p-6">
         <div><h2 className="text-xl font-semibold">{step === 2 ? 'Conte-nos o essencial' : 'Confirme o seu pedido'}</h2><p className="mt-2 text-sm text-gray-500">{selected?.title}</p></div>

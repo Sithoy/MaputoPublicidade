@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { PortalNotifications } from '@/components/PortalNotifications';
 
 const portalNav = [
+  { href: '/area-cliente/apoio', label: 'Falar com a MP', icon: Headphones },
   { href: '/area-cliente', label: 'Visão geral', icon: LayoutDashboard },
   { href: '/area-cliente/encomendas', label: 'Projetos', icon: FolderKanban },
   { href: '/area-cliente/historico', label: 'Histórico', icon: History },
@@ -36,10 +37,8 @@ const portalNav = [
   { href: '/area-cliente/perfil', label: 'Perfil da empresa', icon: Building2 },
 ];
 
-const SUPPORT_URL =
-  'https://wa.me/25882555736?text=Ol%C3%A1%21%20Preciso%20de%20ajuda%20com%20um%20projeto%20no%20BrandDesk.';
-
 function getPageTitle(pathname: string) {
+  if (pathname === '/area-cliente/apoio') return 'Falar com a MP';
   if (pathname.startsWith('/area-cliente/faturas/')) return 'Detalhe da fatura';
   if (pathname === '/area-cliente/faturas') return 'Faturas';
   if (pathname === '/area-cliente/novo-pedido') return 'Novo pedido';
@@ -153,15 +152,14 @@ function PortalSidebar({
           <p className="mt-1 text-xs leading-5 text-white/65">
             Fale diretamente com quem acompanha os seus projetos.
           </p>
-          <a
-            href={SUPPORT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/area-cliente/apoio"
+            onClick={onNavigate}
             className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-white hover:text-brand-100"
           >
             Pedir apoio
             <ArrowUpRight className="h-3.5 w-3.5" />
-          </a>
+          </Link>
         </div>
 
         <button
@@ -261,6 +259,13 @@ export default function ClientAreaLayout({ children }: { children: React.ReactNo
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
+            <Link href={(() => {
+              const parts = pathname.split('/');
+              const parameter = parts[2] === 'orcamentos' ? 'pedido' : parts[2] === 'encomendas' ? 'projeto' : '';
+              return parameter && parts[3] ? `/area-cliente/apoio?${parameter}=${encodeURIComponent(decodeURIComponent(parts[3]))}` : '/area-cliente/apoio';
+            })()} className="inline-flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800" aria-label="Falar com a MP">
+              <Headphones className="h-4 w-4" /><span className="hidden sm:inline">Falar com a MP</span>
+            </Link>
             {user ? <PortalNotifications userId={user.id} /> : null}
             <Link
               href="/"
