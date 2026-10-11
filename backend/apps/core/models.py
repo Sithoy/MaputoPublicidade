@@ -3,7 +3,11 @@ from django.db import models
 
 
 class SupportConversation(models.Model):
-    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name="support_conversations")
+    client = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE, related_name="support_conversations")
+    channel = models.CharField(max_length=20, default="branddesk")
+    whatsapp_phone = models.CharField(max_length=20, null=True, blank=True, unique=True)
+    contact_name = models.CharField(max_length=160, blank=True)
+    last_inbound_at = models.DateTimeField(null=True, blank=True)
     subject = models.CharField(max_length=160)
     quote = models.ForeignKey("quotes.QuoteRequest", null=True, blank=True, on_delete=models.SET_NULL)
     order = models.ForeignKey("orders.Order", null=True, blank=True, on_delete=models.SET_NULL)
@@ -23,6 +27,11 @@ class SupportConversation(models.Model):
 
 
 class SupportMessage(models.Model):
+    attachment = models.JSONField(default=dict, blank=True)
+    template = models.JSONField(default=dict, blank=True)
+    whatsapp_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    delivery_status = models.CharField(max_length=20, blank=True)
+    source = models.CharField(max_length=20, default="branddesk")
     conversation = models.ForeignKey(SupportConversation, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     is_staff = models.BooleanField(default=False)
@@ -31,6 +40,18 @@ class SupportMessage(models.Model):
 
     class Meta:
         ordering = ["-id"]
+
+
+class WhatsAppConnection(models.Model):
+    """Singleton. Credentials are encrypted and never returned by settings reads."""
+
+    details = models.JSONField(default=dict)
+    credentials = models.TextField(blank=True)
+    enabled = models.BooleanField(default=False)
+    tested_at = models.DateTimeField(null=True, blank=True)
+    webhook_verified_at = models.DateTimeField(null=True, blank=True)
+    last_received_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class PortalNotification(models.Model):

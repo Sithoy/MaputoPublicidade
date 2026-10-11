@@ -33,7 +33,9 @@ export type StaffCapability =
   | 'catalog.manage'
   | 'content.manage'
   | 'users.manage'
-  | 'staff.manage';
+  | 'staff.manage'
+  | 'integrations.manage';
+// Settings credentials are restricted to management roles by the backend.
 
 export const STAFF_ROLE_OPTIONS: { value: Exclude<StaffRole, 'owner' | 'client'>; label: string }[] = [
   { value: 'administrator', label: 'Administrador' },
@@ -84,6 +86,7 @@ export function getDefaultAdminPath(user: User | null | undefined) {
 }
 
 export function getRequiredCapability(pathname: string): StaffCapability | null {
+  if (pathname.startsWith('/admin/definicoes')) return 'integrations.manage';
   if (pathname.startsWith('/admin/recepcao')) return 'reception.manage';
   if (pathname.startsWith('/admin/apoio')) return 'support.manage';
   if (pathname === '/admin/login') return null;

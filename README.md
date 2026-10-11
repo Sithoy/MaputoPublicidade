@@ -168,7 +168,7 @@ Ver `.env.example`. As mais importantes:
 - Os produtos do catálogo já têm imagens de exemplo carregadas a partir do seed (`backend/media/products/`).
 - As fotografias do site são de uso livre (Unsplash). Recomenda-se substituí-las por fotos reais do portfólio da Maputo Publicidade assim que estiverem disponíveis.
 - Os preços mostrados no simulador são valores de exemplo/tabela base. Devem ser ajustados no admin Django (`base_price` de cada produto) antes de colocar a plataforma em produção.
-- O WhatsApp é integrado via links `wa.me`. A automatização via WhatsApp Business API fica para uma fase posterior.
+- Os links públicos `wa.me` continuam disponíveis. A integração de texto da Meta Cloud API pode ser configurada em **Admin → Definições → WhatsApp**, após onboarding do número.
 
 ## Próximas fases (fora do âmbito actual)
 
@@ -196,3 +196,23 @@ Fluxo recomendado para producao:
 6. O backend executa automaticamente `migrate` e `seed_initial_data` no arranque do Render.
 
 O backend tambem aceita as variaveis `POSTGRES_*` para Docker local, mas em producao deve usar `DATABASE_URL` do Neon.
+
+## WhatsApp: configuração do atendimento
+
+O proprietário/administrador configura `/admin/definicoes`; a recepção utiliza `/admin/apoio` sem acesso às credenciais. A integração começa desativada e não faz migração nem onboarding do número.
+
+1. Para manter o mesmo número no telefone, conclua o onboarding **Coexistence** com a Meta/fornecedor elegível. Não apague a conta Business existente para testar. A opção “apenas API” não oferece esta utilização conjunta.
+2. Preencha número internacional, WABA ID, Phone Number ID, Meta App ID, versão Graph API e credenciais. O ID do portefólio e fornecedor são informação auxiliar opcional. Use um token de sistema adequado a produção com permissões `whatsapp_business_messaging` e `whatsapp_business_management`, acesso aos ativos e aplicação autorizada. Não coloque tokens em Git ou chat.
+3. Guarde e teste a ligação. Cada teste desativa temporariamente a integração; confirme o resultado e volte a ativar no final.
+4. Na aplicação Meta, configure a Callback URL mostrada no formulário e o mesmo verify token. Subscreva `messages` e a aplicação à WABA. Para mensagens enviadas pelo telefone, subscreva também `smb_message_echoes` quando suportado pelo onboarding Coexistence. Use a URL HTTPS pública do backend, sem autenticação de staging/redirects, preservando o corpo e o cabeçalho `X-Hub-Signature-256`.
+5. Atualize o estado, selecione ativar e guarde. Confirme com uma mensagem real de um cliente e uma resposta no inbox antes de considerar a ligação operacional. A verificação GET do webhook não comprova, sozinha, a entrega de eventos ou a assinatura App Secret.
+
+As credenciais são encriptadas na base de dados com uma chave derivada da `SECRET_KEY` do Django. Esta deve ser forte, privada e estável entre deploys; a sua rotação exige re-encriptação das credenciais com a chave anterior. Mantenha acesso restrito aos backups e ao backend. As migrações `core.0008` e `core.0009` são obrigatórias antes de servir esta funcionalidade. Nunca exponha o backend com `DEBUG=True` em produção.
+
+Mensagens recebidas criam conversas WhatsApp separadas das contas BrandDesk: não são associadas automaticamente a um utilizador apenas pelo telefone. Eventos repetidos são deduplicados pelo ID da Meta. Mensagens de texto podem ser respondidas na janela de 24 horas após a última mensagem recebida do cliente; respostas do telefone e recibos não prolongam essa janela. Fora dela, o inbox bloqueia texto livre e oferece o editor de templates e acesso ao telefone em Coexistence. O botão Atualizar procura novas mensagens; esta versão não oferece atualização em tempo real, importação de histórico, criação automática de pedidos ou IA.
+
+**Anexos:** imagens JPEG/PNG/WebP e documentos PDF recebidos podem ser consultados por membros com `support.manage`, dentro da conversa, sem expor URLs temporárias ou tokens da Meta. Só são pedidos à Meta ao clicar Visualizar; o proxy autentica, limita a 20 MB, verifica o formato/assinatura do ficheiro e o hash quando disponível, e rejeita URLs externas e redirects. O conteúdo não é guardado em disco nem colocado em cache público. URLs blob no navegador são libertadas ao fechar/desmontar a pré-visualização. PDF é apresentado num iframe com sandbox e pode ser descarregado explicitamente se o navegador não suportar a visualização. Audio, vídeo e outros formatos ficam identificados para consulta na aplicação Business quando disponível. Anexos anteriores à migração, sem media ID guardado, não são recuperados automaticamente; ficheiros expirados na Meta exigem reenvio pelo cliente.
+
+**Templates:** no inbox WhatsApp, “Enviar template aprovado” consulta os templates da WABA com paginação, mostra variáveis e pré-visualização, e exige registo/confirmacão da autorização do cliente e do envio. Esta etapa suporta templates `UTILITY` aprovados com cabeçalho/corpo/rodapé de texto e variáveis posicionais ou nomeadas; templates com botões, media, autenticação ou marketing não são enviados por este editor. Criação/submissão à aprovação continua no WhatsApp Manager. O backend verifica novamente pertença à WABA, idioma, estado, categoria, versão do conteúdo e variáveis antes de enviar. Uma versão alterada desde a pré-visualização é rejeitada para nova revisão. O registo da mensagem guarda o remetente, identificação do template e declaração de autorização (não é validação automática do consentimento). Não há envio automático ou em massa; tarifas da Meta podem aplicar-se. O template não reabre a janela de texto livre: é necessário o cliente responder.
+
+Um envio sem confirmação é guardado como `unconfirmed`, sem repetição automática: confirme no telefone antes de reenviar para evitar duplicações. Assinaturas inválidas são rejeitadas; eventos válidos durante a desativação recebem HTTP 503 para permitir retries da Meta. Um backend suspenso/indisponível pode atrasar a receção; para atendimento operacional, mantenha-o disponível e monitorizado. Testes automatizados usam payloads assinados e chamadas Meta simuladas, não credenciais reais.

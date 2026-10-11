@@ -16,6 +16,7 @@ import {
   LogOut,
   Package,
   ShoppingCart,
+  Settings,
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -53,7 +54,8 @@ const navGroups = [
   },
   {
     label: 'Acesso',
-    items: [{ href: '/admin/utilizadores', label: 'Utilizadores', icon: Users, capability: 'users.manage' }],
+    items: [{ href: '/admin/utilizadores', label: 'Utilizadores', icon: Users, capability: 'users.manage' },
+      { href: '/admin/definicoes', label: 'Definições', icon: Settings, capability: 'integrations.manage' }],
   },
 ];
 

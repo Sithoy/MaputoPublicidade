@@ -21,6 +21,44 @@ function setup() {
 }
 
 describe('SupportDesk', () => {
+  it('blocks WhatsApp API text outside the window and offers the phone in Coexistence', async () => {
+    query = 'conversa=7';
+    const whatsapp = { ...thread, channel: 'whatsapp', whatsapp: { phone: '258849999999', can_reply: false, coexistence: true } };
+    vi.mocked(fetchWithAuth).mockImplementation(async (path) => {
+      if (path.endsWith('/7/')) return whatsapp;
+      if (path.endsWith('/read/')) return {};
+      return { results: path.endsWith('/messages/') ? [message] : [whatsapp], next: null };
+    });
+    render(<SupportDesk staff />);
+    expect(await screen.findByText(/janela de 24 horas terminou/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Abrir conversa no WhatsApp Business/ })).toHaveAttribute('href', 'https://wa.me/258849999999');
+    fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Resposta' } });
+    expect(screen.getByRole('button', { name: 'Enviar mensagem' })).toBeDisabled();
+  });
+
+  it('shows an uncertain WhatsApp send without losing the draft or automatically retrying', async () => {
+    query = 'conversa=7';
+    const whatsapp = { ...thread, channel: 'whatsapp', whatsapp: { phone: '258849999999', can_reply: true, coexistence: true } };
+    let failed = false;
+    vi.mocked(fetchWithAuth).mockImplementation(async (path, options) => {
+      if (path.endsWith('/7/')) return whatsapp;
+      if (path.endsWith('/read/')) return {};
+      if (path.endsWith('/messages/')) {
+        if (options?.method === 'POST') { failed = true; throw new Error('Verifique no telefone antes de reenviar'); }
+        return { results: failed ? [{ ...message, is_staff: true, delivery_status: 'unconfirmed', source: 'whatsapp_api' }] : [message], next: null };
+      }
+      return { results: [whatsapp], next: null };
+    });
+    render(<SupportDesk staff />);
+    await screen.findByText('Quando estará pronto?');
+    fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Vamos responder' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar mensagem' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Verifique no telefone antes de reenviar');
+    expect(screen.getByLabelText('Mensagem')).toHaveValue('Vamos responder');
+    expect(screen.getByText(/Envio não confirmado/)).toBeInTheDocument();
+    expect(vi.mocked(fetchWithAuth).mock.calls.filter(([, options]) => options?.method === 'POST' && options?.body?.toString().includes('Vamos responder'))).toHaveLength(1);
+  });
+
   it('selects an invoice and sends only that context', async () => {
     setup();
     vi.mocked(fetchWithAuth).mockImplementation(async (path, options) => {

@@ -29,6 +29,31 @@ class MessageInput(serializers.Serializer):
     body = serializers.CharField(max_length=4000)
 
 
+class WhatsAppReadThrottle(UserRateThrottle):
+    scope = "whatsapp_read"
+    rate = "30/min"
+
+
+class TemplateInput(serializers.Serializer):
+    revision = serializers.RegexField(r"^[a-f0-9]{64}$")
+    template_id = serializers.RegexField(r"^[0-9]{1,30}$")
+    name = serializers.RegexField(r"^[a-z0-9_]{1,512}$")
+    language = serializers.RegexField(r"^[a-z]{2,3}(?:_[A-Z]{2})?$")
+    parameters = serializers.DictField(child=serializers.CharField(max_length=600), default=dict)
+    consent_note = serializers.CharField(max_length=500)
+    confirmed = serializers.BooleanField()
+
+    def validate_parameters(self, value):
+        if len(value) > 40:
+            raise serializers.ValidationError("Máximo de 40 variáveis.")
+        return value
+
+    def validate_confirmed(self, value):
+        if not value:
+            raise serializers.ValidationError("Confirme a autorização do cliente e o envio.")
+        return value
+
+
 class ConversationInput(MessageInput):
     subject = serializers.CharField(max_length=160)
     quote_reference = serializers.CharField(max_length=30, required=False, allow_blank=True)
@@ -71,12 +96,25 @@ def context_data(kind, target, user):
 
 
 class MessageSerializer(serializers.ModelSerializer):
+    attachment = serializers.SerializerMethodField()
+    template = serializers.SerializerMethodField()
+
+    def get_attachment(self, obj):
+        from .whatsapp_media import PREVIEW_TYPES
+        data = obj.attachment
+        return {"name": data.get("name", "Anexo"), "mime_type": data.get("mime_type", ""),
+                "previewable": data.get("mime_type") in PREVIEW_TYPES} if data else None
+
+    def get_template(self, obj):
+        return {key: obj.template.get(key) for key in ("name", "language")} if obj.template else None
+
     class Meta:
         model = SupportMessage
-        fields = ["id", "body", "is_staff", "created_at"]
+        fields = ["id", "body", "is_staff", "created_at", "source", "delivery_status", "attachment", "template"]
 
 
 class ConversationSerializer(serializers.ModelSerializer):
+    whatsapp = serializers.SerializerMethodField()
     client_name = serializers.SerializerMethodField()
     quote_reference = serializers.SerializerMethodField()
     order_reference = serializers.SerializerMethodField()
@@ -104,8 +142,22 @@ class ConversationSerializer(serializers.ModelSerializer):
     unread_count = serializers.IntegerField(read_only=True)
 
     def get_client_name(self, obj):
+        if obj.channel == "whatsapp":
+            return obj.contact_name or f"+{obj.whatsapp_phone}"
         profile = getattr(obj.client, "profile", None)
         return getattr(profile, "company", "") or obj.client.get_full_name() or "Cliente MP"
+
+    def get_whatsapp(self, obj):
+        if obj.channel != "whatsapp":
+            return None
+        from .whatsapp import can_reply, connection
+
+        if "whatsapp_connection" not in self.context:
+            self.context["whatsapp_connection"] = connection()
+        config = self.context["whatsapp_connection"]
+        return {"phone": obj.whatsapp_phone, "can_reply": can_reply(obj, config),
+                "last_inbound_at": obj.last_inbound_at,
+                "coexistence": config.details.get("mode", "coexistence") == "coexistence"}
 
     class Meta:
         model = SupportConversation
@@ -119,6 +171,8 @@ class ConversationSerializer(serializers.ModelSerializer):
             "status",
             "unread_count",
             "updated_at",
+            "channel",
+            "whatsapp",
         ]
 
 
@@ -231,6 +285,13 @@ class SupportConversationViewSet(
             return self.get_paginated_response(MessageSerializer(page, many=True).data)
         data = MessageInput(data=request.data)
         data.is_valid(raise_exception=True)
+        if conversation.channel == "whatsapp":
+            if not request.user.is_staff:
+                raise PermissionDenied()
+            from .whatsapp import send_text
+
+            message = send_text(conversation, request.user, data.validated_data["body"])
+            return Response(MessageSerializer(message).data, status=201)
         with transaction.atomic():
             conversation = SupportConversation.objects.select_for_update().get(pk=conversation.pk)
             message = SupportMessage.objects.create(
@@ -265,3 +326,29 @@ class SupportConversationViewSet(
         conversation.status = "resolved"
         conversation.save(update_fields=["status"])
         return Response(self.get_serializer(conversation).data)
+
+    @action(detail=True, methods=["get"], url_path=r"attachments/(?P<message_id>[0-9]+)", throttle_classes=[WhatsAppReadThrottle])
+    def attachment(self, request, pk=None, message_id=None):
+        conversation = self.get_object()
+        if not request.user.is_staff or conversation.channel != "whatsapp":
+            raise PermissionDenied()
+        from django.shortcuts import get_object_or_404
+
+        from .whatsapp_media import media_response
+        message = get_object_or_404(conversation.messages, pk=message_id)
+        return media_response(message)
+
+    @action(detail=True, methods=["get", "post"], throttle_classes=[WhatsAppReadThrottle])
+    def templates(self, request, pk=None):
+        conversation = self.get_object()
+        if not request.user.is_staff or conversation.channel != "whatsapp":
+            raise PermissionDenied()
+        from .whatsapp_templates import list_templates, send_template
+
+        if request.method == "GET":
+            after = serializers.CharField(max_length=1024, allow_blank=True).run_validation(request.query_params.get("after", ""))
+            return Response(list_templates(after=after))
+        data = TemplateInput(data=request.data)
+        data.is_valid(raise_exception=True)
+        message = send_template(conversation, request.user, data.validated_data)
+        return Response(MessageSerializer(message).data, status=201)

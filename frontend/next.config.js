@@ -20,6 +20,7 @@ const contentSecurityPolicy = [
     ? "img-src 'self' data: blob: https: http://localhost:8000 http://127.0.0.1:8000"
     : "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
+  "frame-src 'self' blob:",
   isDev ? "connect-src 'self' ws:" : "connect-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",

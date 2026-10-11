@@ -205,8 +205,10 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
                     {
                         "id": row.pk,
                         "subject": row.subject,
-                        "client_name": getattr(getattr(row.client, "profile", None), "company", "")
-                        or row.client.get_full_name()
+                        "client_name": row.contact_name
+                        or row.whatsapp_phone
+                        or getattr(getattr(row.client, "profile", None), "company", "")
+                        or (row.client.get_full_name() if row.client else "")
                         or "Cliente MP",
                     }
                     for row in messages.order_by("updated_at", "id")[:5]

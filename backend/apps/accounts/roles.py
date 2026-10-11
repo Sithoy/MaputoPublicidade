@@ -44,6 +44,7 @@ class StaffCapability:
     MANAGE_CONTENT = "content.manage"
     MANAGE_USERS = "users.manage"
     MANAGE_STAFF = "staff.manage"
+    MANAGE_INTEGRATIONS = "integrations.manage"
 
 
 ALL_STAFF_CAPABILITIES = frozenset(

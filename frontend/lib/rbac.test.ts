@@ -57,6 +57,7 @@ describe('staff RBAC helpers', () => {
     expect(getRequiredCapability('/admin/faturas/FT-2026-0001')).toBe('invoices.view');
     expect(getRequiredCapability('/admin/atendimento/novo')).toBe('intake.create');
     expect(getRequiredCapability('/admin/recepcao')).toBe('reception.manage');
+    expect(getRequiredCapability('/admin/definicoes')).toBe('integrations.manage');
     expect(getRoleLabel(user())).toBe('Comercial');
   });
 });
