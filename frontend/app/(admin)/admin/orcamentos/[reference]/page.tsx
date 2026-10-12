@@ -19,6 +19,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { ProofVersionHistory } from '@/components/ProofVersionHistory';
 import { ProposalSources } from '@/components/admin/ProposalSources';
+import { ProposalWorkflowCard } from '@/components/admin/ProposalWorkflowCard';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import {
   convertQuoteToOrder,
@@ -271,6 +272,7 @@ export default function AdminOrderDetailPage() {
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {message && <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">{message}</div>}
+      <ProposalWorkflowCard quote={quote} onChange={(updated) => { setQuote(updated); setStatus(updated.status); }} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">

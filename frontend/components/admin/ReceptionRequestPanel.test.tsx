@@ -18,7 +18,7 @@ describe('ReceptionRequestPanel', () => {
     expect(screen.getByLabelText('NUIT')).not.toBeVisible();
     expect(screen.getByLabelText('Referência de trabalho anterior')).not.toBeVisible();
     expect(screen.getByLabelText('Dimensões 1')).toBeVisible();
-    expect(screen.getByText('Pronto para o Comercial')).toBeInTheDocument();
+    expect(screen.getByText('Pronto para preparar a proposta')).toBeInTheDocument();
   });
   it('saves optional dimensions even after the checkbox is cleared', async () => {
     vi.mocked(updateReception).mockResolvedValue(request);
@@ -41,7 +41,7 @@ describe('ReceptionRequestPanel', () => {
     vi.mocked(updateReception).mockResolvedValue({ ...request, client_phone: '841234567' });
     render(<ReceptionRequestPanel request={request} userId={1} onChange={onChange} onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText('Telefone'), { target: { value: '841234567' } });
-    expect(screen.getByRole('button', { name: 'Encaminhar ao Comercial' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Concluir triagem' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar triagem' }));
     await waitFor(() => expect(updateReception).toHaveBeenCalledWith(request.reference, 'edit', expect.objectContaining({
       client_name: request.client_name, client_email: request.client_email, client_phone: '841234567', client_nuit: '', reception_notes: '',
@@ -53,7 +53,7 @@ describe('ReceptionRequestPanel', () => {
     const onChange = vi.fn();
     vi.mocked(updateReception).mockResolvedValue({ reference: request.reference });
     render(<ReceptionRequestPanel request={request} userId={1} onChange={onChange} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Encaminhar ao Comercial' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Concluir triagem' }));
     await waitFor(() => expect(updateReception).toHaveBeenCalledWith(request.reference, 'handoff', {}));
     expect(onChange).toHaveBeenCalledWith(null);
   });
@@ -61,7 +61,7 @@ describe('ReceptionRequestPanel', () => {
   it('does not allow editing another person’s attendance', () => {
     render(<ReceptionRequestPanel request={request} userId={2} onChange={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByLabelText('Telefone')).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Encaminhar ao Comercial' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Concluir triagem' })).not.toBeInTheDocument();
   });
 
   it('keeps the draft when saving fails', async () => {

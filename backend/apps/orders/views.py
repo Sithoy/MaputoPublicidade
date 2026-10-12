@@ -59,6 +59,8 @@ class OrderViewSet(
         return self.serializer_classes.get(self.action, OrderListSerializer)
 
     def get_permissions(self):
+        if self.action == "payments" and self.request.method == "GET":
+            return [IsAuthenticated(), IsOwnerOrStaff(owner_field="user", staff_capability=StaffCapability.VIEW_PAYMENTS)]
         if self.action in ["create", "update", "partial_update"]:
             return [HasStaffCapability(StaffCapability.MANAGE_ORDERS)]
         if self.action == "set_status":
@@ -140,6 +142,10 @@ class OrderViewSet(
         serializer.is_valid(raise_exception=True)
         old_status = order.status
         new_status = serializer.validated_data["status"]
+        if new_status == Order.STATUS_IN_PRODUCTION and order.quote_id:
+            latest = order.quote.proof_versions.first()
+            if latest and latest.mime_type and (not latest.published_at or latest.client_decision != 'approved'):
+                return Response({'detail': 'A versão atual da arte deve ser publicada e aprovada pelo cliente antes da produção.'}, status=400)
         if (
             new_status == Order.STATUS_CANCELLED
             and not has_staff_capability(

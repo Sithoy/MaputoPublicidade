@@ -94,6 +94,18 @@ class QuoteRequest(models.Model):
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     commercial_pricing = models.BooleanField(default=False)
+    proposal_stage = models.CharField(max_length=12, default="legacy", choices=[
+        ("legacy", "Fluxo anterior"), ("draft", "Em preparação"), ("review", "Aguarda aprovação interna"),
+        ("returned", "Devolvida para ajustes"), ("approved", "Aprovada internamente"), ("sent", "Enviada ao cliente")])
+    proposal_version = models.PositiveIntegerField(default=0)
+    proposal_prepared_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="prepared_proposals")
+    proposal_reviewed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="reviewed_proposals")
+    proposal_reviewed_at = models.DateTimeField(null=True, blank=True)
+    proposal_review_comment = models.TextField(blank=True)
+    proposal_sent_at = models.DateTimeField(null=True, blank=True)
+    proposal_history = models.JSONField(default=list, blank=True)
+    proposal_editors = models.JSONField(default=list, blank=True)
+    production_notes = models.TextField(blank=True)
     reception_completed_at = models.DateTimeField(null=True, blank=True)
     client_email = models.EmailField("email do cliente", blank=True)
     client_phone = models.CharField("telefone do cliente", max_length=50, blank=True)
@@ -309,6 +321,14 @@ class QuoteItem(models.Model):
 
 
 class ArtworkProofVersion(models.Model):
+    private_content = models.BinaryField(null=True, blank=True)
+    file_name = models.CharField(max_length=160, blank=True)
+    mime_type = models.CharField(max_length=100, blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    share_nonce = models.CharField(max_length=64, blank=True)
+    share_expires_at = models.DateTimeField(null=True, blank=True)
+    decision_source = models.CharField(max_length=20, blank=True)
+    reviewer_name = models.CharField(max_length=160, blank=True)
     """One uploaded proof per row, so the full revision history is kept."""
 
     DECISION_PENDING = "pending"

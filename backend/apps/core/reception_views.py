@@ -25,6 +25,7 @@ def active_requests():
     return QuoteRequest.objects.filter(
         Q(status="received") | Q(status="reviewing", reception_owner__isnull=False),
         reception_completed_at__isnull=True,
+        proposal_prepared_by__isnull=True,
     )
 
 
@@ -256,6 +257,8 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         quote = QuoteRequest.objects.select_for_update().get(pk=target.pk)
         self.check_owned(quote)
         payload = request.data
+        if quote.proposal_prepared_by_id:
+            raise ValidationError("O briefing já entrou na preparação da proposta. Faça os ajustes em Rever proposta; as condições exigirão nova aprovação.")
         if "payload" in request.data:
             try:
                 payload = json.loads(request.data["payload"])
@@ -350,7 +353,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         if quote.reception_completed_at or quote.status not in {"received", "reviewing"}:
             raise ValidationError("Este pedido já saiu da triagem.")
         if quote.reception_owner_id != request.user.pk and not has_staff_capability(
-            request.user, StaffCapability.MANAGE_QUOTES
+            request.user, StaffCapability.REVIEW_PROPOSALS
         ):
             raise ValidationError(
                 "Só o responsável ou um administrador pode devolver este pedido à fila."
@@ -388,7 +391,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
             quote=quote,
             from_status="reviewing",
             to_status="reviewing",
-            comment="Encaminhado ao Comercial. " + quote.reception_notes,
+            comment="Triagem concluída; proposta a preparar pela Receção no mesmo pedido. " + quote.reception_notes,
             is_internal=True,
         )
         recipients = [
@@ -401,7 +404,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
             [
                 PortalNotification(
                     recipient=user,
-                    title=f"Pronto para proposta: {quote.reference}",
+                    title=f"Briefing concluído: {quote.reference}",
                     href=f"/admin/orcamentos/{quote.reference}",
                 )
                 for user in recipients

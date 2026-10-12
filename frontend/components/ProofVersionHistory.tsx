@@ -1,6 +1,6 @@
-import { Download } from 'lucide-react';
 import type { ProofVersion } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { PrivateArtPreview } from './PrivateArtPreview';
 
 const decisionStyles: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700 ring-amber-200',
@@ -45,15 +45,7 @@ export function ProofVersionHistory({ versions }: { versions: ProofVersion[] }) 
                 <p className="mt-1 text-xs italic leading-5 text-[#718078]">“{version.client_comment}”</p>
               ) : null}
             </div>
-            <a
-              href={version.file}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg border border-[#d7e1da] px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-50 sm:self-center"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Abrir
-            </a>
+            {version.file ? <PrivateArtPreview url={version.file} label="Abrir arte" /> : <p className="text-xs">Sem ficheiro disponível.</p>}
           </li>
         ))}
       </ol>

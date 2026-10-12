@@ -77,9 +77,10 @@ class TestQuoteApi:
         assert quote.client_email == ""
         assert quote.activity_events.filter(actor=receptionist, action="created").exists()
         assert has_staff_capability(receptionist, StaffCapability.CREATE_INTAKE)
-        assert not has_staff_capability(receptionist, StaffCapability.MANAGE_QUOTES)
+        assert has_staff_capability(receptionist, StaffCapability.MANAGE_QUOTES)
+        assert not has_staff_capability(receptionist, StaffCapability.REVIEW_PROPOSALS)
 
-    def test_receptionist_creates_confirmed_walk_in_order(self, product):
+    def test_receptionist_cannot_bypass_review_with_confirmed_walk_in_order(self, product):
         receptionist, client = self.receptionist_client("walk-in")
 
         response = client.post(
@@ -104,19 +105,10 @@ class TestQuoteApi:
             format="json",
         )
 
-        assert response.status_code == 201
-        payload = response.json()
-        order = Order.objects.get(reference=payload["order_reference"])
-        quote = order.quote
-        assert payload["outcome"] == "confirmed_order"
-        assert order.status == Order.STATUS_APPROVED
-        assert order.final_price == 1500
-        assert order.items.get().quantity == 2
-        assert quote.status == QuoteRequest.STATUS_APPROVED
-        assert quote.price_approved_by == receptionist
-        assert quote.contact_source == QuoteRequest.CONTACT_WALK_IN
+        assert response.status_code == 400
+        assert not Order.objects.exists()
 
-    def test_receptionist_cannot_change_quote_prices(self, quote):
+    def test_receptionist_can_prepare_quote_prices_without_publishing(self, quote):
         _receptionist, client = self.receptionist_client("restricted")
 
         response = client.post(
@@ -125,7 +117,9 @@ class TestQuoteApi:
             format="json",
         )
 
-        assert response.status_code == 403
+        assert response.status_code == 200
+        quote.refresh_from_db()
+        assert quote.proposal_stage == 'draft'
 
     def test_staff_creates_priced_manual_quote(self, staff_client, client_user, product):
         response = staff_client.post(
@@ -146,7 +140,8 @@ class TestQuoteApi:
             format="json",
         )
         assert response.status_code == 201
-        assert response.json()["status"] == QuoteRequest.STATUS_QUOTED
+        assert response.json()["status"] == QuoteRequest.STATUS_REVIEWING
+        assert response.json()["proposal_workflow"]["stage"] == "draft"
         assert response.json()["final_price"] == 1500.0
         assert response.json()["client_email"] == client_user.email
         assert response.json()["estimated_delivery_days"] == 10
@@ -222,12 +217,13 @@ class TestQuoteApi:
         # Client-facing actor label hides individual staff names.
         assert all(event["actor_name"] in (None, "Cliente Teste", "Equipa MP") for event in activity)
 
-    def test_staff_set_price_to_quoted(self, staff_client, quote):
+    def test_staff_set_price_prepares_draft_without_publishing(self, staff_client, quote):
         url = reverse("quote-set-price", kwargs={"reference": quote.reference})
         response = staff_client.post(url, {"final_price": "1000.00"}, format="json")
         assert response.status_code == 200
         quote.refresh_from_db()
-        assert quote.status == QuoteRequest.STATUS_QUOTED
+        assert quote.status == QuoteRequest.STATUS_REVIEWING
+        assert quote.proposal_stage == "draft"
 
     def test_client_approves_price(self, authenticated_client, quoted_quote):
         url = reverse("quote-approve-price", kwargs={"reference": quoted_quote.reference})
@@ -323,7 +319,8 @@ class TestQuoteApi:
         quote.refresh_from_db()
         assert quote.artwork.status == ArtworkApproval.STATUS_APPROVED
 
-    def test_quote_pdf_download(self, authenticated_client, quote):
+    def test_quote_pdf_download(self, authenticated_client, quoted_quote):
+        quote = quoted_quote  # Historical published proposal, not an unpriced request.
         response = authenticated_client.get(
             reverse("quote-pdf", kwargs={"reference": quote.reference})
         )

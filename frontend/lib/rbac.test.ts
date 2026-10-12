@@ -36,8 +36,8 @@ describe('staff RBAC helpers', () => {
 
   it('selects a useful landing page for specialised roles', () => {
     expect(
-      getDefaultAdminPath(user({ role: 'production', capabilities: ['orders.view'] }))
-    ).toBe('/admin/encomendas');
+      getDefaultAdminPath(user({ role: 'production', capabilities: ['production.view', 'orders.view'] }))
+    ).toBe('/admin/producao');
     expect(
       getDefaultAdminPath(user({ role: 'content', capabilities: ['catalog.manage'] }))
     ).toBe('/admin/produtos');

@@ -17,7 +17,9 @@ export type StaffCapability =
   | 'dashboard.view'
   | 'quotes.view'
   | 'quotes.manage'
+  | 'quotes.review'
   | 'quotes.artwork'
+  | 'production.view'
   | 'quotes.export'
   | 'orders.view'
   | 'orders.manage'
@@ -73,6 +75,7 @@ export function getRoleLabel(user: User | null | undefined) {
 }
 
 export function getDefaultAdminPath(user: User | null | undefined) {
+  if (user?.role === 'production' && hasCapability(user, 'production.view')) return '/admin/producao';
   if (user?.role === 'receptionist' && hasCapability(user, 'reception.manage')) return '/admin/recepcao';
   if (hasCapability(user, 'dashboard.view')) return '/admin';
   if (hasCapability(user, 'intake.create')) return '/admin/atendimento/novo';
@@ -86,6 +89,7 @@ export function getDefaultAdminPath(user: User | null | undefined) {
 }
 
 export function getRequiredCapability(pathname: string): StaffCapability | null {
+  if (pathname.startsWith('/admin/producao')) return 'production.view';
   if (pathname.startsWith('/admin/definicoes')) return 'integrations.manage';
   if (pathname.startsWith('/admin/recepcao')) return 'reception.manage';
   if (pathname.startsWith('/admin/apoio')) return 'support.manage';

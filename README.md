@@ -197,7 +197,25 @@ Fluxo recomendado para producao:
 
 O backend tambem aceita as variaveis `POSTGRES_*` para Docker local, mas em producao deve usar `DATABASE_URL` do Neon.
 
-## WhatsApp: configuração do atendimento
+## Propostas: preparação pela Receção e aprovação interna
+
+O fluxo mantém a mesma referência, cliente, anexos e responsável: Receção prepara → Comercial/administração revê → Receção disponibiliza/regista o envio → cliente aceita. `quotes.manage` permite à Receção preparar artigos/preços/condições e registar a decisão do cliente; `quotes.review` é reservado ao Comercial e administração. Quem participou na preparação da versão não pode aprová-la. A Receção não pode criar uma encomenda confirmada pelo intake para contornar esta aprovação; a ação anterior de intake confirmado permanece reservada à administração com acesso ao intake e à revisão.
+
+A migração `quotes.0020` preserva documentos existentes com `proposal_stage=legacy`. Rever preços ou condições de uma proposta antiga adota o novo fluxo. Novos pedidos recebidos pela aplicação aguardam preparação; os valores provisórios e histórico interno não são publicados no BrandDesk. O PDF para clientes e a aceitação/conversão exigem publicação da versão aprovada. Alterações nos artigos, valores, identificação/faturação ou condições retiram a aprovação e exigem nova submissão; documentos já aceites/convertidos não admitem essas alterações. O histórico guarda autor, submissão, snapshot das condições/artigos, aprovação/devolução e envio por versão. Não há custos por artigo registados neste fluxo, pelo que não se inventa margem.
+
+“Disponibilizar / registar envio” publica a versão aprovada no BrandDesk e usa a notificação existente; para clientes sem conta, a Receção deve enviar o PDF pelo canal acordado e registar esse envio. Não representa envio automático por WhatsApp ou garantia de entrega por email. A criação de orçamentos não notifica o cliente como proposta pronta antes da aprovação interna. As filas “As minhas propostas” e “Aguardam aprovação” usam filtros do backend; não criam uma segunda cópia do pedido.
+
+## Produção e Artes: separação de informação
+
+A função Produção entra em `/admin/producao` e não tem `quotes.view`, `payments.view`, gestão comercial ou faturação. A API de encomendas devolve uma lista explícita de campos operacionais, sem preços, valores pagos/em dívida, referências de faturas, perfis de faturação, notas comerciais ou histórico financeiro. Propostas/PDFs comerciais, pagamentos e faturas continuam protegidos no backend. As notas técnicas passam a um campo próprio no trabalho; notas internas antigas não são copiadas automaticamente porque podem conter informação comercial.
+
+A migração `quotes.0021` conserva versões de arte anteriores como publicadas. Novas artes no espaço Produção são rascunhos privados (PNG/JPEG/WebP/PDF, até 3 MB), guardados na base de dados sem URL pública de storage. Publicar uma versão cria a apreciação no BrandDesk e uma notificação interna; não altera aprovação de preço, proposta comercial ou pagamento. A Produção pode acompanhar estados operacionais, e uma ordem com nova arte privada pendente não avança para produção antes da aprovação da versão atual. Ficheiros históricos mantêm o storage anterior; a nova privacidade de conteúdo aplica-se aos uploads novos.
+
+WhatsApp e email usam mensagens preparadas com um link assinado de revisão da arte, válido por sete dias; o envio é manual na aplicação do operador, sem garantir entrega nem depender da ativação da Cloud API. Quem recebe/obtém o link pode consultar e responder sobre essa versão. Não representa autenticação da identidade: a resposta guarda a origem `shared_link` e o nome declarado. No BrandDesk a resposta é autenticada, ligada à conta e à versão publicada. Nenhuma das duas decisões aceita preços ou condições comerciais.
+
+Os links podem ser revogados ou renovados (renovar invalida links anteriores). Versões substituídas ficam disponíveis para consulta enquanto o link for válido, mas não aceitam novas decisões. Revogar um link não retira acesso ao ficheiro do cliente autenticado no BrandDesk. Os endpoints de ficheiros privados verificam propriedade/permissões e usam `private, no-store`; a página pública usa `no-referrer` e `noindex`. Não inclua propostas, preços ou condições financeiras em ficheiros, descrições ou notas destinados à Produção/cliente. Estes controlos não fazem análise de conteúdo ou malware de PDFs/imagens.
+
+## WhatsApp: configuração e mensagens
 
 O proprietário/administrador configura `/admin/definicoes`; a recepção utiliza `/admin/apoio` sem acesso às credenciais. A integração começa desativada e não faz migração nem onboarding do número.
 

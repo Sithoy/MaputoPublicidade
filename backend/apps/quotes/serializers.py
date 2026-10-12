@@ -56,7 +56,12 @@ class ArtworkProofVersionSerializer(serializers.ModelSerializer):
     client_decision_display = serializers.CharField(
         source="get_client_decision_display", read_only=True
     )
-    file = RelativeFileField(read_only=True)
+    file = serializers.SerializerMethodField()
+
+    def get_file(self, obj):
+        if obj.mime_type:
+            return f'/api/artwork-files/{obj.pk}/'
+        return RelativeFileField().to_representation(obj.file) if obj.file else ''
     uploaded_by_name = serializers.SerializerMethodField()
 
     class Meta:
@@ -83,7 +88,38 @@ class ArtworkProofVersionSerializer(serializers.ModelSerializer):
         return obj.uploaded_by.get_full_name() or obj.uploaded_by.email
 
 
-class QuoteRequestListSerializer(serializers.ModelSerializer):
+class ProposalWorkflowMixin:
+    def get_proposal_workflow(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_staff:
+            return None
+        def name(user):
+            return (user.get_full_name() or user.email or user.username) if user else ""
+        return {"stage": obj.proposal_stage, "stage_display": obj.get_proposal_stage_display(),
+                "can_review": request.user.pk != obj.proposal_prepared_by_id and request.user.pk not in obj.proposal_editors,
+                "version": obj.proposal_version, "owner_id": obj.reception_owner_id,
+                "prepared_by": name(obj.proposal_prepared_by), "prepared_by_id": obj.proposal_prepared_by_id,
+                "reviewed_by": name(obj.proposal_reviewed_by), "reviewed_at": obj.proposal_reviewed_at,
+                "comment": obj.proposal_review_comment, "sent_at": obj.proposal_sent_at,
+                "history": obj.proposal_history if isinstance(self, QuoteRequestDetailSerializer) else []}
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request and not request.user.is_staff and 'proof_versions' in data:
+            published = set(instance.proof_versions.filter(published_at__isnull=False).values_list('id', flat=True))
+            data['proof_versions'] = [version for version in data['proof_versions'] if version['id'] in published]
+        if request and not request.user.is_staff and instance.proposal_stage not in {"legacy", "sent"}:
+            for field in ("final_price", "estimated_price", "discount_amount", "discount_percentage", "tax_rate", "tax_amount", "subtotal", "terms", "valid_until", "estimated_delivery_days", "payment_option", "payment_option_display"):
+                if field in data:
+                    data[field] = None
+            for item in data.get("items", []):
+                item["unit_price"] = None
+        return data
+
+
+class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    proposal_workflow = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     item_count = serializers.IntegerField(source="items.count", read_only=True)
     order_reference = serializers.SerializerMethodField()
@@ -104,6 +140,7 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "reference",
+            "proposal_workflow",
             "client_name",
             "client_company",
             "contact_source",
@@ -133,7 +170,8 @@ class QuoteRequestListSerializer(serializers.ModelSerializer):
         return None
 
 
-class QuoteRequestDetailSerializer(serializers.ModelSerializer):
+class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    proposal_workflow = serializers.SerializerMethodField()
     subtotal = serializers.DecimalField(
         max_digits=12, decimal_places=2, read_only=True, coerce_to_string=False
     )
@@ -177,6 +215,7 @@ class QuoteRequestDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "reference",
+            "proposal_workflow",
             "user",
             "client_name",
             "client_email",
@@ -346,7 +385,7 @@ class QuoteRequestCreateSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         user = request.user if request and request.user.is_authenticated else None
         items_data = validated_data.pop("items", [])
-        quote = QuoteRequest.objects.create(user=user, **validated_data)
+        quote = QuoteRequest.objects.create(user=user, proposal_stage="draft", **validated_data)
 
         for idx, item_data in enumerate(items_data):
             product = item_data.get("product")
@@ -683,6 +722,7 @@ class ReceptionIntakeSerializer(serializers.Serializer):
         total = sum(item["unit_price"] * Decimal(item["quantity"]) for item in priced_items)
         quote = QuoteRequest.objects.create(
             **validated_data,
+            proposal_stage="draft" if outcome == self.OUTCOME_QUOTE else "legacy",
             status=(
                 QuoteRequest.STATUS_QUOTED
                 if outcome == self.OUTCOME_CONFIRMED_ORDER
@@ -754,8 +794,14 @@ class QuoteRequestUpdateSerializer(serializers.ModelSerializer):
 
 
 class ArtworkApprovalSerializer(serializers.ModelSerializer):
+    proof_file = serializers.SerializerMethodField()
+
+    def get_proof_file(self, obj):
+        latest = obj.quote.proof_versions.filter(published_at__isnull=False).defer('private_content').first()
+        if latest and latest.mime_type:
+            return f'/api/artwork-files/{latest.pk}/'
+        return RelativeFileField().to_representation(obj.proof_file) if obj.proof_file else ''
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    proof_file = RelativeFileField(required=False)
 
     class Meta:
         model = ArtworkApproval

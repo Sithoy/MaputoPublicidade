@@ -13,6 +13,9 @@ def notify_activity(event):
         return
     kind = "encomendas" if event.order_id else "orcamentos"
     capability = StaffCapability.VIEW_ORDERS if event.order_id else StaffCapability.VIEW_QUOTES
+    artwork_decision = event.action in {"artwork_approved", "artwork_changes_requested"}
+    if artwork_decision:
+        capability = StaffCapability.VIEW_PRODUCTION
     title = f"{target.reference}: {event.get_action_display()}"
     if event.action == "status_changed" and event.to_status:
         title = f"{target.reference}: {target.get_status_display()}"
@@ -22,7 +25,8 @@ def notify_activity(event):
         for staff in User.objects.filter(is_staff=True, is_active=True).select_related("profile"):
             if has_staff_capability(staff, capability) and staff.id != event.actor_id:
                 notices.append(PortalNotification(
-                    recipient=staff, title=title, href=f"/admin/{kind}/{target.reference}"
+                    recipient=staff, title=title,
+                    href="/admin/producao" if artwork_decision else f"/admin/{kind}/{target.reference}"
                 ))
     if not event.is_internal and target.user_id and target.user_id != event.actor_id:
         if not target.user.is_staff:

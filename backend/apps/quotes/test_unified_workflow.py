@@ -36,7 +36,8 @@ def test_prepare_existing_retains_reference_items_and_sources(staff_client, quot
     item.refresh_from_db()
     assert QuoteRequest.objects.count() == count
     assert quote.reference == reference and quote.contact_source == 'phone'
-    assert quote.status == 'quoted' and quote.final_price == Decimal('50.00')
+    assert quote.status == 'reviewing' and quote.final_price == Decimal('50.00')
+    assert quote.proposal_stage == 'draft'
     assert item.size == 'A3' and item.material == 'Vinil'
     assert item.artwork_file.name == 'quotes/original.pdf'
     assert quote.activity_events.filter(action='status_changed').exists()
@@ -90,4 +91,4 @@ def test_commercial_can_register_phone_request_but_not_confirm_intake(staff_clie
         assert staff_client.post(reverse('quote-proposal', args=[quote.reference]), proposal_data(quote), format='json').status_code == 200
     staff_user.profile.staff_role = StaffRole.RECEPTIONIST
     staff_user.profile.save()
-    assert staff_client.post(reverse('quote-proposal', args=[quote.reference]), proposal_data(quote), format='json').status_code == 403
+    assert staff_client.post(reverse('quote-proposal', args=[quote.reference]), proposal_data(quote), format='json').status_code == 200

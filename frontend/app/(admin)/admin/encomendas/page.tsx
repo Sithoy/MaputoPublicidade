@@ -14,6 +14,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { ProductionBoundary } from '@/components/admin/ProductionBoundary';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -441,7 +442,7 @@ export default function AdminOrdersPage() {
         </div>
       }
     >
-      <AdminOrdersContent />
+      <ProductionBoundary><AdminOrdersContent /></ProductionBoundary>
     </Suspense>
   );
 }

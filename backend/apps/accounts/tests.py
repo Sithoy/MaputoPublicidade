@@ -378,11 +378,11 @@ class TestStaffRbac:
 
         assert status_response.status_code == 200
         assert delivery_response.status_code == 200
-        assert notes_response.status_code == 200
+        assert notes_response.status_code == 403
         assert payment_response.status_code == 403
         order.refresh_from_db()
         assert order.delivery_address == "Maputo"
-        assert order.internal_notes == "Aguardar acabamento."
+        assert order.internal_notes != "Aguardar acabamento."
 
     def test_production_cannot_cancel_an_order(self, order):
         _user, client = self.staff_client(StaffRole.PRODUCTION, "cancel")
@@ -437,7 +437,8 @@ class TestStaffRbac:
         assert StaffCapability.CREATE_INTAKE in response.json()["capabilities"]
         assert StaffCapability.VIEW_QUOTES in response.json()["capabilities"]
         assert StaffCapability.VIEW_ORDERS in response.json()["capabilities"]
-        assert StaffCapability.MANAGE_QUOTES not in response.json()["capabilities"]
+        assert StaffCapability.MANAGE_QUOTES in response.json()["capabilities"]
+        assert StaffCapability.REVIEW_PROPOSALS not in response.json()["capabilities"]
         assert StaffCapability.MANAGE_ORDERS not in response.json()["capabilities"]
         assert has_staff_capability(user, StaffCapability.CREATE_INTAKE)
 
@@ -493,7 +494,7 @@ class TestStaffRbac:
 
         assert finance_response.status_code == 200
         assert finance_response.json()["internal_notes"] is None
-        assert production_response.json()["internal_notes"] == order.internal_notes
+        assert "internal_notes" not in production_response.json()
 
         notes_url = reverse("order-set-notes", kwargs={"reference": order.reference})
         denied_update = finance_client.post(

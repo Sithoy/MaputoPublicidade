@@ -27,7 +27,9 @@ class StaffCapability:
     VIEW_DASHBOARD = "dashboard.view"
     VIEW_QUOTES = "quotes.view"
     MANAGE_QUOTES = "quotes.manage"
+    REVIEW_PROPOSALS = "quotes.review"
     MANAGE_ARTWORK = "quotes.artwork"
+    VIEW_PRODUCTION = "production.view"
     EXPORT_QUOTES = "quotes.export"
     VIEW_ORDERS = "orders.view"
     MANAGE_ORDERS = "orders.manage"
@@ -64,7 +66,9 @@ ROLE_CAPABILITIES = {
             StaffCapability.VIEW_DASHBOARD,
             StaffCapability.VIEW_QUOTES,
             StaffCapability.MANAGE_QUOTES,
+            StaffCapability.REVIEW_PROPOSALS,
             StaffCapability.MANAGE_ARTWORK,
+            StaffCapability.VIEW_PRODUCTION,
             StaffCapability.EXPORT_QUOTES,
             StaffCapability.VIEW_ORDERS,
             StaffCapability.MANAGE_ORDERS,
@@ -77,13 +81,11 @@ ROLE_CAPABILITIES = {
     ),
     StaffRole.PRODUCTION: frozenset(
         {
-            StaffCapability.VIEW_QUOTES,
+            StaffCapability.VIEW_PRODUCTION,
             StaffCapability.MANAGE_ARTWORK,
             StaffCapability.VIEW_ORDERS,
             StaffCapability.MANAGE_ORDER_STATUS,
-            StaffCapability.MANAGE_ORDER_NOTES,
             StaffCapability.MANAGE_DELIVERY,
-            StaffCapability.VIEW_PAYMENTS,
         }
     ),
     StaffRole.FINANCE: frozenset(
@@ -112,6 +114,7 @@ ROLE_CAPABILITIES = {
             StaffCapability.MANAGE_SUPPORT,
             StaffCapability.CREATE_INTAKE,
             StaffCapability.VIEW_QUOTES,
+            StaffCapability.MANAGE_QUOTES,
             StaffCapability.VIEW_ORDERS,
         }
     ),

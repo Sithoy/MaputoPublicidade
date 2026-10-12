@@ -177,7 +177,7 @@ def test_review_linking_retry_and_private_sources(staff_client, staff_user, auth
         retried = staff_client.post(reverse("quote-manual"), data, format="json")
         assert retried.status_code == 200
         assert retried.data["reference"] == created.data["reference"]
-        assert notify.call_count == 1
+        assert notify.call_count == 0  # Publishing waits for internal approval and send.
     preparation.refresh_from_db()
     assert preparation.quote.final_price == 500
     assert preparation.quote.items.first().notes == "Papel mate"

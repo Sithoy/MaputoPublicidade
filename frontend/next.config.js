@@ -39,7 +39,9 @@ const nextConfig = {
   reactStrictMode: true,
   skipTrailingSlashRedirect: true,
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [{ source: '/:path*', headers: securityHeaders }, { source: '/arte/:path*', headers: [
+      { key: 'Referrer-Policy', value: 'no-referrer' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+    ] }];
   },
   images: {
     domains: ['localhost', 'backend'],

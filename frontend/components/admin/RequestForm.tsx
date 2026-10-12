@@ -253,7 +253,7 @@ export default function RequestForm({ reference }: { reference?: string }) {
         <div className="flex flex-wrap gap-3">
           <Button type="button" variant={mode === 'request' ? 'primary' : 'outline'} aria-pressed={mode === 'request'} onClick={() => { setMode('request'); setPreparationId(undefined); }}>Registar pedido sem preço</Button>
           {canManage ? <Button type="button" variant={mode === 'proposal' ? 'primary' : 'outline'} aria-pressed={mode === 'proposal'} onClick={() => setMode('proposal')}>Preparar proposta</Button> : null}
-          {canIntake ? <Button type="button" variant={mode === 'confirmed' ? 'primary' : 'outline'} aria-pressed={mode === 'confirmed'} onClick={() => { setMode('confirmed'); setPreparationId(undefined); }}>Encomenda já confirmada</Button> : null}
+          {canIntake && can('quotes.review') ? <Button type="button" variant={mode === 'confirmed' ? 'primary' : 'outline'} aria-pressed={mode === 'confirmed'} onClick={() => { setMode('confirmed'); setPreparationId(undefined); }}>Encomenda já confirmada</Button> : null}
         </div>
         <p className="text-sm text-gray-500">Registe o contacto agora e complete a proposta no mesmo pedido quando os preços estiverem definidos.</p>
         <Label htmlFor="request-source">Origem do pedido</Label>

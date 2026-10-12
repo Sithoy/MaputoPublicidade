@@ -312,6 +312,12 @@ export type QuoteItem = {  id: number;
 };
 
 export type Quote = {
+  proposal_workflow?: {
+    stage: 'legacy' | 'draft' | 'review' | 'returned' | 'approved' | 'sent'; stage_display: string;
+    version: number; owner_id: number | null; prepared_by: string; prepared_by_id: number | null; can_review: boolean;
+    reviewed_by: string; reviewed_at: string | null; comment: string; sent_at: string | null;
+    history: { action: string; version: number; at: string; actor: string; comment: string; snapshot?: Record<string, unknown> }[];
+  } | null;
   billing_address?: string;
   discount_type?: 'fixed' | 'percentage';
   discount_amount?: number;

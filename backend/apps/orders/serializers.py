@@ -49,7 +49,21 @@ class OrderItemSerializer(serializers.ModelSerializer):
         }
 
 
-class OrderListSerializer(serializers.ModelSerializer):
+class OperationalOrderMixin:
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request and request.user.is_staff and not has_staff_capability(request.user, StaffCapability.VIEW_QUOTES):
+            allowed = {"id", "reference", "quote_reference", "client_name", "user_name", "job_summary", "status", "status_display", "item_count", "artwork_status", "delivery_method", "delivery_method_display", "delivery_address", "scheduled_date", "installation_required", "delivery_responsible", "delivery_responsible_name", "completion_photo", "client_confirmed_at", "items", "artwork", "created_at", "updated_at"}
+            data = {key: value for key, value in data.items() if key in allowed}
+            for item in data.get("items", []):
+                for key in list(item):
+                    if key not in {"id", "description", "quantity", "size", "material", "colors", "needs_design", "position"}:
+                        item.pop(key)
+        return data
+
+
+class OrderListSerializer(OperationalOrderMixin, serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     payment_status_display = serializers.CharField(
         source="get_payment_status_display", read_only=True
@@ -130,7 +144,7 @@ class OrderListSerializer(serializers.ModelSerializer):
         return None
 
 
-class OrderDetailSerializer(serializers.ModelSerializer):
+class OrderDetailSerializer(OperationalOrderMixin, serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     payment_status_display = serializers.CharField(
         source="get_payment_status_display", read_only=True

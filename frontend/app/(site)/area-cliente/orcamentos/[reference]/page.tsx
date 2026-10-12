@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { ProofVersionHistory } from '@/components/ProofVersionHistory';
+import { PrivateArtPreview } from '@/components/PrivateArtPreview';
 import {
   approveArtwork,
   approveQuotePrice,
@@ -247,14 +248,7 @@ export default function ClientQuoteDetailPage() {
             <div className="flex items-center gap-2">
               <Badge variant="outline">{quote.artwork.status_display || quote.artwork.status}</Badge>
               {quote.artwork.proof_file && (
-                <a
-                  href={quote.artwork.proof_file}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-brand hover:underline"
-                >
-                  Ver ficheiro
-                </a>
+                <PrivateArtPreview url={quote.artwork.proof_file} />
               )}
             </div>
             {quote.artwork.designer_comment && (
@@ -274,7 +268,7 @@ export default function ClientQuoteDetailPage() {
                 />
                 <div className="flex gap-3">
                   <Button
-                    onClick={() => runAction(() => approveArtwork(quote.reference, comment))}
+                    onClick={() => runAction(() => approveArtwork(quote.reference, comment, quote.proof_versions?.[0]?.id))}
                     disabled={actionLoading}
                     className="gap-2"
                   >
@@ -282,7 +276,7 @@ export default function ClientQuoteDetailPage() {
                     Aprovar arte
                   </Button>
                   <Button
-                    onClick={() => runAction(() => requestArtworkChange(quote.reference, comment))}
+                    onClick={() => runAction(() => requestArtworkChange(quote.reference, comment, quote.proof_versions?.[0]?.id))}
                     disabled={actionLoading || !comment.trim()}
                     variant="outline"
                     className="gap-2"

@@ -25,6 +25,7 @@ function AdminQuotesContent() {
   const [statusFilter, setStatusFilter] = useState(urlStatus);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const [queue, setQueue] = useState(['mine', 'review'].includes(searchParams.get('proposal_queue') || '') ? searchParams.get('proposal_queue')! : 'all');
 
   // Keep the filter in sync with ?status= links (e.g. from the dashboard).
   useEffect(() => {
@@ -33,13 +34,16 @@ function AdminQuotesContent() {
 
   useEffect(() => {
     if (authLoading) return;
-    getQuotes()
+    let active = true;
+    getQuotes(queue === 'all' ? '' : `?proposal_queue=${queue}`)
       .then((data) => {
+        if (!active) return;
         setQuotes(data);
         setFiltered(data);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar orçamentos'));
-  }, [authLoading]);
+      .catch((err) => { if (active) setError(err instanceof Error ? err.message : 'Erro ao carregar orçamentos'); });
+    return () => { active = false; };
+  }, [authLoading, queue]);
 
   useEffect(() => {
     let data = [...quotes];
@@ -94,6 +98,9 @@ function AdminQuotesContent() {
       </div>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <nav aria-label="Filas de propostas" className="flex flex-wrap gap-3">{[
+        ['all', 'Todos os pedidos'], ['mine', 'As minhas propostas'], ...(can('quotes.review') ? [['review', 'Aguardam aprovação']] : []),
+      ].map(([value, label]) => <button key={value} type="button" aria-pressed={queue === value} onClick={() => { setQueue(value); setError(''); }} className={`rounded-xl border px-4 py-3 text-sm font-semibold ${queue === value ? 'bg-brand-800 text-white' : 'bg-white'}`}>{label}</button>)}</nav>
 
       <Card>
         <CardContent className="flex flex-col gap-4 p-4 sm:flex-row">
@@ -134,6 +141,7 @@ function AdminQuotesContent() {
             header: 'Estado',
             render: (item) => item.status_display || item.status,
           },
+          { key: 'proposal_workflow', header: 'Proposta', render: (item) => item.proposal_workflow?.stage === 'legacy' ? 'Fluxo anterior' : item.proposal_workflow?.stage_display || 'Por preparar' },
           {
             key: 'estimated_price',
             header: 'Preço estimado',

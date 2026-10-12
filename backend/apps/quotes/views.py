@@ -4,9 +4,10 @@ import os
 from io import BytesIO
 
 from django.db import transaction
+from django.db.models import Prefetch
 from django.http import FileResponse
 from django.utils import timezone
-from rest_framework import mixins, status, viewsets
+from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -38,6 +39,7 @@ from .models import (
     QuoteRequestAttachment,
 )
 from .proposal_assistant import PreparationThrottle, extract_draft, prepare_sources
+from .proposal_workflow import DOCUMENT_FIELDS, prepare, require_sent, transition
 from .serializers import (
     ArtworkApprovalSerializer,
     ArtworkProofSerializer,
@@ -102,8 +104,8 @@ class QuoteRequestViewSet(
 ):
     queryset = (
         QuoteRequest.objects.all()
-        .select_related("artwork", "user", "price_approved_by")
-        .prefetch_related("items", "items__product", "items__product_variant", "proof_versions")
+        .select_related("artwork", "user", "price_approved_by", "proposal_prepared_by", "proposal_reviewed_by")
+        .prefetch_related("items", "items__product", "items__product_variant", Prefetch("proof_versions", queryset=ArtworkProofVersion.objects.defer("private_content")))
     )
     lookup_field = "reference"
     parser_classes = [JSONParser, FormParser, MultiPartParser]
@@ -115,13 +117,18 @@ class QuoteRequestViewSet(
             return ManualQuoteCreateSerializer
         if self.action == "create":
             return QuoteRequestCreateSerializer
-        if self.action == "partial_update":
+        if self.action in {"partial_update", "update"}:
             return QuoteRequestUpdateSerializer
         if self.action in ["retrieve", "approve", "request_change"]:
             return QuoteRequestDetailSerializer
         return QuoteRequestListSerializer
 
     def get_permissions(self):
+        if self.action == "destroy":
+            return [HasStaffCapability(StaffCapability.REVIEW_PROPOSALS)]
+        if self.action == "proposal_workflow":
+            capability = StaffCapability.REVIEW_PROPOSALS if self.request.data.get("action") in {"approve", "return"} else StaffCapability.MANAGE_QUOTES
+            return [HasStaffCapability(capability)]
         if self.action == "brand_request":
             return [IsAuthenticated()]
         if self.action == "intake":
@@ -141,7 +148,7 @@ class QuoteRequestViewSet(
                 ),
             ]
         if self.action == "upload_proof":
-            return [HasStaffCapability(StaffCapability.MANAGE_ARTWORK)]
+            return [HasStaffCapability(StaffCapability.MANAGE_ARTWORK), HasStaffCapability(StaffCapability.VIEW_QUOTES)]
         if self.action == "export":
             return [HasStaffCapability(StaffCapability.EXPORT_QUOTES)]
         if self.action in [
@@ -170,6 +177,11 @@ class QuoteRequestViewSet(
                 if not user_filter.isdigit():
                     return queryset.none()
                 queryset = queryset.filter(user_id=int(user_filter))
+            queue = self.request.query_params.get("proposal_queue", "")
+            if queue == "mine":
+                queryset = queryset.filter(reception_owner=user)
+            elif queue == "review":
+                queryset = queryset.filter(proposal_stage="review")
             return queryset
         return self.queryset.filter(user=user)
 
@@ -248,7 +260,7 @@ class QuoteRequestViewSet(
             notes.append(f"Data pretendida (a confirmar pela MP): {data['deadline']}")
         if data.get("source_reference"):
             notes.append(f"Referência anterior: {data['source_reference']}")
-        quote = QuoteRequest.objects.create(user=request.user,
+        quote = QuoteRequest.objects.create(user=request.user, proposal_stage="draft",
             client_name=company or request.user.get_full_name() or request.user.email,
             client_email=request.user.email, client_phone=getattr(profile, "phone", ""),
             client_company="", client_nuit=getattr(profile, "nuit", ""),
@@ -342,12 +354,14 @@ class QuoteRequestViewSet(
             raise ValidationError({"preparation_id": "Prepare os itens do pedido original sem substituir as fontes."})
         serializer = ManualQuoteCreateSerializer(quote, data=request.data)
         serializer.is_valid(raise_exception=True)
+        prepare(quote, request.user)
         previous_status = quote.status
         quote = serializer.save()
+        quote.status = "reviewing"
+        quote.save(update_fields=["status"])
         record_activity(action=ActivityEvent.ACTION_STATUS_CHANGED, quote=quote, actor=request.user,
                         from_status=previous_status, to_status=quote.status,
                         comment="Proposta preparada no pedido original; referência e anexos preservados.")
-        notify_quote_ready(quote)
         return Response(QuoteRequestDetailSerializer(quote, context={"request": request}).data)
 
     @action(detail=False, methods=["post"], url_path="manual")
@@ -370,6 +384,7 @@ class QuoteRequestViewSet(
         serializer = ManualQuoteCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         quote = serializer.save()
+        prepare(quote, request.user)
         if preparation:
             preparation.quote = quote
             preparation.save(update_fields=["quote"])
@@ -381,7 +396,6 @@ class QuoteRequestViewSet(
             actor=request.user,
             comment="Proposta criada pela equipa comercial.",
         )
-        notify_quote_ready(quote)
         return Response(
             QuoteRequestDetailSerializer(
                 quote, context={"request": request}
@@ -392,6 +406,8 @@ class QuoteRequestViewSet(
     @action(detail=False, methods=["post"], url_path="intake")
     @transaction.atomic
     def intake(self, request):
+        if request.data.get("outcome") == "confirmed_order" and not has_staff_capability(request.user, StaffCapability.REVIEW_PROPOSALS):
+            raise ValidationError("Prepare a proposta e obtenha aprovação do Comercial antes de confirmar a encomenda.")
         serializer = ReceptionIntakeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         outcome = serializer.validated_data["outcome"]
@@ -484,9 +500,37 @@ class QuoteRequestViewSet(
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
+    @transaction.atomic
+    def perform_update(self, serializer):
+        quote = QuoteRequest.objects.select_for_update().get(pk=serializer.instance.pk)
+        values = serializer.validated_data
+        if "status" in values and values["status"] in {"quoted", "approved", "in_production", "ready", "delivered"}:
+            require_sent(quote)
+        if any(field in values and values[field] != getattr(quote, field) for field in DOCUMENT_FIELDS):
+            prepare(quote, self.request.user)
+            if "status" in values:
+                values["status"] = "reviewing"
+        serializer.instance = quote
+        serializer.save()
+
+    @action(detail=True, methods=["post"], url_path="proposal-workflow")
+    @transaction.atomic
+    def proposal_workflow(self, request, reference=None):
+        original = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=original.pk)
+        command = serializers.ChoiceField(choices=["submit", "approve", "return", "send"]).run_validation(request.data.get("action"))
+        version = serializers.IntegerField(min_value=0).run_validation(request.data.get("version"))
+        comment = serializers.CharField(max_length=3000, allow_blank=True).run_validation(request.data.get("comment", ""))
+        transition(quote, request.user, command, version, comment)
+        if command == "send":
+            notify_quote_ready(quote)
+        return Response(QuoteRequestDetailSerializer(quote, context={"request": request}).data)
+
     @action(detail=True, methods=["get"], url_path="pdf")
     def pdf(self, request, reference=None):
         quote = self.get_object()
+        if not request.user.is_staff:
+            require_sent(quote)
         content = build_quote_pdf(quote)
         response = FileResponse(BytesIO(content), content_type="application/pdf")
         response["Content-Disposition"] = (
@@ -495,13 +539,17 @@ class QuoteRequestViewSet(
         return response
 
     @action(detail=True, methods=["post"], url_path="set-status")
+    @transaction.atomic
     def set_status(self, request, reference=None):
         quote = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
         serializer = QuoteStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         old_status = quote.status
         new_status = serializer.validated_data["status"]
+        if new_status in {"quoted", "approved", "in_production", "ready", "delivered"}:
+            require_sent(quote)
         if not quote.can_transition_to(new_status):
             return Response(
                 {
@@ -546,12 +594,15 @@ class QuoteRequestViewSet(
         )
 
     @action(detail=True, methods=["post"], url_path="set-price")
+    @transaction.atomic
     def set_price(self, request, reference=None):
         quote = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
         if quote.commercial_pricing:
             raise ValidationError({'detail': 'Use Preparar proposta para alterar preços, descontos e IVA deste documento.'})
         serializer = QuotePriceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        prepare(quote, request.user)
 
         if "estimated_price" in serializer.validated_data:
             quote.estimated_price = serializer.validated_data["estimated_price"]
@@ -560,7 +611,7 @@ class QuoteRequestViewSet(
         quote.save(update_fields=["estimated_price", "final_price", "updated_at"])
 
         old_status = quote.status
-        if quote.final_price and quote.status in (
+        if quote.proposal_stage == "legacy" and quote.final_price and quote.status in (
             QuoteRequest.STATUS_RECEIVED,
             QuoteRequest.STATUS_REVIEWING,
         ):
@@ -603,6 +654,7 @@ class QuoteRequestViewSet(
                 file=artwork.proof_file,
                 designer_comment=artwork.designer_comment,
                 uploaded_by=request.user,
+                published_at=timezone.now(),
             )
         record_activity(
             action=ActivityEvent.ACTION_ARTWORK_PROOF_UPLOADED,
@@ -612,7 +664,8 @@ class QuoteRequestViewSet(
         )
 
         old_status = quote.status
-        quote.status = QuoteRequest.STATUS_QUOTED
+        # Artwork publication must not alter commercial acceptance or production state.
+        quote.status = old_status
         quote.save(update_fields=["status", "updated_at"])
         if old_status != quote.status:
             record_activity(
@@ -635,8 +688,13 @@ class QuoteRequestViewSet(
         )
 
     @action(detail=True, methods=["post"], url_path="approve")
+    @transaction.atomic
     def approve(self, request, reference=None):
         quote = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
+        current_version = quote.proof_versions.filter(published_at__isnull=False).first()
+        if current_version and current_version.mime_type and (request.data.get('version_id') != current_version.pk or current_version.client_decision != 'pending'):
+            raise ValidationError('A versão da arte mudou ou já recebeu uma decisão. Atualize antes de responder.')
         serializer = QuoteApprovalSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -645,30 +703,19 @@ class QuoteRequestViewSet(
         artwork.client_comment = serializer.validated_data.get("comment", "")
         artwork.approved_at = timezone.now()
         artwork.save()
-        latest_version = quote.proof_versions.first()
+        latest_version = quote.proof_versions.filter(published_at__isnull=False).first()
         if latest_version:
             latest_version.client_decision = ArtworkProofVersion.DECISION_APPROVED
             latest_version.client_comment = artwork.client_comment
-            latest_version.save(update_fields=["client_decision", "client_comment"])
+            latest_version.decision_source = 'staff' if request.user.is_staff else 'branddesk'
+            latest_version.reviewer_name = request.user.get_full_name() or request.user.email
+            latest_version.save(update_fields=["client_decision", "client_comment", "decision_source", "reviewer_name"])
         record_activity(
             action=ActivityEvent.ACTION_ARTWORK_APPROVED,
             quote=quote,
             actor=request.user,
             comment=artwork.client_comment,
         )
-
-        old_status = quote.status
-        quote.status = QuoteRequest.STATUS_APPROVED
-        quote.save()
-        if old_status != quote.status:
-            record_activity(
-                action=ActivityEvent.ACTION_STATUS_CHANGED,
-                quote=quote,
-                actor=request.user,
-                from_status=old_status,
-                to_status=quote.status,
-            )
-        notify_quote_status_changed(quote, old_status)
 
         return Response(
             {
@@ -679,8 +726,13 @@ class QuoteRequestViewSet(
         )
 
     @action(detail=True, methods=["post"], url_path="request-change")
+    @transaction.atomic
     def request_change(self, request, reference=None):
         quote = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
+        current_version = quote.proof_versions.filter(published_at__isnull=False).first()
+        if current_version and current_version.mime_type and (request.data.get('version_id') != current_version.pk or current_version.client_decision != 'pending'):
+            raise ValidationError('A versão da arte mudou ou já recebeu uma decisão. Atualize antes de responder.')
         serializer = QuoteChangeRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -688,30 +740,19 @@ class QuoteRequestViewSet(
         artwork.status = ArtworkApproval.STATUS_CHANGES_REQUESTED
         artwork.requested_changes = serializer.validated_data.get("comment", "")
         artwork.save()
-        latest_version = quote.proof_versions.first()
+        latest_version = quote.proof_versions.filter(published_at__isnull=False).first()
         if latest_version:
             latest_version.client_decision = ArtworkProofVersion.DECISION_CHANGES_REQUESTED
             latest_version.client_comment = artwork.requested_changes
-            latest_version.save(update_fields=["client_decision", "client_comment"])
+            latest_version.decision_source = 'staff' if request.user.is_staff else 'branddesk'
+            latest_version.reviewer_name = request.user.get_full_name() or request.user.email
+            latest_version.save(update_fields=["client_decision", "client_comment", "decision_source", "reviewer_name"])
         record_activity(
             action=ActivityEvent.ACTION_ARTWORK_CHANGES_REQUESTED,
             quote=quote,
             actor=request.user,
             comment=artwork.requested_changes,
         )
-
-        old_status = quote.status
-        quote.status = QuoteRequest.STATUS_REVIEWING
-        quote.save()
-        if old_status != quote.status:
-            record_activity(
-                action=ActivityEvent.ACTION_STATUS_CHANGED,
-                quote=quote,
-                actor=request.user,
-                from_status=old_status,
-                to_status=quote.status,
-            )
-        notify_quote_status_changed(quote, old_status)
 
         return Response(
             {
@@ -722,8 +763,11 @@ class QuoteRequestViewSet(
         )
 
     @action(detail=True, methods=["post"], url_path="approve-price")
+    @transaction.atomic
     def approve_price(self, request, reference=None):
         quote = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
+        require_sent(quote)
         serializer = QuoteApprovalSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -765,8 +809,11 @@ class QuoteRequestViewSet(
         )
 
     @action(detail=True, methods=["post"], url_path="convert-to-order")
+    @transaction.atomic
     def convert_to_order(self, request, reference=None):
         quote = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
+        require_sent(quote)
         if hasattr(quote, "order"):
             return Response(
                 {

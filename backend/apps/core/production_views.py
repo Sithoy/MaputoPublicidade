@@ -1,0 +1,361 @@
+"""Production gets an explicit technical whitelist, never a commercial serializer."""
+
+import secrets
+from datetime import timedelta
+from io import BytesIO
+
+from django.core import signing
+from django.db import transaction
+from django.db.models import Prefetch
+from django.http import FileResponse
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import mixins, serializers, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
+from rest_framework.views import APIView
+
+from apps.accounts.roles import StaffCapability, has_staff_capability
+from apps.quotes.models import ArtworkApproval, ArtworkProofVersion, QuoteRequest
+
+from .activity import record_activity
+from .permissions import HasStaffCapability
+
+SALT = "mp-art-review-v1"
+
+
+def share_token(version):
+    return signing.dumps({"id": version.pk, "nonce": version.share_nonce}, salt=SALT)
+
+
+def public_file_url(version):
+    return f"/api/art-review/{share_token(version)}/file/"
+
+
+def versions(quote):
+    return quote.proof_versions.all()
+
+
+def version_data(version, staff=False):
+    data = {
+        "id": version.pk,
+        "version": version.version,
+        "designer_comment": version.designer_comment,
+        "file_name": version.file_name or version.file.name.rsplit("/", 1)[-1],
+        "mime_type": version.mime_type,
+        "published_at": version.published_at,
+        "client_decision": version.client_decision,
+        "client_comment": version.client_comment,
+        "decision_source": version.decision_source,
+        "reviewer_name": version.reviewer_name,
+    }
+    if staff:
+        data["file_url"] = f"/api/production/{version.quote.reference}/files/{version.pk}/"
+    return data
+
+
+def job_data(quote):
+    order = getattr(quote, "order", None)
+    return {
+        "reference": quote.reference,
+        "client_name": quote.client_company or quote.client_name,
+        "status": order.status if order else quote.status,
+        "order_reference": order.reference if order else None,
+        "scheduled_date": order.scheduled_date if order else None,
+        "production_notes": quote.production_notes,
+        "items": list(
+            quote.items.values(
+                "id", "description", "quantity", "size", "material", "colors", "needs_design"
+            )
+        ),
+        "versions": [version_data(version, True) for version in versions(quote)],
+    }
+
+
+def file_response(version):
+    if version.mime_type:
+        response = FileResponse(
+            BytesIO(bytes(version.private_content or b"")), content_type=version.mime_type
+        )
+    elif version.file:
+        response = FileResponse(
+            version.file.open("rb"),
+            as_attachment=True,
+            filename=version.file.name.rsplit("/", 1)[-1],
+        )
+    else:
+        raise ValidationError("Ficheiro indisponível.")
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Content-Security-Policy"] = "sandbox"
+    response["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    lookup_field = "reference"
+
+    def get_permissions(self):
+        permissions = [HasStaffCapability(StaffCapability.VIEW_PRODUCTION)]
+        if self.action in {"technical_notes", "revoke"}:
+            permissions.append(HasStaffCapability(StaffCapability.MANAGE_ARTWORK))
+        return permissions
+
+    def get_queryset(self):
+        return (
+            QuoteRequest.objects.filter(
+                status__in=["quoted", "approved", "in_production", "ready", "delivered"]
+            )
+            .select_related("order")
+            .prefetch_related(
+                "items",
+                Prefetch(
+                    "proof_versions", queryset=ArtworkProofVersion.objects.defer("private_content")
+                ),
+            )
+            .order_by("-updated_at", "-pk")
+        )
+
+    def list(self, request):
+        page = self.paginate_queryset(self.get_queryset())
+        return self.get_paginated_response([job_data(quote) for quote in page])
+
+    def retrieve(self, request, reference=None):
+        return Response(job_data(self.get_object()))
+
+    @action(detail=True, methods=["post"], url_path="technical-notes")
+    def technical_notes(self, request, reference=None):
+        quote = self.get_object()
+        quote.production_notes = serializers.CharField(
+            max_length=5000, allow_blank=True
+        ).run_validation(request.data.get("notes", ""))
+        quote.save(update_fields=["production_notes", "updated_at"])
+        return Response(job_data(quote))
+
+    @action(detail=True, methods=["post"], url_path="artwork")
+    @transaction.atomic
+    def artwork(self, request, reference=None):
+        self.get_object()
+        if not HasStaffCapability(StaffCapability.MANAGE_ARTWORK).has_permission(request, self):
+            self.permission_denied(request)
+        quote = QuoteRequest.objects.select_for_update().get(reference=reference)
+        file = request.FILES.get("file")
+        if not file or file.size > 3 * 1024 * 1024:
+            raise ValidationError("Carregue uma imagem ou PDF até 3 MB.")
+        content = file.read()
+        if len(content) > 3 * 1024 * 1024:
+            raise ValidationError('A arte ultrapassa 3 MB.')
+        mime = (
+            "application/pdf"
+            if content.startswith(b"%PDF-")
+            else "image/png"
+            if content.startswith(b"\x89PNG\r\n\x1a\n")
+            else "image/jpeg"
+            if content.startswith(b"\xff\xd8\xff")
+            else "image/webp"
+            if content.startswith(b"RIFF") and content[8:12] == b"WEBP"
+            else ""
+        )
+        if not mime:
+            raise ValidationError("Formato não suportado: utilize PDF, PNG, JPEG ou WebP.")
+        comment = serializers.CharField(max_length=3000, allow_blank=True).run_validation(
+            request.data.get("comment", "")
+        )
+        latest = quote.proof_versions.order_by("-version").first()
+        version = ArtworkProofVersion.objects.create(
+            quote=quote,
+            version=latest.version + 1 if latest else 1,
+            private_content=content,
+            file_name=file.name.replace("\\", "/").rsplit("/", 1)[-1][:160],
+            mime_type=mime,
+            designer_comment=comment,
+            uploaded_by=request.user,
+        )
+        record_activity(
+            action="artwork_proof_uploaded",
+            quote=quote,
+            actor=request.user,
+            comment=f"Arte v{version.version} guardada como rascunho técnico.",
+            is_internal=True,
+        )
+        return Response(job_data(quote), status=201)
+
+    @action(detail=True, methods=["get"], url_path=r"files/(?P<version_id>[0-9]+)")
+    def file(self, request, reference=None, version_id=None):
+        quote = self.get_object()
+        return file_response(get_object_or_404(quote.proof_versions, pk=version_id))
+
+    @action(detail=True, methods=["post"], url_path=r"publish/(?P<version_id>[0-9]+)")
+    @transaction.atomic
+    def publish(self, request, reference=None, version_id=None):
+        self.get_object()
+        if not HasStaffCapability(StaffCapability.MANAGE_ARTWORK).has_permission(request, self):
+            self.permission_denied(request)
+        quote = QuoteRequest.objects.select_for_update().get(reference=reference)
+        version = get_object_or_404(quote.proof_versions, pk=version_id)
+        if version.pk != quote.proof_versions.order_by("-version").first().pk:
+            raise ValidationError("Publique apenas a versão técnica mais recente.")
+        first = version.published_at is None
+        version.published_at = version.published_at or timezone.now()
+        version.share_nonce = secrets.token_urlsafe(32)
+        version.share_expires_at = timezone.now() + timedelta(days=7)
+        version.save(update_fields=["published_at", "share_nonce", "share_expires_at"])
+        if first:
+            artwork, _ = ArtworkApproval.objects.get_or_create(quote=quote)
+            artwork.status = "pending"
+            artwork.designer_comment = version.designer_comment
+            artwork.proof_file = version.file
+            artwork.client_comment = artwork.requested_changes = ""
+            artwork.approved_at = None
+            artwork.save()
+            record_activity(
+                action="artwork_proof_uploaded",
+                quote=quote,
+                actor=request.user,
+                comment=f"Arte v{version.version} submetida para apreciação do cliente.",
+            )
+        token = share_token(version)
+        return Response(
+            {
+                "job": job_data(quote),
+                "review_path": f"/arte/rever/{token}",
+                "client_email": quote.client_email,
+                "client_phone": quote.client_phone,
+                "expires_at": version.share_expires_at,
+            }
+        )
+
+    @action(detail=True, methods=["post"], url_path=r"revoke/(?P<version_id>[0-9]+)")
+    @transaction.atomic
+    def revoke(self, request, reference=None, version_id=None):
+        quote = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
+        version = get_object_or_404(quote.proof_versions, pk=version_id)
+        version.share_nonce = ""
+        version.share_expires_at = None
+        version.save(update_fields=["share_nonce", "share_expires_at"])
+        return Response(job_data(quote))
+
+
+class ReviewThrottle(AnonRateThrottle):
+    rate = "30/min"
+    scope = "art_review"
+
+
+class PublicArtReview(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ReviewThrottle]
+
+    def version(self, token):
+        try:
+            data = signing.loads(token, salt=SALT, max_age=7 * 86400)
+            version = get_object_or_404(
+                ArtworkProofVersion.objects.select_related("quote").defer("private_content"),
+                pk=data["id"],
+                share_nonce=data["nonce"],
+                published_at__isnull=False,
+                share_expires_at__gt=timezone.now(),
+            )
+            if not version.share_nonce:
+                raise signing.BadSignature()
+            return version
+        except (signing.BadSignature, KeyError, TypeError, ValueError):
+            from django.http import Http404
+
+            raise Http404() from None
+
+    def get(self, request, token, file=False):
+        version = self.version(token)
+        if file:
+            return file_response(version)
+        latest = (
+            version.quote.proof_versions.filter(published_at__isnull=False)
+            .order_by("-version")
+            .first()
+        )
+        response = Response(
+            {
+                **version_data(version),
+                "reference": version.quote.reference,
+                "file_url": public_file_url(version),
+                "current": latest.pk == version.pk,
+            }
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["Referrer-Policy"] = "no-referrer"
+        return response
+
+    @transaction.atomic
+    def post(self, request, token, file=False):
+        if file:
+            return Response(status=405)
+        version = self.version(token)
+        quote = QuoteRequest.objects.select_for_update().get(pk=version.quote_id)
+        version = ArtworkProofVersion.objects.select_for_update().get(pk=version.pk)
+        self.version(token)  # Re-check revocation and expiry after acquiring the quote lock.
+        latest = (
+            quote.proof_versions.filter(published_at__isnull=False).order_by("-version").first()
+        )
+        if latest.pk != version.pk or version.client_decision != "pending":
+            raise ValidationError(
+                "Esta versão já recebeu uma decisão ou foi substituída. Peça a versão atual à MP."
+            )
+        decision = serializers.ChoiceField(
+            choices=["approved", "changes_requested"]
+        ).run_validation(request.data.get("decision"))
+        name = serializers.CharField(max_length=160).run_validation(request.data.get("name"))
+        comment = serializers.CharField(
+            max_length=3000, allow_blank=decision == "approved"
+        ).run_validation(request.data.get("comment", ""))
+        version.client_decision, version.client_comment = decision, comment
+        version.decision_source, version.reviewer_name = "shared_link", name
+        version.save(
+            update_fields=["client_decision", "client_comment", "decision_source", "reviewer_name"]
+        )
+        artwork, _ = ArtworkApproval.objects.get_or_create(quote=quote)
+        artwork.status = decision
+        artwork.client_comment = comment
+        artwork.requested_changes = comment if decision == "changes_requested" else ""
+        artwork.approved_at = timezone.now() if decision == "approved" else None
+        artwork.save()
+        record_activity(
+            action="artwork_approved" if decision == "approved" else "artwork_changes_requested",
+            quote=quote,
+            comment=f"Arte v{version.version}; resposta por link partilhado, nome declarado: {name}. {comment}",
+        )
+        return Response(
+            {
+                "detail": "Decisão da arte registada. Esta decisão não aprova preços nem altera pagamentos."
+            }
+        )
+
+
+class AuthenticatedArtFile(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, version_id):
+        version = get_object_or_404(
+            ArtworkProofVersion.objects.select_related("quote").defer("private_content"),
+            pk=version_id,
+        )
+        user = request.user
+        if user.is_staff:
+            allowed = has_staff_capability(
+                user, StaffCapability.VIEW_PRODUCTION
+            ) or has_staff_capability(user, StaffCapability.VIEW_QUOTES)
+            if (
+                not has_staff_capability(user, StaffCapability.VIEW_PRODUCTION)
+                and not version.published_at
+            ):
+                allowed = False
+        else:
+            allowed = version.quote.user_id == user.pk and version.published_at is not None
+        if not allowed:
+            from django.http import Http404
+
+            raise Http404()
+        return file_response(version)

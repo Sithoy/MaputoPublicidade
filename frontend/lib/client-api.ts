@@ -329,18 +329,18 @@ export async function approveQuotePrice(reference: string, comment?: string) {
   });
 }
 
-export async function approveArtwork(reference: string, comment?: string) {
+export async function approveArtwork(reference: string, comment?: string, versionId?: number) {
   return fetchWithAuth(`/api/quotes/${reference}/approve/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ comment: comment || '' }),
+    body: JSON.stringify({ comment: comment || '', ...(versionId ? { version_id: versionId } : {}) }),
   });
 }
 
-export async function requestArtworkChange(reference: string, comment: string) {
+export async function requestArtworkChange(reference: string, comment: string, versionId?: number) {
   return fetchWithAuth(`/api/quotes/${reference}/request-change/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ comment }),
+    body: JSON.stringify({ comment, ...(versionId ? { version_id: versionId } : {}) }),
   });
 }

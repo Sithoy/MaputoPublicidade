@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { ProductionBoundary } from '@/components/admin/ProductionBoundary';
 import {
   createOrderPayment,
   getOrder,
@@ -80,7 +81,7 @@ function orderTitle(order: Order) {
   return `${items[0].description} +${items.length - 1}`;
 }
 
-export default function AdminOrderDetailPage() {
+function AdminOrderDetailPage() {
   const { reference } = useParams<{ reference: string }>();
   const { loading: authLoading, can } = useAdminAuth();
   const canManageOrderStatus = can('orders.manage_status');
@@ -917,3 +918,5 @@ export default function AdminOrderDetailPage() {
     </div>
   );
 }
+
+export default function OrderDetailPage() { return <ProductionBoundary><AdminOrderDetailPage /></ProductionBoundary>; }

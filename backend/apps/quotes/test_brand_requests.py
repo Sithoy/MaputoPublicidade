@@ -206,7 +206,8 @@ def test_commercial_preparation_preserves_branddesk_briefing_and_attachments(aut
         }, format="json")
     assert prepared.status_code == 200, prepared.data
     quote.refresh_from_db()
-    assert QuoteRequest.objects.count() == 1 and quote.status == "quoted"
+    assert QuoteRequest.objects.count() == 1 and quote.status == "reviewing"
+    assert quote.proposal_stage == "draft"
     assert quote.briefing == briefing
     assert quote.request_attachments.get().id == attachment.id
     assert quote.items.first().notes == "85x200cm"
