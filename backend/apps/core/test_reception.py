@@ -25,7 +25,9 @@ def reception_api(staff_user):
 class TestReception:
     def test_agenda_matches_queue_without_treating_requested_date_as_commitment(self, reception_api, staff_user, client_user):
         from datetime import timedelta
+
         from django.utils import timezone
+
         from apps.orders.models import Order
 
         today = timezone.localdate()
@@ -51,6 +53,7 @@ class TestReception:
 
     def test_follow_up_is_owned_private_and_available_after_triage(self, reception_api, staff_user, quote, authenticated_client):
         from datetime import timedelta
+
         from django.utils import timezone
 
         quote.reception_owner = staff_user
@@ -83,7 +86,9 @@ class TestReception:
 
     def test_context_uses_actual_submission_and_recorded_client_contact(self, reception_api, staff_user, quote, client_user):
         from datetime import timedelta
+
         from django.utils import timezone
+
         from apps.core.models import SupportMessage
 
         yesterday = timezone.now() - timedelta(days=1)
