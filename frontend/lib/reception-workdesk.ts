@@ -1,4 +1,5 @@
 export type ReceptionWorkdesk = {
+  edit_session?: import('@/hooks/useReceptionEdit').EditSession | null;
   stage_label: string; next_action: string; blocker: string; waiting_since: string | null;
   owner_id: number | null; owner_name: string;
   requested_date: string | null; confirmed_date: string | null;

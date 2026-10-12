@@ -12,11 +12,21 @@ from apps.quotes.models import QuoteRequest, QuoteRequestAttachment
 BASE = "/api/reception/"
 
 
+class ReceptionAPIClient(APIClient):
+    def post(self, *args, **kwargs):
+        response = super().post(*args, **kwargs)
+        if response.status_code == 200 and isinstance(response.data, dict):
+            token = response.data.get("edit_token") or response.data.get("token")
+            if token:
+                self.credentials(HTTP_X_RECEPTION_EDIT_TOKEN=token)
+        return response
+
+
 @pytest.fixture
 def reception_api(staff_user):
     staff_user.profile.staff_role = StaffRole.RECEPTIONIST
     staff_user.profile.save(update_fields=["staff_role"])
-    api = APIClient()
+    api = ReceptionAPIClient()
     api.force_authenticate(staff_user)
     return api
 
@@ -61,6 +71,7 @@ class TestReception:
         quote.proposal_stage = "sent"
         quote.save()
         path = f"{BASE}{quote.reference}/follow-up/"
+        reception_api.post(f"{BASE}{quote.reference}/edit-session/", {"action": "acquire"}, format="json")
         assert authenticated_client.post(path, {"date": None}, format="json").status_code == 403
         tomorrow = (timezone.localdate() + timedelta(days=1)).isoformat()
         assert reception_api.post(path, {"date": tomorrow, "note": "Ligar ao cliente"}, format="json").status_code == 200
@@ -73,7 +84,7 @@ class TestReception:
         other.profile.save()
         api = APIClient()
         api.force_authenticate(other)
-        assert api.post(path, {"date": None}, format="json").status_code == 400
+        assert api.post(path, {"date": None}, format="json").status_code == 409
         assert reception_api.post(path, {"date": tomorrow, "status": "approved"}, format="json").status_code == 400
         assert reception_api.post(path, {"date": (timezone.localdate() - timedelta(days=1)).isoformat()}, format="json").status_code == 400
         assert reception_api.post(path, {"date": None}, format="json").status_code == 200
@@ -330,7 +341,7 @@ class TestReception:
         waiting = QuoteRequest.objects.create(
             client_name="Balcão", client_phone="841234567", notes="Preciso de cartões"
         )
-        QuoteRequest.objects.create(client_name="Comercial", status="reviewing")
+        QuoteRequest.objects.create(client_name="Comercial", status="reviewing", reception_completed_at=quote.created_at)
         SupportConversation.objects.create(client=client_user, subject="Dúvida")
         summary = reception_api.get(BASE + "summary/").data
         assert summary["counts"]["queue"] == 1
@@ -347,7 +358,7 @@ class TestReception:
         commercial.profile.staff_role = StaffRole.COMMERCIAL
         commercial.profile.save(update_fields=["staff_role"])
         url = f"{BASE}{quote.reference}/"
-        assert reception_api.patch(url, {"reception_notes": "Antes de assumir"}).status_code == 400
+        assert reception_api.patch(url, {"reception_notes": "Antes de assumir"}).status_code == 409
         assert reception_api.post(url + "claim/").data["reception_owner"] == staff_user.pk
         quote.refresh_from_db()
         assert quote.status == "reviewing"
@@ -407,8 +418,8 @@ class TestReception:
         url = f"{BASE}{quote.reference}/"
         reception_api.post(url + "claim/")
         reception_api.patch(url, {"reception_notes": "Confirmar material."})
-        assert other_api.post(url + "claim/").status_code == 400
-        assert other_api.post(url + "release/").status_code == 400
+        assert other_api.post(url + "claim/").status_code == 409
+        assert other_api.post(url + "release/").status_code == 409
         assert reception_api.post(url + "release/").status_code == 200
         assert other_api.post(url + "claim/").status_code == 200
         quote.refresh_from_db()

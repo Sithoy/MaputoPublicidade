@@ -150,11 +150,8 @@ def transition(quote, actor, action, version, comment):
             and has_staff_capability(user, StaffCapability.REVIEW_PROPOSALS)
         ]
     elif action in {"approve", "return"}:
-        recipients = list(
-            User.objects.filter(
-                pk=quote.reception_owner_id or quote.proposal_prepared_by_id, is_active=True
-            )
-        )
+        recipients = [user for user in User.objects.filter(is_staff=True, is_active=True).select_related("profile")
+                      if user.pk != actor.pk and has_staff_capability(user, StaffCapability.MANAGE_RECEPTION)]
     else:
         recipients = []
     PortalNotification.objects.bulk_create(

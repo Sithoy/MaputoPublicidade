@@ -104,11 +104,24 @@ class QuoteRequestViewSet(
 ):
     queryset = (
         QuoteRequest.objects.all()
-        .select_related("artwork", "user", "order", "reception_owner", "price_approved_by", "proposal_prepared_by", "proposal_reviewed_by")
+        .select_related("artwork", "user", "order", "reception_owner", "price_approved_by", "proposal_prepared_by", "proposal_reviewed_by", "reception_edit_lease__editor")
         .prefetch_related("items", "items__product", "items__product_variant", Prefetch("proof_versions", queryset=ArtworkProofVersion.objects.defer("private_content")))
     )
     lookup_field = "reference"
     parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+    @transaction.atomic
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self):
+        quote = super().get_object()
+        if self.request.method not in {"GET", "HEAD", "OPTIONS"} and self.request.user.is_staff:
+            from apps.core.reception_lease import protect_staff_write
+
+            quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
+            protect_staff_write(quote, self.request)
+        return quote
 
     def get_serializer_class(self):
         if self.action == "intake":
@@ -543,6 +556,8 @@ class QuoteRequestViewSet(
                 values["status"] = "reviewing"
         serializer.instance = quote
         serializer.save()
+        record_activity(action="reception_updated", actor=self.request.user, quote=quote, is_internal=True,
+                        comment="Pedido alterado: " + ", ".join(sorted(values)))
 
     @action(detail=True, methods=["post"], url_path="proposal-workflow")
     @transaction.atomic
@@ -553,6 +568,10 @@ class QuoteRequestViewSet(
         version = serializers.IntegerField(min_value=0).run_validation(request.data.get("version"))
         comment = serializers.CharField(max_length=3000, allow_blank=True).run_validation(request.data.get("comment", ""))
         transition(quote, request.user, command, version, comment)
+        if command in {"submit", "send"}:
+            from apps.core.models import ReceptionEditLease
+
+            ReceptionEditLease.objects.filter(quote=quote, editor=request.user).delete()
         if command == "send":
             notify_quote_ready(quote)
         return Response(QuoteRequestDetailSerializer(quote, context={"request": request}).data)

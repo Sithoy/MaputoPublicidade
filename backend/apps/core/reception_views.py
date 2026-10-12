@@ -21,11 +21,12 @@ from .models import PortalNotification, SupportConversation
 from .permissions import HasStaffCapability
 from .reception_briefing import reception_briefing
 from .reception_hq import open_work, task_filters
+from .reception_lease import acquire, lease_state, require_edit
 
 
 def active_requests():
     return QuoteRequest.objects.filter(
-        Q(status="received") | Q(status="reviewing", reception_owner__isnull=False),
+        Q(status="received") | Q(status="reviewing"),
         reception_completed_at__isnull=True,
         proposal_prepared_by__isnull=True,
     )
@@ -48,6 +49,10 @@ def missing_information(quote):
 
 
 class ReceptionSerializer(serializers.ModelSerializer):
+    edit_session = serializers.SerializerMethodField()
+
+    def get_edit_session(self, obj):
+        return lease_state(obj)
     briefing = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
     owner_name = serializers.SerializerMethodField()
@@ -92,6 +97,7 @@ class ReceptionSerializer(serializers.ModelSerializer):
         model = QuoteRequest
         fields = [
             "reference",
+            "edit_session",
             "client_name",
             "client_email",
             "client_phone",
@@ -190,7 +196,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         return [HasStaffCapability(StaffCapability.MANAGE_RECEPTION)]
 
     def get_queryset(self):
-        if self.action == "follow_up":
+        if self.action in {"follow_up", "edit_session"}:
             return open_work(QuoteRequest.objects.all()).select_related("reception_owner")
         queryset = (
             active_requests().select_related("reception_owner").prefetch_related("items__product")
@@ -205,7 +211,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     def hq(self, request):
         work = open_work(QuoteRequest.objects.all())
         unassigned = work.filter(reception_owner__isnull=True).count()
-        scope = request.query_params.get("scope", "mine")
+        scope = request.query_params.get("scope", "all")
         if scope == "mine":
             work = work.filter(reception_owner=request.user)
         elif scope == "unassigned":
@@ -232,8 +238,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     def follow_up(self, request, reference=None):
         target = self.get_object()
         quote = QuoteRequest.objects.select_for_update().get(pk=target.pk)
-        if quote.reception_owner_id != request.user.pk and not has_staff_capability(request.user, StaffCapability.REVIEW_PROPOSALS):
-            raise ValidationError("Só o responsável pode agendar este seguimento.")
+        require_edit(quote, request)
         # Recheck after taking the row lock: a concurrently closed order is not actionable.
         if not open_work(QuoteRequest.objects.filter(pk=quote.pk)).exists():
             raise ValidationError("O pedido já foi encerrado.")
@@ -245,6 +250,33 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         record_activity(action="reception_follow_up", actor=request.user, quote=quote, is_internal=True,
                         comment=f"Seguimento agendado: {quote.reception_follow_up_date}. {quote.reception_follow_up_note}" if quote.reception_follow_up_date else "Seguimento concluído / removido da agenda.")
         return Response({"date": quote.reception_follow_up_date, "note": quote.reception_follow_up_note})
+
+    @action(detail=True, methods=["get", "post"], url_path="edit-session")
+    @transaction.atomic
+    def edit_session(self, request, reference=None):
+        quote = QuoteRequest.objects.select_for_update().get(pk=self.get_object().pk)
+        if request.method == "GET":
+            return Response({"session": lease_state(quote)})
+        command = serializers.ChoiceField(choices=["acquire", "heartbeat", "release", "takeover"]).run_validation(request.data.get("action"))
+        if command == "release":
+            require_edit(quote, request)
+            quote.reception_edit_lease.delete()
+            record_activity(action="reception_released", actor=request.user, quote=quote, is_internal=True,
+                            comment="Reserva de edição libertada; pedido disponível para toda a Recepção.")
+            return Response({"session": None})
+        if command == "heartbeat":
+            require_edit(quote, request)
+        if not open_work(QuoteRequest.objects.filter(pk=quote.pk)).exists():
+            raise ValidationError("O pedido já foi encerrado; consulte o histórico.")
+        reason = ""
+        if command == "takeover":
+            if not has_staff_capability(request.user, StaffCapability.REVIEW_PROPOSALS):
+                from rest_framework.exceptions import PermissionDenied
+
+                raise PermissionDenied("Só a supervisão pode retomar uma edição ativa.")
+            reason = serializers.CharField(max_length=500, allow_blank=False).run_validation(request.data.get("reason"))
+        lease = acquire(quote, request, reason)
+        return Response({"session": {"editor_id": lease.editor_id, "editor_name": request.user.get_full_name() or request.user.username, "expires_at": lease.expires_at}, "token": str(lease.token)})
 
     @action(detail=False, methods=["get"])
     def summary(self, request):
@@ -296,8 +328,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         quote = QuoteRequest.objects.select_for_update().get(pk=target.pk)
         if quote.reception_completed_at or quote.status not in {"received", "reviewing"}:
             raise ValidationError("Este pedido já saiu da triagem.")
-        if quote.reception_owner_id and quote.reception_owner_id != request.user.pk:
-            raise ValidationError("Este pedido já está a ser tratado por outra pessoa.")
+        lease = acquire(quote, request)
         previous = quote.status
         quote.reception_owner = request.user
         quote.status = "reviewing"
@@ -312,7 +343,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
                 comment="Triagem assumida pela Recepção.",
                 is_internal=True,
             )
-        return Response(self.get_serializer(quote).data)
+        return Response({**self.get_serializer(quote).data, "edit_token": str(lease.token)})
 
     @transaction.atomic
     def partial_update(self, request, reference=None):
@@ -396,15 +427,14 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
             action="reception_updated",
             actor=request.user,
             quote=quote,
-            comment="Contactos e briefing de triagem guardados. "
+            comment="Triagem alterada: " + ", ".join(sorted(data.validated_data)) + ". "
             + (f"{len(files)} referência(s) interna(s) adicionada(s)." if files else ""),
             is_internal=True,
         )
         return Response(self.get_serializer(quote).data)
 
     def check_owned(self, quote):
-        if quote.reception_owner_id != self.request.user.pk:
-            raise ValidationError("Assuma o atendimento antes de o editar ou encaminhar.")
+        require_edit(quote, self.request)
         if quote.reception_completed_at or quote.status not in {"received", "reviewing"}:
             raise ValidationError("Este pedido já saiu da triagem.")
 
@@ -415,12 +445,8 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         quote = QuoteRequest.objects.select_for_update().get(pk=target.pk)
         if quote.reception_completed_at or quote.status not in {"received", "reviewing"}:
             raise ValidationError("Este pedido já saiu da triagem.")
-        if quote.reception_owner_id != request.user.pk and not has_staff_capability(
-            request.user, StaffCapability.REVIEW_PROPOSALS
-        ):
-            raise ValidationError(
-                "Só o responsável ou um administrador pode devolver este pedido à fila."
-            )
+        require_edit(quote, request)
+        quote.reception_edit_lease.delete()
         previous = quote.status
         quote.reception_owner = None
         quote.status = "received"

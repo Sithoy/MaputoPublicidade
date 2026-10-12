@@ -4,13 +4,14 @@ from rest_framework.test import APIClient
 
 from apps.accounts.roles import StaffRole
 from apps.core.models import PortalNotification
+from apps.core.testing import ReceptionEditorClient
 
 
 def staff_api(name, role):
     user = User.objects.create_user(name, is_staff=True)
     user.profile.staff_role = role
     user.profile.save()
-    api = APIClient()
+    api = ReceptionEditorClient() if role == StaffRole.RECEPTIONIST else APIClient()
     api.force_authenticate(user)
     return api, user
 

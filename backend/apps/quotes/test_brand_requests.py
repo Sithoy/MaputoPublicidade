@@ -28,7 +28,9 @@ def test_context_flows_from_branddesk_through_reception_to_commercial(authentica
     assert response.status_code == 201, response.data
     quote = QuoteRequest.objects.get(reference=response.data["reference"])
     url = f"/api/reception/{quote.reference}/"
-    assert staff_client.post(url + "claim/").status_code == 200
+    claimed = staff_client.post(url + "claim/")
+    assert claimed.status_code == 200
+    staff_client.credentials(HTTP_X_RECEPTION_EDIT_TOKEN=claimed.data["edit_token"])
     triage = staff_client.get(url).data
     assert triage["briefing"]["delivery_address"] == "Maputo"
     assert triage["items"][1]["material_briefing"] == context

@@ -1,4 +1,5 @@
 import { apiUrl } from './api';
+import { clearReceptionEdits, receptionEditHeaders } from './reception-edit-session';
 
 // Keep authentication behind our own server route. This avoids exposing the
 // backend origin to the browser and does not depend on a build-time rewrite.
@@ -41,6 +42,7 @@ export function setRefreshToken(token: string | null) {
 }
 
 export function removeToken() {
+  clearReceptionEdits();
   accessToken = null;
   refreshTokenValue = null;
   sessionCache = null;
@@ -224,6 +226,7 @@ export async function fetchWithAuth(path: string, options: RequestInit = {}) {
   const token = getToken();
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    ...receptionEditHeaders(path, options.method),
     ...(options.headers as Record<string, string>),
   };
   if (token) headers.Authorization = `Bearer ${token}`;

@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -249,8 +250,15 @@ class OrderViewSet(
         url_path="set-delivery",
         parser_classes=[JSONParser, FormParser, MultiPartParser],
     )
+    @transaction.atomic
     def set_delivery(self, request, reference=None):
         order = self.get_object()
+        if order.quote_id:
+            from apps.core.reception_lease import protect_staff_write
+            from apps.quotes.models import QuoteRequest
+
+            quote = QuoteRequest.objects.select_for_update().get(pk=order.quote_id)
+            protect_staff_write(quote, request)
         serializer = OrderDeliverySerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

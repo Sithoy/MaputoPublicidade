@@ -91,4 +91,6 @@ def test_commercial_can_register_phone_request_but_not_confirm_intake(staff_clie
         assert staff_client.post(reverse('quote-proposal', args=[quote.reference]), proposal_data(quote), format='json').status_code == 200
     staff_user.profile.staff_role = StaffRole.RECEPTIONIST
     staff_user.profile.save()
+    edit = staff_client.post(f'/api/reception/{quote.reference}/edit-session/', {'action': 'acquire'}, format='json')
+    staff_client.credentials(HTTP_X_RECEPTION_EDIT_TOKEN=edit.data['token'])
     assert staff_client.post(reverse('quote-proposal', args=[quote.reference]), proposal_data(quote), format='json').status_code == 200

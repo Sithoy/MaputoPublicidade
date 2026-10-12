@@ -26,9 +26,9 @@ function itemPayload(item: ItemDraft): ReceptionItem {
     ...(item.material_briefing ? { material_briefing: item.material_briefing } : {}) };
 }
 
-export function ReceptionRequestPanel({ request, userId, canReleaseOthers = false, embedded = false, onChange, onClose }: {
+export function ReceptionRequestPanel({ request, userId, canReleaseOthers = false, embedded = false, editingAllowed, onChange, onClose }: {
   request: ReceptionRequest; userId: number; canReleaseOthers?: boolean; embedded?: boolean;
-  onChange: (request: ReceptionRequest | null) => void; onClose: () => void;
+  editingAllowed?: boolean; onChange: (request: ReceptionRequest | null) => void; onClose: () => void;
 }) {
   const [form, setForm] = useState({ client_name: request.client_name, client_email: request.client_email,
     client_phone: request.client_phone, client_nuit: request.client_nuit, reception_notes: request.reception_notes });
@@ -40,7 +40,7 @@ export function ReceptionRequestPanel({ request, userId, canReleaseOthers = fals
   const [downloading, setDownloading] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState('');
-  const owns = request.reception_owner === userId;
+  const owns = editingAllowed ?? request.reception_owner === userId;
   const disabled = !owns || busy;
   const missing = request.missing_information || [];
   const dirty = Object.entries(form).some(([key, value]) => value !== request[key as keyof ReceptionRequest])
@@ -89,12 +89,12 @@ export function ReceptionRequestPanel({ request, userId, canReleaseOthers = fals
   return <section aria-label={`Triagem ${request.reference}`} className="rounded-2xl border border-brand-200 bg-white p-5 sm:p-6">
     <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Completar briefing</p><h2 className="mt-1 text-xl font-semibold">{request.reference}</h2></div>
       <button type="button" disabled={busy} onClick={() => { if (!dirty || window.confirm('Sair sem guardar as alterações?')) onClose(); }} className="rounded-lg border px-3 py-2 text-sm">Fechar</button></div>
-    <p className="mt-3 text-sm text-slate-600">{request.owner_name ? `Responsável: ${request.owner_name}` : 'Assuma o atendimento para completar os detalhes.'}</p>
+    <p className="mt-3 text-sm text-slate-600">Pedido partilhado pela Recepção. As alterações ficam registadas por quem as realizou.</p>
     {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {saved && <p role="status" className="mt-3 text-sm text-brand-700">{saved}</p>}
-    {!request.reception_owner && <button type="button" disabled={busy} onClick={() => perform('claim')} className="mt-4 rounded-xl bg-brand-800 px-4 py-3 text-sm font-semibold text-white">Assumir atendimento</button>}
-    {request.reception_owner && !owns && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Este atendimento está a ser tratado por outra pessoa.</p>}
-    {request.reception_owner && (owns || canReleaseOthers) && <button type="button" disabled={busy || dirty} onClick={() => { if (window.confirm('Devolver este atendimento à fila para outra pessoa assumir?')) void perform('release'); }} className="mt-3 text-sm text-slate-600 underline">Devolver à fila</button>}
+    {editingAllowed === undefined && !request.reception_owner && <button type="button" disabled={busy} onClick={() => perform('claim')} className="mt-4 rounded-xl bg-brand-800 px-4 py-3 text-sm font-semibold text-white">Assumir atendimento</button>}
+    {editingAllowed === undefined && request.reception_owner && !owns && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Este atendimento está a ser tratado por outra pessoa.</p>}
+    {editingAllowed === undefined && request.reception_owner && (owns || canReleaseOthers) && <button type="button" disabled={busy || dirty} onClick={() => { if (window.confirm('Devolver este atendimento à fila para outra pessoa assumir?')) void perform('release'); }} className="mt-3 text-sm text-slate-600 underline">Devolver à fila</button>}
     <details className="my-5 rounded-xl bg-slate-50 p-4"><summary className="cursor-pointer text-sm font-semibold">Consultar mensagem original do cliente</summary><p className="mt-3 whitespace-pre-wrap break-words text-sm text-slate-600">{request.notes || 'Sem mensagem adicional.'}</p>{!embedded ? <Link href={`/admin/orcamentos/${encodeURIComponent(request.reference)}`} className="mt-3 inline-block text-sm font-semibold text-brand-700">Abrir pedido completo →</Link> : null}</details>
     <form onSubmit={save} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_260px]">
       <div className="min-w-0 space-y-6">

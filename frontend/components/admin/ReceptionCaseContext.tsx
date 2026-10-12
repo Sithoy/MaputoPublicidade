@@ -32,7 +32,7 @@ export function ReceptionCaseContext({ quote, canSchedule, busy, onBusy, onSaved
   if (!context) return <p className="text-xs text-slate-500">O resumo operacional ainda não está disponível. Consulte as etapas e o histórico abaixo.</p>;
   return <div className="space-y-4" onChange={(event) => event.stopPropagation()}>
     <dl className="grid gap-3 text-xs sm:grid-cols-2 2xl:grid-cols-4">
-      <div className="desk-context-fact"><dt>Responsável de acompanhamento</dt><dd>{context.owner_name || 'Por assumir'}</dd></div>
+      <div className="desk-context-fact"><dt>Acompanhamento</dt><dd>Equipa de Recepção</dd></div>
       <div className="desk-context-fact"><dt>Data pretendida pelo cliente</dt><dd>{deskDate(context.requested_date)}</dd></div>
       <div className="desk-context-fact"><dt>Entrega / levantamento agendado</dt><dd>{deskDate(context.confirmed_date, true)}</dd></div>
       <div className="desk-context-fact"><dt>Último envio registado ao cliente</dt><dd>{context.last_contact_at ? deskDate(context.last_contact_at, true) : 'Sem envio registado'}</dd><p className="mt-1 text-[10px] text-slate-500">Proposta ou mensagem da MP; não confirma leitura.</p></div>
@@ -44,7 +44,7 @@ export function ReceptionCaseContext({ quote, canSchedule, busy, onBusy, onSaved
       {canSchedule ? <form onSubmit={save} className="mt-4 space-y-3"><fieldset disabled={busy} className="grid gap-3 sm:grid-cols-[170px_minmax(0,1fr)]">
         <label className="text-xs">Data do seguimento<input required type="date" min={maputoToday()} value={date} onChange={(event) => { setDate(event.target.value); onDirty(true); }} className="mt-1 block w-full rounded-lg border p-2" /></label>
         <label className="text-xs">O que precisa de acompanhar?<input maxLength={500} value={note} onChange={(event) => { setNote(event.target.value); onDirty(true); }} placeholder="Ex.: confirmar aprovação com o cliente" className="mt-1 block w-full rounded-lg border p-2" /></label>
-      </fieldset><div className="flex flex-wrap gap-3"><button disabled={busy} className="desk-primary rounded-lg px-3 py-2 text-xs font-semibold text-white">Guardar seguimento</button>{context.follow_up_date ? <button disabled={busy} type="button" onClick={() => save(undefined, true)} className="rounded-lg border px-3 py-2 text-xs">Concluir seguimento</button> : null}</div></form> : <p className="mt-3 text-xs text-slate-500">O responsável do atendimento pode agendar o próximo contacto.</p>}
+      </fieldset><div className="flex flex-wrap gap-3"><button disabled={busy} className="desk-primary rounded-lg px-3 py-2 text-xs font-semibold text-white">Guardar seguimento</button>{context.follow_up_date ? <button disabled={busy} type="button" onClick={() => save(undefined, true)} className="rounded-lg border px-3 py-2 text-xs">Concluir seguimento</button> : null}</div></form> : <p className="mt-3 text-xs text-slate-500">Inicie uma edição para agendar o próximo contacto para toda a Recepção.</p>}
       {error ? <p role="alert" className="mt-3 text-xs text-red-700">{error}</p> : null}{notice ? <p role="status" className="mt-3 text-xs text-brand-800">{notice}</p> : null}
     </details>
   </div>;

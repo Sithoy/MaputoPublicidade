@@ -110,6 +110,8 @@ class TestQuoteApi:
 
     def test_receptionist_can_prepare_quote_prices_without_publishing(self, quote):
         _receptionist, client = self.receptionist_client("restricted")
+        reserved = client.post(f"/api/reception/{quote.reference}/edit-session/", {"action": "acquire"}, format="json")
+        client.credentials(HTTP_X_RECEPTION_EDIT_TOKEN=reserved.data["token"])
 
         response = client.post(
             reverse("quote-set-price", kwargs={"reference": quote.reference}),

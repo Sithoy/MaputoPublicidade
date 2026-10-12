@@ -2,6 +2,13 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+class ReceptionEditLease(models.Model):
+    quote = models.OneToOneField("quotes.QuoteRequest", on_delete=models.CASCADE, related_name="reception_edit_lease")
+    editor = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reception_edit_leases")
+    token = models.UUIDField()
+    expires_at = models.DateTimeField(db_index=True)
+
+
 class SupportConversation(models.Model):
     client = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE, related_name="support_conversations")
     channel = models.CharField(max_length=20, default="branddesk")

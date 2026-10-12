@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .models import SupportMessage
 from .reception_briefing import reception_briefing
+from .reception_lease import lease_state
 
 
 def open_work(queryset):
@@ -25,7 +26,8 @@ def task_filters():
         "delivery_today": Q(order__scheduled_date__date=today),
         "overdue": Q(order__scheduled_date__date__lt=today) | Q(reception_follow_up_date__lt=today),
         "unassigned": Q(reception_owner__isnull=True),
-        "briefing": before_order & triage & Q(reception_owner__isnull=False),
+        "new": before_order & triage & Q(status="received"),
+        "briefing": before_order & triage,
         "proposal": before_order & ~triage & (Q(proposal_stage__in=["draft", "returned"]) | Q(proposal_stage="legacy", status__in=["received", "reviewing"])),
         "review": before_order & Q(proposal_stage="review"),
         "send": before_order & Q(proposal_stage="approved"),
@@ -86,10 +88,11 @@ def workdesk_context(quote):
     elif quote.reception_completed_at or quote.proposal_prepared_by_id:
         label, action = "Em preparação", "Preparar proposta"
     else:
-        label = "Em triagem" if quote.reception_owner_id else "Por assumir"
-        action = "Completar briefing" if quote.reception_owner_id else "Assumir atendimento"
+        label = "Novo pedido" if quote.status == "received" else "Em triagem"
+        action = "Completar briefing"
     contacts = [value for value in [getattr(quote, "hq_last_message_at", None), quote.proposal_sent_at] if value]
     return {
+        "edit_session": lease_state(quote),
         "stage_label": label, "next_action": action, "blocker": blocker,
         "waiting_since": waiting_since,
         "owner_id": quote.reception_owner_id,

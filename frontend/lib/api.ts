@@ -1,3 +1,5 @@
+import { receptionEditHeaders } from './reception-edit-session';
+
 const LOCAL_SERVER_API_ORIGIN = 'http://backend:8000';
 const PUBLIC_API_ORIGIN = 'https://www.maputopublicidade.com';
 
@@ -92,7 +94,7 @@ export async function post<T = unknown>(
   body: FormData | Record<string, unknown>,
   token?: string | null
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...receptionEditHeaders(path, 'POST') };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let payload: BodyInit;
@@ -120,7 +122,7 @@ export async function put<T = unknown>(
   body: FormData | Record<string, unknown>,
   token?: string | null
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...receptionEditHeaders(path, 'PUT') };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let payload: BodyInit;
@@ -148,7 +150,7 @@ export async function patch<T = unknown>(
   body: FormData | Record<string, unknown>,
   token?: string | null
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...receptionEditHeaders(path, 'PATCH') };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let payload: BodyInit;
@@ -172,7 +174,7 @@ export async function patch<T = unknown>(
 }
 
 export async function del<T = unknown>(path: string, token?: string | null): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...receptionEditHeaders(path, 'DELETE') };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(apiUrl(path), {

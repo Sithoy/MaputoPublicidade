@@ -4,7 +4,8 @@ import { fetchWithAuth } from '@/lib/auth';
 import { getQuote } from '@/lib/admin-api';
 import ReceptionPage from './page';
 
-const auth = vi.hoisted(() => ({ loading: false, allowed: true }));
+const auth = vi.hoisted(() => ({ loading: false, allowed: true, editable: true }));
+vi.mock('@/hooks/useReceptionEdit', () => ({ useReceptionEdit: () => ({ editable: auth.editable, pending: false, session: null, error: '', acquire: vi.fn().mockResolvedValue(true), release: vi.fn() }) }));
 vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ user: { id: 1 }, loading: auth.loading, can: () => auth.allowed }) }));
 vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('@/lib/admin-api', () => ({ getQuote: vi.fn(), convertQuoteToOrder: vi.fn(), downloadQuotePdf: vi.fn() }));
@@ -13,11 +14,21 @@ vi.mock('@/components/admin/RequestForm', () => ({ default: ({ onSaved }: { onSa
 const quote = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'reviewing', reception: { completed_at: '2026-10-12', owner_name: 'Dário' }, proposal_workflow: { stage: 'review', prepared_by: 'Dário', prepared_by_id: 1 }, items: [] };
 const hq = { scope: 'mine', unassigned_team: 4, updated_at: '2026-10-12T10:00:00Z', counts: { total: 30, urgent: 2, upcoming: 3, briefing: 5, proposal: 6, send: 2, delivery: 1, review: 4, client: 8, production: 4, handover: 0, messages: 3, messages_general: 2 } };
 beforeEach(() => {
-  vi.clearAllMocks(); auth.loading = false; auth.allowed = true;
+  vi.clearAllMocks(); auth.loading = false; auth.allowed = true; auth.editable = true;
   vi.mocked(fetchWithAuth).mockImplementation(async (path) => path.startsWith('/api/reception/hq/') ? hq : { results: [quote], next: null, count: 30 });
   vi.mocked(getQuote).mockResolvedValue(quote as never);
 });
 describe('Reception workspace', () => {
+  it('opens in consultation without personal queues and keeps communication available', async () => {
+    auth.editable = false;
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    expect(await screen.findByRole('button', { name: 'Iniciar edição' })).toBeInTheDocument();
+    expect(screen.getByText('Revisão da mesma proposta').closest('fieldset')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Mensagens' })).toBeEnabled();
+    expect(screen.queryByLabelText('Responsável')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'O meu trabalho' })).not.toBeInTheDocument();
+  });
   it('keeps review and preparation in the same selected order', async () => {
     render(<ReceptionPage />);
     expect(await screen.findByRole('heading', { name: /Todos os trabalhos.*30/ })).toBeInTheDocument();
@@ -35,9 +46,9 @@ describe('Reception workspace', () => {
   });
   it('uses server filters and keeps completed requests available', async () => {
     render(<ReceptionPage />); await screen.findByRole('heading', { name: /Todos os trabalhos.*30/ });
-    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&proposal_queue=mine'));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1'));
     fireEvent.change(screen.getByLabelText('Mostrar'), { target: { value: 'closed' } });
-    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=closed&hq=1&proposal_queue=mine'));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=closed&hq=1'));
   });
   it('does not fetch while authentication is loading or permission is denied', () => {
     auth.loading = true; const view = render(<ReceptionPage />); expect(fetchWithAuth).not.toHaveBeenCalled();
@@ -48,14 +59,13 @@ describe('Reception workspace', () => {
     vi.mocked(fetchWithAuth).mockRejectedValue(new Error('Offline')); render(<ReceptionPage />);
     expect(await screen.findByText('Não foi possível carregar a fila operacional.')).toBeInTheDocument();
   });
-  it('starts with personal priorities and opens their exact task queue', async () => {
+  it('starts with shared priorities and opens their exact task queue', async () => {
     render(<ReceptionPage />);
-    expect(await screen.findByRole('button', { name: /4 por assumir na equipa/ })).toBeInTheDocument();
-    expect(fetchWithAuth).toHaveBeenCalledWith('/api/reception/hq/?scope=mine');
+    expect(await screen.findByRole('heading', { name: 'Agora' })).toBeInTheDocument();
+    expect(fetchWithAuth).toHaveBeenCalledWith('/api/reception/hq/?scope=all');
     fireEvent.click(screen.getByRole('button', { name: /Propostas prontas para enviar/ }));
-    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&proposal_queue=mine&task=send'));
-    fireEvent.click(screen.getByRole('button', { name: /4 por assumir na equipa/ }));
-    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/reception/hq/?scope=unassigned'));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&task=send'));
+    expect(screen.queryByLabelText('Responsável')).not.toBeInTheDocument();
   });
   it('offers an on-screen proposal without downloading or entering edit mode', async () => {
     render(<ReceptionPage />); fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
