@@ -172,6 +172,42 @@
   }
 }
 
+.admin-workdesk .desk-reception-unit {
+  background: #fffefb;
+  border-color: #dce3d3;
+  box-shadow: 0 10px 35px rgb(19 60 46 / 5%);
+}
+
+.admin-workdesk .desk-reception-unit .desk-reception-filters {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-workdesk .desk-reception-unit .desk-queue {
+  background: #f8faf4;
+  box-shadow: none;
+  border-radius: 0;
+  border-color: #dce3d3;
+}
+
+.admin-workdesk .desk-reception-detail {
+  background: #fffefb;
+  scrollbar-gutter: stable;
+  scroll-padding-top: 20px;
+}
+
+.admin-workdesk .desk-reception-footer {
+  background: #f8faf4;
+  border-color: #dce3d3;
+}
+
+.admin-workdesk .desk-reception-list { max-height: 420px; }
+
+@media (min-width: 1280px) {
+  .admin-workdesk .desk-reception-body { height: clamp(580px, 72vh, 850px); }
+  .admin-workdesk .desk-reception-list { max-height: none; }
+}
+
 .admin-workdesk .desk-reception-filters {
   background: #fafbf7;
   border-color: #dce3d3;

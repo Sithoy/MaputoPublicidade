@@ -9,6 +9,7 @@ import type { ReceptionRequest } from '@/lib/reception-api';
 import { receptionStage } from '@/lib/operational-workflow';
 import { ReceptionQueue, type QueueQuote } from './ReceptionQueue';
 import { ReceptionFilters } from './ReceptionFilters';
+import { ReceptionPagination } from './ReceptionPagination';
 import { ReceptionOrderSummary } from './ReceptionOrderSummary';
 import { ReceptionCaseContext } from './ReceptionCaseContext';
 import { ReceptionOrderHeader, type ReceptionTab } from './ReceptionOrderHeader';
@@ -25,6 +26,7 @@ import { useReceptionEdit } from '@/hooks/useReceptionEdit';
 const RequestForm = dynamic(() => import('./RequestForm'));
 const SupportDesk = dynamic(() => import('@/components/SupportDesk').then((module) => module.SupportDesk));
 type Page = { results: QueueQuote[]; next: string | null; count: number };
+const QUEUE_PAGE_SIZE = 25;
 
 export function ReceptionWorkspace() {
   const { user, loading, can } = useAdminAuth();
@@ -32,6 +34,7 @@ export function ReceptionWorkspace() {
   const canQuoteEdit = can('quotes.manage');
   const [rows, setRows] = useState<QueueQuote[]>([]);
   const [count, setCount] = useState(0);
+  const [pageNumber, setPageNumber] = useState(1);
   const [next, setNext] = useState<string | null>(null);
   const scope = 'all';
   const [state, setState] = useState('active');
@@ -61,7 +64,6 @@ export function ReceptionWorkspace() {
   const [agendaTick, setAgendaTick] = useState(0);
   const hqScope = useRef('');
   const [busy, setBusy] = useState(false);
-  const generation = useRef(0);
   const queueIdentity = useRef('');
   const editAfterLoad = useRef(false);
   useEffect(() => {
@@ -77,14 +79,18 @@ export function ReceptionWorkspace() {
   useEffect(() => { setReference(new URLSearchParams(window.location.search).get('pedido') || ''); }, []);
   useEffect(() => {
     if (loading || !allowed) return;
-    let active = true; generation.current += 1; setQueueLoading(true);
+    let active = true; setQueueLoading(true);
     const query = new URLSearchParams({ operational_state: state, hq: '1' });
     if (task !== 'all') query.set('task', task);
     if (searchQuery) query.set('search', searchQuery);
-    if (queueIdentity.current !== query.toString()) { setRows([]); setNext(null); setCount(0); queueIdentity.current = query.toString(); }
+    if (queueIdentity.current !== query.toString()) {
+      setRows([]); setNext(null); setCount(0); queueIdentity.current = query.toString();
+      if (pageNumber !== 1) { setPageNumber(1); return; }
+    }
+    if (pageNumber > 1) query.set('page', String(pageNumber));
     fetchWithAuth(`/api/quotes/?${query}`).then((page: Page) => { if (active) { setRows(page.results); setNext(page.next); setCount(page.count); } }).catch(() => { if (active) setError('Não foi possível carregar a fila operacional.'); }).finally(() => { if (active) setQueueLoading(false); });
     return () => { active = false; };
-  }, [loading, allowed, scope, state, revision, task, searchQuery, tick]);
+  }, [loading, allowed, scope, state, revision, task, searchQuery, tick, pageNumber]);
   useEffect(() => {
     if (!loading && allowed && !queueLoading && !reference && !inbox && !newRequest && rows.length) {
       setReference(rows[0].reference); setTab('summary');
@@ -124,12 +130,6 @@ export function ReceptionWorkspace() {
     setDirty(false); setFollowUpDirty(false); setError(''); action();
   }
   function saved(value = reference) { setDirty(false); setEditing(false); setNewRequest(false); setReference(value); setRevision((previous) => previous + 1); }
-  async function more() {
-    if (!next || busy) return;
-    const current = generation.current; setBusy(true);
-    try { const path = new URL(next, window.location.origin); const page: Page = await fetchWithAuth(path.pathname + path.search); if (current === generation.current) { setRows((rows) => [...rows, ...page.results].filter((row, index, all) => all.findIndex((other) => other.reference === row.reference) === index)); setNext(page.next); } }
-    catch { setError('Não foi possível carregar mais pedidos.'); } finally { setBusy(false); }
-  }
   async function createOrder() {
     if (!quote || busy || !window.confirm('Criar a ordem de produção a partir deste pedido aceite?')) return;
     setBusy(true); setError('');
@@ -151,10 +151,11 @@ export function ReceptionWorkspace() {
     {showOverview ? <ReceptionOverview data={hq} name={user?.first_name || ''} task={task} disabled={busy || lease.pending} onTask={chooseTask} onInbox={() => navigate(() => { setInbox(true); setReference(''); setNewRequest(false); setShowOverview(false); })} /> : null}
     {error ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{error}</p> : null}
     <button type="button" aria-controls="reception-queue" aria-expanded={queueOpen} onClick={() => setQueueOpen(!queueOpen)} className="rounded-xl border bg-white px-4 py-2 text-sm xl:hidden">{queueOpen ? 'Recolher fila de atendimentos' : 'Abrir fila de atendimentos'}</button>
+    <section aria-label="Mesa de trabalho da Recepção" className="desk-reception-unit overflow-hidden rounded-2xl border">
     <ReceptionFilters search={search} state={state} task={task} busy={busy || lease.pending} dirty={dirty || followUpDirty} onSearch={setSearch} onState={(value) => { setState(value); setTask('all'); }} onTask={chooseTask} onRefresh={() => { setError(''); setTick((value) => value + 1); }} />
-    <div className="grid items-start gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
-      <ReceptionQueue rows={rows} count={count} next={next} loading={queueLoading} busy={busy || lease.pending} task={task} reference={reference} open={queueOpen} onOpen={openCase} onMore={more} />
-    <section aria-label="Espaço do pedido" className="min-w-0 space-y-5">{inbox ? <Suspense fallback={<p>A carregar a caixa de entrada…</p>}><SupportDesk staff onDirtyChange={setDirty} onBusyChange={setBusy} /></Suspense> : newRequest ? <div onChangeCapture={() => setDirty(true)}><RequestForm onSaved={saved} onClose={() => navigate(() => setNewRequest(false))} /></div> : !reference ? <section className="desk-empty rounded-2xl border p-8"><div><p className="text-xs uppercase tracking-widest text-brand-700">Pedido em foco</p><h2 className="mt-3 text-xl font-semibold text-brand-900">Da prioridade à próxima ação.</h2><p className="mt-3 max-w-lg">Escolha uma prioridade acima e abra um pedido na fila. Veja quem acompanha, o que falta, as datas e o último envio registado — sem sair deste espaço.</p><p className="mt-4 text-xs">A fila mantém os filtros e a posição enquanto trabalha.</p></div></section> : !quote || !current ? <p role="status">A abrir o pedido…</p> : <>
+    <div className="desk-reception-body grid xl:grid-cols-[300px_minmax(0,1fr)]">
+      <ReceptionQueue rows={rows} count={count} loading={queueLoading} busy={busy || lease.pending} task={task} reference={reference} open={queueOpen} onOpen={openCase} />
+    <section aria-label="Espaço do pedido" className="desk-reception-detail min-h-0 min-w-0 space-y-5 overflow-y-auto p-4 lg:p-5">{inbox ? <Suspense fallback={<p>A carregar a caixa de entrada…</p>}><SupportDesk staff onDirtyChange={setDirty} onBusyChange={setBusy} /></Suspense> : newRequest ? <div onChangeCapture={() => setDirty(true)}><RequestForm onSaved={saved} onClose={() => navigate(() => setNewRequest(false))} /></div> : !reference ? <section className="desk-empty rounded-2xl border p-8"><div><p className="text-xs uppercase tracking-widest text-brand-700">Pedido em foco</p><h2 className="mt-3 text-xl font-semibold text-brand-900">Da prioridade à próxima ação.</h2><p className="mt-3 max-w-lg">Escolha uma prioridade acima e abra um pedido na fila. Veja quem acompanha, o que falta, as datas e o último envio registado — sem sair deste espaço.</p><p className="mt-4 text-xs">A fila mantém os filtros e a posição enquanto trabalha.</p></div></section> : !quote || !current ? <p role="status">A abrir o pedido…</p> : <>
       <ReceptionOrderHeader quote={quote} step={step} tab={tab} busy={busy || lease.pending} editControls={<section aria-label="Reserva de edição" className="desk-edit-status border-t pt-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-brand-900">{lease.editable ? 'Está a editar este pedido' : lease.session ? `Em edição por ${lease.session.editor_name}` : 'Disponível para toda a Recepção'}</p><p className="mt-1 text-xs text-slate-500">Consulta partilhada. A reserva protege apenas a edição.</p></div><div className="flex gap-2">{!closed ? lease.editable ? <button disabled={busy || lease.pending} type="button" onClick={finishEditing} className="rounded-lg border px-3 py-2 text-xs font-semibold">Terminar edição</button> : <button disabled={busy || lease.pending || Boolean(lease.session)} type="button" onClick={() => void beginEditing()} className="desk-primary rounded-lg px-3 py-2 text-xs font-semibold text-white">Iniciar edição</button> : null}{!closed && lease.session && !lease.editable && can('quotes.review') ? <button type="button" disabled={busy || lease.pending} onClick={() => { const reason = window.prompt('Motivo para retomar esta edição ativa:'); if (reason?.trim()) void beginEditing(reason.trim()); }} className="rounded-lg border px-3 py-2 text-xs">Retomar com motivo</button> : null}</div></div>{lease.error ? <p role="alert" className="mt-3 text-xs text-amber-900">{lease.error}</p> : null}</section>}
         onStep={(index) => navigate(() => { setStep(index); setTab('work'); })}
         onTab={(value) => navigate(() => setTab(value))}
@@ -169,5 +170,7 @@ export function ReceptionWorkspace() {
         {step === 1 ? current.index === 0 || closed ? <p className="rounded-xl border bg-white p-5">Conclua a triagem antes de preparar a proposta.</p> : quote.price_approved_at || quote.order_reference ? <p>Proposta aceite. Consulte a versão no histórico; alterações requerem novo acordo.</p> : <section className="space-y-4">{editing ? <RequestForm key={`${reference}:${revision}`} reference={reference} onSaved={saved} onClose={() => navigate(() => setEditing(false))} /> : <><ProposalReadView quote={quote} /><button type="button" disabled={!can('quotes.manage')} onClick={() => setEditing(true)} className="rounded-xl bg-brand-800 px-4 py-3 text-sm font-semibold text-white">Editar proposta</button></>}</section> : null}
         {(step === 1 && current.index > 0 && !closed) || step === 2 || step === 3 ? <section className="space-y-4">{step !== 1 ? <ProposalReadView quote={quote} /> : null}<ProposalWorkflowCard quote={quote} onChange={() => { void lease.release(); saved(); }} /><button type="button" onClick={() => downloadQuotePdf(reference).catch(() => setError('Não foi possível descarregar a proposta.'))} className="rounded-xl border bg-white px-4 py-3 text-sm">Exportar PDF</button>{quote.proposal_workflow?.stage === 'legacy' ? <p className="text-sm">Proposta do fluxo anterior: acompanhe a decisão do cliente nas mensagens.</p> : null}</section> : null}
         {step === 4 ? quote.order_reference ? <OperationalDelivery key={quote.order_reference} reference={quote.order_reference} onSaved={() => setDirty(false)} /> : quote.price_approved_at && can('orders.manage_status') ? <button type="button" disabled={busy} onClick={createOrder} className="rounded-xl bg-brand-800 px-5 py-3 text-white">Criar ordem de produção</button> : <p className="rounded-xl border bg-white p-5">A ordem de produção estará disponível após a aceitação e confirmação comercial.</p> : null}
-      </div>}</fieldset></>}</section></div></div>;
+      </div>}</fieldset></>}</section></div>
+    <ReceptionPagination page={pageNumber} pageSize={QUEUE_PAGE_SIZE} count={count} shown={rows.length} hasNext={Boolean(next)} loading={queueLoading} busy={busy || lease.pending} onPage={(value) => { if (busy || lease.pending || queueLoading) return; setRows([]); setNext(null); setQueueLoading(true); setQueueOpen(true); setPageNumber(value); }} />
+    </section></div>;
 }

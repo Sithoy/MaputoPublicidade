@@ -97,4 +97,38 @@ describe('Reception workspace', () => {
     expect(getQuote).not.toHaveBeenCalled();
     expect(auth.acquire).not.toHaveBeenCalled();
   });
+  it('groups filters, queue, detail and pagination in one workdesk', async () => {
+    render(<ReceptionPage />);
+    await screen.findByRole('region', { name: 'Resumo do pedido' });
+    const desk = screen.getByRole('region', { name: 'Mesa de trabalho da Recepção' });
+    expect(desk).toContainElement(screen.getByRole('region', { name: 'Filtros dos pedidos' }));
+    expect(desk).toContainElement(screen.getByRole('complementary', { name: 'Fila de atendimentos' }));
+    expect(desk).toContainElement(screen.getByRole('region', { name: 'Espaço do pedido' }));
+    expect(desk.lastElementChild).toContainElement(screen.getByRole('navigation', { name: 'Paginação dos pedidos' }));
+    expect(desk).not.toContainElement(screen.getByRole('heading', { name: 'Agora' }));
+    expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Seguinte' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Mais pedidos' })).not.toBeInTheDocument();
+  });
+  it('paginates the server queue without replacing the open order and resets filters to page one', async () => {
+    const second = { ...quote, reference: 'MP-0002-2026', client_name: 'Outra empresa' };
+    vi.mocked(fetchWithAuth).mockImplementation(async (path) => path.startsWith('/api/reception/hq/') ? hq : path.includes('page=2') ? { results: [second], next: null, count: 26 } : { results: Array.from({ length: 25 }, (_, index) => ({ ...quote, reference: `MP-${String(index + 1).padStart(4, '0')}-2026` })), next: 'https://backend.example/api/quotes/?page=2', count: 26 });
+    render(<ReceptionPage />);
+    await screen.findByRole('region', { name: 'Resumo do pedido' });
+    fireEvent.click(screen.getByRole('button', { name: 'Seguinte' }));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&page=2'));
+    expect(await screen.findByRole('button', { name: /MP-0002-2026 Outra empresa/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Empresa ABC' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /MP-0001-2026 Empresa ABC/ })).not.toBeInTheDocument();
+    expect(screen.getByText('26–26 de 26 pedidos')).toBeInTheDocument();
+    expect(getQuote).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
+    expect(await screen.findByText('1–25 de 26 pedidos')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Seguinte' }));
+    await screen.findByText('26–26 de 26 pedidos');
+    fireEvent.change(screen.getByLabelText('Mostrar'), { target: { value: 'closed' } });
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=closed&hq=1'));
+    expect(await screen.findByText('1–25 de 26 pedidos')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
+  });
 });
