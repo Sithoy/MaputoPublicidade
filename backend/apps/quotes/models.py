@@ -83,6 +83,8 @@ class QuoteRequest(models.Model):
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="reception_requests"
     )
     reception_notes = models.TextField(blank=True)
+    reception_follow_up_date = models.DateField(null=True, blank=True, db_index=True)
+    reception_follow_up_note = models.CharField(max_length=500, blank=True)
     reception_briefing = models.JSONField(default=dict, blank=True)
     billing_address = models.TextField(blank=True)
     discount_type = models.CharField(

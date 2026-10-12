@@ -23,6 +23,85 @@ def reception_api(staff_user):
 
 @pytest.mark.django_db
 class TestReception:
+    def test_agenda_matches_queue_without_treating_requested_date_as_commitment(self, reception_api, staff_user, client_user):
+        from datetime import timedelta
+        from django.utils import timezone
+        from apps.orders.models import Order
+
+        today = timezone.localdate()
+        follow = QuoteRequest.objects.create(client_name="Follow up", reception_owner=staff_user, reception_follow_up_date=today)
+        late = QuoteRequest.objects.create(client_name="Late", reception_owner=staff_user, reception_follow_up_date=today - timedelta(days=1))
+        scheduled = QuoteRequest.objects.create(client_name="Delivery", reception_owner=staff_user)
+        Order.objects.create(user=client_user, quote=scheduled, status="ready", scheduled_date=timezone.now())
+        QuoteRequest.objects.create(client_name="Wish", reception_owner=staff_user, reception_briefing={"deadline": (today - timedelta(days=2)).isoformat()})
+        QuoteRequest.objects.create(client_name="Other owner", reception_follow_up_date=today)
+        closed = QuoteRequest.objects.create(client_name="Closed", reception_owner=staff_user, reception_follow_up_date=today, status="delivered")
+        summary = reception_api.get(BASE + "hq/", {"scope": "mine"}).data["counts"]
+        assert summary["today"] == 2
+        assert summary["followup"] == 2
+        assert summary["overdue"] == 1
+        assert summary["delivery_today"] == 1
+        for task in ["today", "followup", "overdue", "delivery_today"]:
+            page = reception_api.get("/api/quotes/", {"hq": "1", "proposal_queue": "mine", "task": task}).data
+            assert page["count"] == summary[task]
+            assert closed.reference not in [row["reference"] for row in page["results"]]
+        rows = reception_api.get("/api/quotes/", {"hq": "1", "proposal_queue": "mine", "task": "today"}).data["results"]
+        assert {row["reference"] for row in rows} == {follow.reference, scheduled.reference}
+        assert reception_api.get("/api/quotes/", {"hq": "1", "proposal_queue": "mine"}).data["results"][0]["reference"] == late.reference
+
+    def test_follow_up_is_owned_private_and_available_after_triage(self, reception_api, staff_user, quote, authenticated_client):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        quote.reception_owner = staff_user
+        quote.reception_completed_at = timezone.now()
+        quote.proposal_stage = "sent"
+        quote.save()
+        path = f"{BASE}{quote.reference}/follow-up/"
+        assert authenticated_client.post(path, {"date": None}, format="json").status_code == 403
+        tomorrow = (timezone.localdate() + timedelta(days=1)).isoformat()
+        assert reception_api.post(path, {"date": tomorrow, "note": "Ligar ao cliente"}, format="json").status_code == 200
+        quote.refresh_from_db()
+        assert quote.reception_follow_up_date.isoformat() == tomorrow
+        assert quote.activity_events.filter(is_internal=True, comment__contains="Ligar ao cliente").exists()
+        assert authenticated_client.get(f"/api/quotes/{quote.reference}/").data["workdesk"] is None
+        other = User.objects.create_user("another-receptionist", is_staff=True)
+        other.profile.staff_role = StaffRole.RECEPTIONIST
+        other.profile.save()
+        api = APIClient()
+        api.force_authenticate(other)
+        assert api.post(path, {"date": None}, format="json").status_code == 400
+        assert reception_api.post(path, {"date": tomorrow, "status": "approved"}, format="json").status_code == 400
+        assert reception_api.post(path, {"date": (timezone.localdate() - timedelta(days=1)).isoformat()}, format="json").status_code == 400
+        assert reception_api.post(path, {"date": None}, format="json").status_code == 200
+        quote.refresh_from_db()
+        assert quote.reception_follow_up_date is None
+        assert quote.reception_follow_up_note == ""
+        quote.status = "cancelled"
+        quote.save()
+        assert reception_api.post(path, {"date": tomorrow}, format="json").status_code == 404
+
+    def test_context_uses_actual_submission_and_recorded_client_contact(self, reception_api, staff_user, quote, client_user):
+        from datetime import timedelta
+        from django.utils import timezone
+        from apps.core.models import SupportMessage
+
+        yesterday = timezone.now() - timedelta(days=1)
+        quote.reception_owner = staff_user
+        quote.proposal_stage = "review"
+        quote.proposal_history = [{"action": "Submetida para aprovação", "at": yesterday.isoformat()}]
+        quote.save()
+        conversation = SupportConversation.objects.create(client=client_user, quote=quote, subject="Pedido")
+        sent = SupportMessage.objects.create(conversation=conversation, sender=staff_user, is_staff=True, body="Pedido recebido")
+        SupportMessage.objects.create(conversation=conversation, sender=client_user, body="Obrigado")
+        SupportMessage.objects.create(conversation=conversation, sender=staff_user, is_staff=True, delivery_status="failed", body="Falhou")
+        context = reception_api.get(f"/api/quotes/{quote.reference}/").data["workdesk"]
+        assert context["waiting_since"] == yesterday.isoformat()
+        assert context["owner_id"] == staff_user.pk
+        assert context["blocker"] == "Aprovação do Comercial"
+        assert context["last_contact_at"] == sent.created_at
+        assert context["confirmed_date"] is None
+
     def test_hq_counts_match_scoped_queue_and_persist_after_handover(self, reception_api, staff_user, quote):
         from django.utils import timezone
 

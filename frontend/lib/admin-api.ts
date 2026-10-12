@@ -55,6 +55,7 @@ export type DashboardStats = {
 };
 
 export type AdminQuote = Quote & {
+  workdesk?: import('./reception-workdesk').ReceptionWorkdesk | null;
   operational_order_status?: string | null;
   reception?: { owner_name: string; notes: string; completed_at: string | null; briefing?: import('./reception-api').ReceptionBriefing } | null;
   client_name: string;

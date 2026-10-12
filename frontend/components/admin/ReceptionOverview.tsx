@@ -1,15 +1,52 @@
 'use client';
 
-import { ArrowRight, Clock3, Inbox, Send, ClipboardCheck, PencilLine, Truck, MessagesSquare } from 'lucide-react';
+import { ArrowRight, CalendarDays, Clock3, Inbox, MessagesSquare, Zap } from 'lucide-react';
 
 export type ReceptionHQ = { counts: Record<string, number>; unassigned_team: number; scope: string; updated_at: string };
-export const taskLabels: Record<string, string> = { all: 'Todos os trabalhos', briefing: 'Completar briefing', proposal: 'Preparar / corrigir proposta', send: 'Prontas para enviar', delivery: 'Coordenar entrega', review: 'Com o Comercial', client: 'Com o cliente', production: 'Em produção', handover: 'Confirmar ordem de produção', messages: 'Conversas por responder' };
-const actionCards = [{ key: 'briefing', icon: ClipboardCheck }, { key: 'proposal', icon: PencilLine }, { key: 'send', icon: Send }, { key: 'delivery', icon: Truck }];
-const waitCards = [{ key: 'review', label: 'Revisão comercial' }, { key: 'client', label: 'Decisão do cliente' }, { key: 'production', label: 'Execução pela Produção' }, { key: 'handover', label: 'Confirmação da ordem' }];
+export const taskLabels: Record<string, string> = {
+  all: 'Todos os trabalhos', briefing: 'Completar briefing', proposal: 'Preparar / corrigir proposta',
+  send: 'Prontas para enviar', delivery: 'Coordenar entrega', review: 'Com o Comercial', client: 'Com o cliente',
+  production: 'Em produção', handover: 'Confirmar ordem de produção', messages: 'Conversas por responder',
+  urgent: 'Pedidos urgentes', overdue: 'Compromissos de dias anteriores', today: 'Agenda de hoje',
+  followup: 'Seguimentos para hoje ou em atraso', delivery_today: 'Entregas / levantamentos de hoje',
+};
 
-export function ReceptionOverview({ data, name, task, onTask, onUnassigned, onInbox, disabled }: { data: ReceptionHQ | null; name: string; task: string; onTask: (value: string) => void; onUnassigned: () => void; onInbox: () => void; disabled: boolean }) {
-  return <section aria-label="Resumo da Recepção" className="space-y-5"><div className="desk-hero flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Reception HQ</p><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Olá{name ? `, ${name}` : ''}. Vamos pôr o trabalho em movimento.</h1><p className="mt-2 text-sm text-slate-500">O que precisa de si, o que está em espera e onde retomar cada conversa.</p></div>{data ? <p className="text-xs text-slate-400">Atualizado às {new Date(data.updated_at).toLocaleTimeString('pt-MZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Maputo' })}</p> : null}</div>
-    {data ? <><div className="desk-overview-strip flex flex-wrap gap-x-6 gap-y-2 border-y border-slate-200 py-3 text-sm"><span><strong>{data.counts.total}</strong> trabalhos neste âmbito</span><span className={data.counts.urgent ? 'text-amber-800' : 'text-slate-500'}><strong>{data.counts.urgent}</strong> urgentes</span><span className="text-slate-500"><strong>{data.counts.upcoming}</strong> entregas agendadas nos próximos 7 dias</span><button disabled={disabled} onClick={onUnassigned} className="ml-auto inline-flex items-center gap-2 font-semibold text-brand-800"><Inbox className="h-4 w-4" />{data.unassigned_team} pedidos por assumir <ArrowRight className="h-4 w-4" /></button></div>
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]"><section><h2 className="mb-3 text-sm font-semibold text-slate-800">Precisam da sua ação</h2><div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{actionCards.map(({ key, icon: Icon }, index) => <button type="button" disabled={disabled} key={key} aria-pressed={task === key} onClick={() => onTask(key)} className={`desk-task group rounded-2xl border p-4 text-left transition hover:border-brand-400 hover:shadow-sm ${task === key ? 'border-brand-700 bg-brand-50' : 'border-slate-200 bg-white'}`}><span className="desk-task-ordinal" aria-hidden="true">0{index + 1}</span><Icon className="desk-task-icon" /><p className="desk-task-number mt-4 text-3xl font-semibold tracking-tight">{data.counts[key]}</p><p className="mt-2 text-xs leading-5 text-slate-600">{taskLabels[key]}</p></button>)}</div><button disabled={disabled} onClick={() => onTask('messages')} className="desk-message-link mt-3 flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><span className="flex items-center gap-2"><MessagesSquare className="h-4 w-4 text-brand-700" />{data.counts.messages} conversas destes pedidos aguardam resposta</span><ArrowRight className="h-4 w-4 text-slate-400" /></button></section>
-    <section className="desk-waiting rounded-2xl border border-slate-200 bg-slate-50/80 p-4"><h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700"><Clock3 className="h-4 w-4" />Em espera — não esquecidos</h2><div className="mt-3 divide-y divide-slate-200">{waitCards.map(({ key, label }) => <button disabled={disabled} type="button" key={key} onClick={() => onTask(key)} aria-pressed={task === key} className="flex w-full justify-between gap-3 py-3 text-left text-sm"><span className="text-slate-600">{label}</span><span className="font-semibold text-slate-800">{data.counts[key]}</span></button>)}</div></section></div><button disabled={disabled} type="button" onClick={onInbox} className="flex items-center gap-2 text-xs font-semibold text-slate-600"><MessagesSquare className="h-4 w-4" />Caixa de entrada geral · {data.counts.messages_general} conversas sem pedido associado<ArrowRight className="h-3 w-3" /></button></> : <p role="status" className="py-6 text-sm text-slate-500">A preparar as prioridades do seu espaço…</p>}</section>;
+const sections = [
+  { title: 'Agora', question: 'O que precisa da minha atenção?', icon: Zap,
+    tasks: [ ['overdue', 'Compromissos por resolver'], ['messages', 'Conversas por responder'],
+      ['briefing', 'Briefings por completar'], ['proposal', 'Propostas por preparar / corrigir'], ['send', 'Propostas prontas para enviar'] ] },
+  { title: 'O meu dia', question: 'O que temos marcado para hoje?', icon: CalendarDays,
+    tasks: [ ['today', 'Pedidos com compromisso hoje'], ['followup', 'Seguimentos a fazer'], ['delivery_today', 'Entregas / levantamentos hoje'] ] },
+  { title: 'A acompanhar', question: 'De quem estamos à espera?', icon: Clock3,
+    tasks: [ ['review', 'Aprovação do Comercial'], ['client', 'Decisão do cliente'], ['production', 'Execução pela Produção'], ['handover', 'Confirmação da ordem'] ] },
+];
+
+export function ReceptionOverview({ data, name, task, onTask, onUnassigned, onInbox, disabled }: {
+  data: ReceptionHQ | null; name: string; task: string; onTask: (value: string) => void;
+  onUnassigned: () => void; onInbox: () => void; disabled: boolean;
+}) {
+  return <section aria-label="Agenda da Recepção" className="space-y-4">
+    <div className="desk-hero flex flex-wrap items-end justify-between gap-3">
+      <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Reception HQ · Agenda de trabalho</p>
+        <h1 className="mt-2 font-semibold tracking-tight">Olá{name ? `, ${name}` : ''}. O que vamos resolver hoje?</h1>
+        <p className="mt-2 text-sm text-slate-500">Prioridades, compromissos e esperas — com o pedido completo sempre à mão.</p></div>
+      {data ? <p className="text-xs text-slate-500">Atualizado às {new Date(data.updated_at).toLocaleTimeString('pt-MZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Maputo' })}</p> : null}
+    </div>
+    {data ? <>
+      <div className="desk-overview-strip flex flex-wrap items-center gap-x-5 gap-y-3 border-y py-3 text-sm">
+        <span><strong>{data.counts.total}</strong> pedidos em acompanhamento</span>
+        <button type="button" disabled={disabled} aria-pressed={task === 'urgent'} onClick={() => onTask('urgent')} className="font-semibold text-amber-800">{data.counts.urgent} urgentes <span aria-hidden="true">↗</span></button>
+        <button type="button" disabled={disabled} onClick={onUnassigned} className="inline-flex items-center gap-2 font-semibold text-brand-800"><Inbox className="h-4 w-4" />{data.unassigned_team} por assumir na equipa<ArrowRight className="h-4 w-4" /></button>
+        <button type="button" disabled={disabled} onClick={onInbox} className="ml-auto inline-flex items-center gap-2 text-xs font-semibold"><MessagesSquare className="h-4 w-4" />Caixa de entrada · {data.counts.messages_general} sem pedido</button>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">{sections.map(({ title, question, icon: Icon, tasks }) => <section key={title} aria-label={title} className="desk-agenda-card rounded-2xl border p-4">
+        <header className="mb-3 flex items-start gap-3"><Icon className="desk-task-icon shrink-0" /><div><h2 className="font-semibold text-brand-900">{title === 'O meu dia' && data.scope !== 'mine' ? 'Dia da recepção' : title}</h2><p className="mt-1 text-xs text-slate-500">{question}</p></div></header>
+        <div className="space-y-1">{tasks.map(([key, label]) => <button key={key} type="button" disabled={disabled} onClick={() => onTask(key)} aria-pressed={task === key} className="desk-agenda-action flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs">
+          <span className="min-w-0 flex-1">{label}</span><span className={`desk-agenda-count ${data.counts[key] ? 'font-semibold text-brand-900' : 'text-slate-400'}`}>{data.counts[key] ?? '—'}</span><ArrowRight className="h-3 w-3 shrink-0 text-slate-400" />
+        </button>)}</div>
+        {title === 'O meu dia' ? <p className="mt-3 border-t pt-3 text-[11px] leading-5 text-slate-500">Datas no horário de Maputo. Inclui entregas agendadas e seguimentos; não transforma a data pretendida pelo cliente numa promessa.</p> : null}
+        {title === 'A acompanhar' ? <p className="mt-3 border-t pt-3 text-[11px] leading-5 text-slate-500">Abra um pedido para ver a dependência, o responsável de acompanhamento e agendar o próximo contacto.</p> : null}
+      </section>)}</div>
+    </> : <p role="status" className="py-6 text-sm text-slate-500">A preparar a agenda de trabalho…</p>}
+  </section>;
 }

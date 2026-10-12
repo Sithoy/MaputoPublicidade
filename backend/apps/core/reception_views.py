@@ -168,6 +168,20 @@ class ReceptionEditSerializer(serializers.Serializer):
         return attrs
 
 
+class ReceptionFollowUpSerializer(serializers.Serializer):
+    date = serializers.DateField(allow_null=True)
+    note = serializers.CharField(max_length=500, allow_blank=True, default="")
+
+    def validate(self, attrs):
+        if set(self.initial_data) - set(self.fields):
+            raise ValidationError("Só pode alterar a data e a nota de seguimento.")
+        if attrs["date"] and attrs["date"] < timezone.localdate():
+            raise ValidationError({"date": "Escolha hoje ou uma data futura."})
+        if not attrs["date"]:
+            attrs["note"] = ""
+        return attrs
+
+
 class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     serializer_class = ReceptionSerializer
     lookup_field = "reference"
@@ -176,6 +190,8 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         return [HasStaffCapability(StaffCapability.MANAGE_RECEPTION)]
 
     def get_queryset(self):
+        if self.action == "follow_up":
+            return open_work(QuoteRequest.objects.all()).select_related("reception_owner")
         queryset = (
             active_requests().select_related("reception_owner").prefetch_related("items__product")
         )
@@ -210,6 +226,25 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         ).count()
         return Response({"scope": scope, "counts": counts, "unassigned_team": unassigned,
                          "updated_at": timezone.now()})
+
+    @action(detail=True, methods=["post"], url_path="follow-up")
+    @transaction.atomic
+    def follow_up(self, request, reference=None):
+        target = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=target.pk)
+        if quote.reception_owner_id != request.user.pk and not has_staff_capability(request.user, StaffCapability.REVIEW_PROPOSALS):
+            raise ValidationError("Só o responsável pode agendar este seguimento.")
+        # Recheck after taking the row lock: a concurrently closed order is not actionable.
+        if not open_work(QuoteRequest.objects.filter(pk=quote.pk)).exists():
+            raise ValidationError("O pedido já foi encerrado.")
+        data = ReceptionFollowUpSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        quote.reception_follow_up_date = data.validated_data["date"]
+        quote.reception_follow_up_note = data.validated_data["note"]
+        quote.save(update_fields=["reception_follow_up_date", "reception_follow_up_note", "updated_at"])
+        record_activity(action="reception_follow_up", actor=request.user, quote=quote, is_internal=True,
+                        comment=f"Seguimento agendado: {quote.reception_follow_up_date}. {quote.reception_follow_up_note}" if quote.reception_follow_up_date else "Seguimento concluído / removido da agenda.")
+        return Response({"date": quote.reception_follow_up_date, "note": quote.reception_follow_up_note})
 
     @action(detail=False, methods=["get"])
     def summary(self, request):

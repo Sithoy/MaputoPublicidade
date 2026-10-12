@@ -26,7 +26,9 @@ const write = (path: string, data: object) => fetchWithAuth(path, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
 });
 
-export function SupportDesk({ staff = false, quoteReference }: { staff?: boolean; quoteReference?: string }) {
+export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBusyChange }: {
+  staff?: boolean; quoteReference?: string; onDirtyChange?: (value: boolean) => void; onBusyChange?: (value: boolean) => void;
+}) {
   const params = useSearchParams();
   const [threads, setThreads] = useState<Conversation[]>([]);
   const [nextThreads, setNextThreads] = useState<string | null>(null);
@@ -51,6 +53,10 @@ export function SupportDesk({ staff = false, quoteReference }: { staff?: boolean
   const invoice = params.get('fatura') || '';
   const initialContext = quote ? { kind: 'quote' as const, reference: quote } : order ? { kind: 'order' as const, reference: order } : invoice ? { kind: 'invoice' as const, reference: invoice } : null;
   const requestedConversation = quoteReference ? null : params.get('conversa');
+  useEffect(() => {
+    onDirtyChange?.(Object.values(drafts).some((value) => Boolean(value.trim())) || Boolean(subject.trim()));
+  }, [drafts, subject, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
 
   useEffect(() => {
     setSelected(Number(requestedConversation) || null);

@@ -172,6 +172,10 @@ class QuoteRequestViewSet(
         user = self.request.user
         if user.is_authenticated and user.is_staff:
             queryset = self.queryset
+            if has_staff_capability(user, StaffCapability.MANAGE_RECEPTION):
+                from apps.core.reception_hq import with_workdesk
+
+                queryset = with_workdesk(queryset)
             user_filter = self.request.query_params.get("user")
             if user_filter:
                 if not user_filter.isdigit():

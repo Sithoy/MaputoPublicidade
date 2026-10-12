@@ -20,10 +20,12 @@ beforeEach(() => {
 describe('Reception workspace', () => {
   it('keeps review and preparation in the same selected order', async () => {
     render(<ReceptionPage />);
-    expect(await screen.findByText('Fila operacional (30)')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Todos os trabalhos.*30/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     expect(await screen.findByText('Revisão da mesma proposta')).toBeInTheDocument();
-    expect(screen.getByText('Em espera', { selector: 'p' })).toBeInTheDocument();
+    expect(screen.getByText('O que estamos a aguardar?')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Agora' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Percurso do pedido/));
     fireEvent.click(screen.getByRole('button', { name: /2 Preparar proposta/ }));
     expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Editar proposta' }));
@@ -32,7 +34,7 @@ describe('Reception workspace', () => {
     expect(screen.getByRole('heading', { name: 'Empresa ABC' })).toBeInTheDocument();
   });
   it('uses server filters and keeps completed requests available', async () => {
-    render(<ReceptionPage />); await screen.findByText('Fila operacional (30)');
+    render(<ReceptionPage />); await screen.findByRole('heading', { name: /Todos os trabalhos.*30/ });
     await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&proposal_queue=mine'));
     fireEvent.change(screen.getByLabelText('Mostrar'), { target: { value: 'closed' } });
     await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=closed&hq=1&proposal_queue=mine'));
@@ -48,11 +50,11 @@ describe('Reception workspace', () => {
   });
   it('starts with personal priorities and opens their exact task queue', async () => {
     render(<ReceptionPage />);
-    expect(await screen.findByRole('button', { name: /4 pedidos por assumir/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /4 por assumir na equipa/ })).toBeInTheDocument();
     expect(fetchWithAuth).toHaveBeenCalledWith('/api/reception/hq/?scope=mine');
-    fireEvent.click(screen.getByRole('button', { name: /Prontas para enviar/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Propostas prontas para enviar/ }));
     await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&proposal_queue=mine&task=send'));
-    fireEvent.click(screen.getByRole('button', { name: /4 pedidos por assumir/ }));
+    fireEvent.click(screen.getByRole('button', { name: /4 por assumir na equipa/ }));
     await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/reception/hq/?scope=unassigned'));
   });
   it('offers an on-screen proposal without downloading or entering edit mode', async () => {

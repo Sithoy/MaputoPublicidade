@@ -1,6 +1,10 @@
 """Shared definitions for the reception overview and its paginated work queue."""
 
-from django.db.models import Case, IntegerField, Q, Value, When
+from django.db.models import Case, IntegerField, OuterRef, Q, Subquery, Value, When
+from django.utils import timezone
+
+from .models import SupportMessage
+from .reception_briefing import reception_briefing
 
 
 def open_work(queryset):
@@ -10,10 +14,16 @@ def open_work(queryset):
 
 
 def task_filters():
+    today = timezone.localdate()
     before_order = Q(order__isnull=True, price_approved_at__isnull=True)
     triage = Q(reception_completed_at__isnull=True, proposal_prepared_by__isnull=True,
                status__in=["received", "reviewing"], proposal_stage__in=["legacy", "draft"])
     return {
+        "urgent": Q(urgency="urgent"),
+        "today": Q(order__scheduled_date__date=today) | Q(reception_follow_up_date=today),
+        "followup": Q(reception_follow_up_date__lte=today),
+        "delivery_today": Q(order__scheduled_date__date=today),
+        "overdue": Q(order__scheduled_date__date__lt=today) | Q(reception_follow_up_date__lt=today),
         "unassigned": Q(reception_owner__isnull=True),
         "briefing": before_order & triage & Q(reception_owner__isnull=False),
         "proposal": before_order & ~triage & (Q(proposal_stage__in=["draft", "returned"]) | Q(proposal_stage="legacy", status__in=["received", "reviewing"])),
@@ -28,9 +38,65 @@ def task_filters():
 
 def prioritize(queryset):
     return queryset.annotate(_hq_priority=Case(
+        When(task_filters()["overdue"], then=Value(-1)),
         When(urgency="urgent", then=Value(0)),
         When(proposal_stage="returned", then=Value(1)),
         When(order__status="ready", then=Value(2)),
         When(proposal_stage="approved", then=Value(3)),
         default=Value(4), output_field=IntegerField(),
     )).order_by("_hq_priority", "updated_at", "pk")
+
+
+def with_workdesk(queryset):
+    """One correlated lookup, not one message query per queue row."""
+    messages = SupportMessage.objects.filter(is_staff=True, sender__isnull=False).exclude(
+        delivery_status="failed"
+    ).filter(Q(conversation__quote_id=OuterRef("pk")) | Q(conversation__order__quote_id=OuterRef("pk")))
+    return queryset.annotate(hq_last_message_at=Subquery(messages.order_by("-created_at", "-pk").values("created_at")[:1]))
+
+
+def workdesk_context(quote):
+    order = getattr(quote, "order", None)
+    stage = quote.proposal_stage
+    blocker = ""
+    waiting_since = None
+    if quote.status == "cancelled" or (order and order.status == "cancelled"):
+        label, action = "Cancelado", "Consultar histórico"
+    elif quote.status == "delivered" or (order and order.status == "delivered"):
+        label, action = "Entregue", "Consultar entrega"
+    elif order:
+        label = order.get_status_display()
+        action = "Coordenar entrega" if order.status == "ready" else "Consultar produção"
+        if order.status != "ready":
+            blocker = "Execução pela Produção"
+    elif quote.price_approved_at:
+        label, action = "Aceite pelo cliente", "Confirmar ordem de produção"
+    elif stage == "review":
+        label, action, blocker = "Em revisão comercial", "Acompanhar revisão", "Aprovação do Comercial"
+        submitted = next((row for row in reversed(quote.proposal_history or []) if row.get("action") == "Submetida para aprovação"), {})
+        waiting_since = submitted.get("at")
+    elif stage == "approved":
+        label, action = "Proposta aprovada", "Enviar proposta"
+    elif stage == "sent" or (stage == "legacy" and quote.status == "quoted"):
+        label, action, blocker = "Com o cliente", "Acompanhar decisão", "Decisão do cliente"
+        waiting_since = quote.proposal_sent_at
+    elif stage == "returned":
+        label, action = "Proposta devolvida", "Corrigir proposta"
+        blocker = quote.proposal_review_comment or "Ajustes pedidos pelo Comercial"
+    elif quote.reception_completed_at or quote.proposal_prepared_by_id:
+        label, action = "Em preparação", "Preparar proposta"
+    else:
+        label = "Em triagem" if quote.reception_owner_id else "Por assumir"
+        action = "Completar briefing" if quote.reception_owner_id else "Assumir atendimento"
+    contacts = [value for value in [getattr(quote, "hq_last_message_at", None), quote.proposal_sent_at] if value]
+    return {
+        "stage_label": label, "next_action": action, "blocker": blocker,
+        "waiting_since": waiting_since,
+        "owner_id": quote.reception_owner_id,
+        "owner_name": (quote.reception_owner.get_full_name() or quote.reception_owner.username) if quote.reception_owner else "",
+        "requested_date": reception_briefing(quote)["deadline"],
+        "confirmed_date": order.scheduled_date if order else None,
+        "follow_up_date": quote.reception_follow_up_date,
+        "follow_up_note": quote.reception_follow_up_note,
+        "last_contact_at": max(contacts) if contacts else None,
+    }

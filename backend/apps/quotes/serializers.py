@@ -89,6 +89,14 @@ class ArtworkProofVersionSerializer(serializers.ModelSerializer):
 
 
 class ProposalWorkflowMixin:
+    def get_workdesk(self, obj):
+        request = self.context.get("request")
+        if not request or not has_staff_capability(request.user, StaffCapability.MANAGE_RECEPTION):
+            return None
+        from apps.core.reception_hq import workdesk_context
+
+        return workdesk_context(obj)
+
     def get_proposal_workflow(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_staff:
@@ -119,6 +127,7 @@ class ProposalWorkflowMixin:
 
 
 class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    workdesk = serializers.SerializerMethodField()
     owner_name = serializers.SerializerMethodField()
     job_summary = serializers.SerializerMethodField()
     operational_order_status = serializers.CharField(source="order.status", default=None, read_only=True)
@@ -147,6 +156,7 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
             "reception_completed_at",
             "owner_name",
             "job_summary",
+            "workdesk",
             "updated_at",
             "operational_order_status",
             "client_name",
@@ -189,6 +199,7 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
 
 
 class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    workdesk = serializers.SerializerMethodField()
     operational_order_status = serializers.CharField(source="order.status", default=None, read_only=True)
     proposal_workflow = serializers.SerializerMethodField()
     subtotal = serializers.DecimalField(
@@ -250,6 +261,7 @@ class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSeria
             "request_attachments",
             "internal_notes",
             "reception",
+            "workdesk",
             "operational_order_status",
             "status",
             "status_display",

@@ -78,6 +78,7 @@ class ActivityEvent(models.Model):
     ACTION_RECEPTION_UPDATED = "reception_updated"
     ACTION_RECEPTION_HANDOFF = "reception_handoff"
     ACTION_RECEPTION_RELEASED = "reception_released"
+    ACTION_RECEPTION_FOLLOW_UP = "reception_follow_up"
     ACTION_STATUS_CHANGED = "status_changed"
     ACTION_PRICE_APPROVED = "price_approved"
     ACTION_ARTWORK_PROOF_UPLOADED = "artwork_proof_uploaded"
@@ -89,6 +90,7 @@ class ActivityEvent(models.Model):
     ACTION_DELIVERY_UPDATED = "delivery_updated"
     ACTION_DELIVERY_CONFIRMED = "delivery_confirmed"
     ACTION_CHOICES = [
+        (ACTION_RECEPTION_FOLLOW_UP, "Seguimento da Recepção actualizado"),
         (ACTION_RECEPTION_UPDATED, "Briefing completado pela Recepção"),
         (ACTION_RECEPTION_CLAIMED, "Atendimento assumido pela Recepção"),
         (ACTION_RECEPTION_HANDOFF, "Encaminhado ao Comercial"),

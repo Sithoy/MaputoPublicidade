@@ -91,6 +91,17 @@
 .admin-workdesk .desk-proposal-lines thead { color: #87764c; background: #faf8ef; }
 .admin-workdesk .desk-proposal-lines tbody tr:hover { background: #fcfcf5; }
 .admin-workdesk .desk-queue { scrollbar-color: #cbd2bd transparent; scrollbar-width: thin; }
+.admin-workdesk .desk-agenda-card { background: var(--desk-paper); border-color: var(--desk-line); }
+.admin-workdesk .desk-agenda-card:nth-child(2) { border-top: 3px solid var(--desk-gold); }
+.admin-workdesk .desk-agenda-card:nth-child(3) { background: #eef1e6; }
+.admin-workdesk .desk-agenda-action { min-height: 42px; color: #50634f; }
+.admin-workdesk .desk-agenda-action:hover { background: #f0f3e8; }
+.admin-workdesk .desk-agenda-action[aria-pressed="true"] { background: #e5ecda; color: #173e30; box-shadow: inset 3px 0 #b49652; }
+.admin-workdesk .desk-agenda-count { font-variant-numeric: tabular-nums; font-size: 15px; }
+.admin-workdesk .desk-context-fact { padding: 12px; border-radius: 10px; background: #f7f7f0; }
+.admin-workdesk .desk-context-fact dt { color: #75816f; font-size: 10px; line-height: 1.5; }
+.admin-workdesk .desk-context-fact dd { margin-top: 6px; font-weight: 600; color: #294a37; }
+.admin-workdesk .desk-follow-up { border-color: #dde3d3; background: #fafbf5; }
 @media (prefers-reduced-motion: no-preference) {
   .admin-workdesk :is(.desk-task, .desk-queue-row, .desk-nav-link, .desk-primary) { transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
 }
