@@ -78,19 +78,19 @@ export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: ()
   }
 
   return (
-    <aside className="admin-sidebar flex h-full w-[280px] flex-col border-r border-[#dfe7e1] bg-white">
-      <div className="flex h-[76px] items-center border-b border-[#e6ece7] px-5">
+    <aside className="admin-sidebar desk-sidebar flex h-full w-[256px] flex-col border-r border-[#dfe7e1] bg-white">
+      <div className="desk-sidebar-brand flex h-[76px] items-center border-b px-5">
         <Link href={homeHref} onClick={onNavigate} className="flex min-w-0 items-center gap-3">
           <Image
             src="/logo-tight.png"
             alt="Maputo Publicidade"
             width={118}
             height={44}
-            className="h-9 w-auto object-contain"
+            className="desk-logo h-9 w-auto object-contain"
             priority
           />
           <span className="h-8 w-px bg-[#dfe7e1]" aria-hidden="true" />
-          <span className="text-[10px] font-semibold uppercase leading-4 tracking-[0.14em] text-brand-800">
+          <span className="desk-brand-label text-[10px] font-semibold uppercase leading-4 tracking-[0.14em]">
             Área de
             <br />
             Gestão
@@ -108,7 +108,7 @@ export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: ()
           if (visibleItems.length === 0) return null;
           return (
           <div key={group.label} className={cn(groupIndex > 0 && 'mt-6')}>
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a9890]">
+            <p className="desk-nav-label mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em]">
               {group.label}
             </p>
             <div className="space-y-1">
@@ -122,17 +122,17 @@ export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: ()
                     href={item.href}
                     onClick={onNavigate}
                     className={cn(
-                      'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
+                      'desk-nav-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
                       active
-                        ? 'bg-brand-50 text-brand-800'
-                        : 'text-[#5d6d65] hover:bg-[#f5f7f4] hover:text-dark'
+                        ? 'desk-nav-active'
+                        : 'desk-nav-idle'
                     )}
                     aria-current={active ? 'page' : undefined}
                   >
                     <Icon
                       className={cn(
                         'h-[18px] w-[18px]',
-                        active ? 'text-brand-700' : 'text-[#829087]'
+                        active ? 'desk-nav-icon-active' : 'desk-nav-icon'
                       )}
                     />
                     {item.label}
@@ -145,11 +145,11 @@ export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: ()
         })}
       </nav>
 
-      <div className="border-t border-[#e6ece7] p-4">
+      <div className="desk-sidebar-footer border-t p-4">
         <Link
           href="/"
           onClick={onNavigate}
-          className="flex items-center justify-between rounded-2xl bg-brand-900 px-4 py-3.5 text-white transition hover:bg-brand-800"
+          className="desk-site-link flex items-center justify-between rounded-2xl px-4 py-3.5 text-white transition hover:bg-brand-800"
         >
           <span>
             <span className="block text-sm font-semibold">Ver website</span>
@@ -161,7 +161,7 @@ export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: ()
         <button
           type="button"
           onClick={handleLogout}
-          className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#68776f] transition hover:bg-red-50 hover:text-red-700"
+          className="desk-logout mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#68776f] transition hover:bg-red-50 hover:text-red-700"
         >
           <LogOut className="h-[18px] w-[18px]" />
           Terminar sessão

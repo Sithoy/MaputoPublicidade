@@ -2,6 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Workdesk palette is deliberately scoped: public pages and documents keep their identity. */
+.admin-workdesk {
+  --desk-green: #123e34;
+  --desk-green-deep: #0b2d25;
+  --desk-gold: #c7aa68;
+  --desk-gold-ink: #765c2b;
+  --desk-line: #e2e2d8;
+  --desk-paper: #fffefb;
+  background: #f3f3ec;
+  color: #233d33;
+}
+.admin-workdesk ::selection { background: #e8d8af; color: #123e34; }
+.admin-workdesk :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #93712e;
+  outline-offset: 3px;
+}
+.admin-workdesk .desk-sidebar {
+  background: linear-gradient(165deg, #183f34 0%, #102f27 62%, #0b2821 100%);
+  border-color: #244b3e;
+  color: #d8e4dc;
+  box-shadow: 8px 0 28px #183f3408;
+}
+.admin-workdesk .desk-sidebar-brand { border-color: #ffffff14; }
+.admin-workdesk .desk-logo { padding: 5px 8px; background: #fffefb; border-radius: 8px; height: 43px; }
+.admin-workdesk .desk-brand-label { color: #d4bd87; }
+.admin-workdesk .desk-nav-label { color: #a4bbad; font-size: 9px; margin-bottom: 10px; }
+.admin-workdesk .desk-nav-link { min-height: 43px; font-weight: 500; font-size: 13px; }
+.admin-workdesk .desk-nav-idle { color: #d1ded5; }
+.admin-workdesk .desk-nav-idle:hover { background: #ffffff0c; color: white; }
+.admin-workdesk .desk-nav-active {
+  background: linear-gradient(100deg, #cfb577, #e1ce9a);
+  color: #173c2e;
+  box-shadow: 0 4px 16px #00000012, inset 0 1px #ffffff35;
+}
+.admin-workdesk .desk-nav-icon { color: #94b5a2; }
+.admin-workdesk .desk-nav-icon-active { color: #36553d; }
+.admin-workdesk .desk-sidebar-footer { border-color: #ffffff14; }
+.admin-workdesk .desk-site-link { background: #ffffff08; border: 1px solid #ffffff12; }
+.admin-workdesk .desk-site-link:hover { background: #ffffff12; }
+.admin-workdesk .desk-logout { color: #b7cdc0; font-weight: 400; }
+.admin-workdesk .desk-logout:hover { color: #fff; background: #ffffff0b; }
+.admin-workdesk .desk-header { background: #fffefbe8; border-color: var(--desk-line); }
+.admin-workdesk .desk-header > div:first-child p:first-child { color: #7a815f; font-size: 9px; letter-spacing: .15em; }
+.admin-workdesk .desk-date { color: #7e877e; padding-right: 18px; border-right: 1px solid var(--desk-line); }
+.admin-workdesk .desk-avatar { color: #173c2e; background: #e7dbbd; border: 3px solid #f4eddc; }
+.admin-workdesk .desk-toolbar { border-color: var(--desk-line); padding-bottom: 20px; }
+.admin-workdesk .desk-primary { background: var(--desk-green); box-shadow: 0 4px 10px #123e3414; }
+.admin-workdesk .desk-primary:hover { background: #1d5141; }
+.admin-workdesk .desk-scope[aria-pressed="true"] { background: var(--desk-green); box-shadow: 0 2px 5px #123e3410; }
+.admin-workdesk .desk-scope[aria-pressed="false"] { background: transparent; color: #718073; }
+.admin-workdesk .desk-queue,
+.admin-workdesk .desk-case-header,
+.admin-workdesk .desk-proposal { background: var(--desk-paper); border-color: var(--desk-line); box-shadow: 0 3px 12px #263b2f04; }
+.admin-workdesk .desk-queue-row { background: transparent; }
+.admin-workdesk .desk-queue-row:hover { background: #f6f7ef; }
+.admin-workdesk .desk-queue-selected { background: #f1f3e8; border-left-color: #b49652; }
+.admin-workdesk .desk-queue-selected:hover { background: #edf1e2; }
+.admin-workdesk .desk-queue input,
+.admin-workdesk .desk-queue select { background: #f6f7f0; border-color: #e3e5da; color: #365343; }
+.admin-workdesk .desk-case-header { border-top: 3px solid #c7aa68; }
+.admin-workdesk .desk-case-header h2 { color: #163d30; letter-spacing: -.025em; }
+.admin-workdesk .desk-next-action { border: 1px solid #dae1cd; background: #eef2e6; }
+.admin-workdesk .desk-next-action.bg-amber-50 { background: #f7f1e2; border-color: #e8dcc0; }
+.admin-workdesk .desk-tabs { border-top: 1px solid var(--desk-line); padding-top: 14px; }
+.admin-workdesk .desk-tabs button { border: none; background: transparent; color: #728070; border-radius: 8px; }
+.admin-workdesk .desk-tabs button[aria-pressed="true"] { background: #e9efdf; color: #24472f; box-shadow: inset 0 -2px #b39859; }
+.admin-workdesk .desk-steps button { font-size: 11px; padding: 9px 12px; border-color: #e1e4d8; background: transparent; color: #7a8270; }
+.admin-workdesk .desk-steps button[aria-pressed="true"] { background: #153d30; color: #f4f0db; border-color: #153d30; }
+.admin-workdesk .desk-steps button[aria-current="step"] span:first-child { color: #b89c59; }
+.admin-workdesk .desk-empty { min-height: 270px; display: grid; place-items: center; text-align: center; border-style: dashed; border-color: #ccd4c1; background: #fafbf6; color: #7a8776; font-size: 14px; line-height: 1.8; }
+.admin-workdesk .desk-hero { position: relative; overflow: hidden; border: 1px solid #dce1d1; background: linear-gradient(110deg, #f5f5e9, #fffdf7); border-radius: 20px; padding: 25px 28px; }
+.admin-workdesk .desk-hero::after { content: ''; pointer-events: none; position: absolute; right: -80px; top: -85px; width: 320px; height: 320px; border: 1px solid #bba16c25; border-radius: 50%; box-shadow: 0 0 0 35px #bba16c08, 0 0 0 70px #bba16c05; }
+.admin-workdesk .desk-hero h1 { max-width: 650px; color: #173e30; font-size: clamp(23px, 2vw, 30px); line-height: 1.25; }
+.admin-workdesk .desk-overview-strip { border-color: #dce1d1; padding: 12px 3px; color: #6d7b68; font-size: 12px; }
+.admin-workdesk .desk-task { background: #fffefb; border-color: #e0e2d5; min-height: 158px; position: relative; overflow: hidden; }
+.admin-workdesk .desk-task:hover { background: #f9faef; border-color: #b6c2a7; box-shadow: 0 6px 18px #2c442e08; }
+.admin-workdesk .desk-task[aria-pressed="true"] { background: #edf2e2; border-color: #8fa67f; }
+.admin-workdesk .desk-task-icon { width: 36px; height: 36px; padding: 9px; border-radius: 11px; background: #f0eddf; color: #897039; }
+.admin-workdesk .desk-task-number { color: #183e30; font-size: 35px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.admin-workdesk .desk-task-ordinal { position: absolute; top: 16px; right: 16px; color: #adb49c; font-size: 10px; letter-spacing: .08em; }
+.admin-workdesk .desk-waiting { background: #e9eddf; border-color: #d7decb; }
+.admin-workdesk .desk-waiting button { border-radius: 6px; padding-left: 5px; padding-right: 5px; }
+.admin-workdesk .desk-waiting button:hover,
+.admin-workdesk .desk-waiting button[aria-pressed="true"] { background: #dfe7d1; }
+.admin-workdesk .desk-message-link { background: #fffefb; border-color: #e0e2d5; color: #496242; }
+.admin-workdesk .desk-message-link:hover { border-color: #bda568; }
+.admin-workdesk .desk-proposal-lines thead { color: #87764c; background: #faf8ef; }
+.admin-workdesk .desk-proposal-lines tbody tr:hover { background: #fcfcf5; }
+.admin-workdesk .desk-queue { scrollbar-color: #cbd2bd transparent; scrollbar-width: thin; }
+@media (prefers-reduced-motion: no-preference) {
+  .admin-workdesk :is(.desk-task, .desk-queue-row, .desk-nav-link, .desk-primary) { transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-workdesk :is(.desk-task, .desk-queue-row, .desk-nav-link, .desk-primary) { transition: none; }
+}
+@media print { .admin-workdesk { background: white; } .admin-workdesk .desk-content { background: white; } }
+
 @layer base {
   html {
     scroll-behavior: smooth;

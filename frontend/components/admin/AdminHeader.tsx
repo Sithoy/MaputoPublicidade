@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { ArrowUpRight, Menu } from 'lucide-react';
 import type { User } from '@/lib/api';
@@ -9,6 +10,8 @@ import { PortalNotifications } from '@/components/PortalNotifications';
 
 function getPageTitle(pathname: string) {
   if (pathname.startsWith('/admin/recepcao')) return 'Recepção';
+  if (pathname.startsWith('/admin/producao')) return 'Produção e Artes';
+  if (pathname.startsWith('/admin/definicoes')) return 'Definições';
   if (pathname.startsWith('/admin/apoio')) return 'Mensagens e apoio';
   if (pathname === '/admin') return 'Visão geral';
   if (pathname.startsWith('/admin/atendimento')) return 'Novo pedido';
@@ -39,6 +42,13 @@ function getPageTitle(pathname: string) {
 }
 
 export function AdminHeader({ user, onMenuOpen }: { user: User; onMenuOpen: () => void }) {
+  const [date, setDate] = useState('');
+  useEffect(() => {
+    const update = () => setDate(new Date().toLocaleDateString('pt-MZ', { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'Africa/Maputo' }));
+    update();
+    const timer = window.setInterval(update, 60000);
+    return () => window.clearInterval(timer);
+  }, []);
   const pathname = usePathname();
   const pageTitle = getPageTitle(pathname);
   const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
@@ -50,7 +60,7 @@ export function AdminHeader({ user, onMenuOpen }: { user: User; onMenuOpen: () =
     .toUpperCase() || 'MP';
 
   return (
-    <header className="admin-header sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-[#dfe7e1] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+    <header className="admin-header desk-header sticky top-0 z-30 flex h-[76px] items-center justify-between border-b px-4 backdrop-blur sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
@@ -62,13 +72,14 @@ export function AdminHeader({ user, onMenuOpen }: { user: User; onMenuOpen: () =
         </button>
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-brand-700">
-            Administração
+            Maputo Publicidade / Workdesk
           </p>
           <p className="truncate text-lg font-semibold tracking-[-0.02em] text-dark">{pageTitle}</p>
         </div>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
+        <span className="desk-date hidden text-xs xl:block">{date}</span>
         <PortalNotifications userId={user.id} />
         <Link
           href="/"
@@ -83,7 +94,7 @@ export function AdminHeader({ user, onMenuOpen }: { user: User; onMenuOpen: () =
             <p className="max-w-44 truncate text-sm font-semibold text-dark">{displayName}</p>
             <p className="text-xs text-[#829087]">{getRoleLabel(user)}</p>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-800 text-xs font-bold tracking-[0.06em] text-white">
+          <div className="desk-avatar flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold tracking-[0.06em]">
             {initials}
           </div>
         </div>
