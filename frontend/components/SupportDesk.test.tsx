@@ -21,6 +21,12 @@ function setup() {
 }
 
 describe('SupportDesk', () => {
+  it('filters embedded conversations by the operational quote, ignoring unrelated conversation links', async () => {
+    query = 'conversa=999'; setup();
+    render(<SupportDesk staff quoteReference="MP-0001-2026" />);
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/support-conversations/?operational_quote=MP-0001-2026'));
+    expect(vi.mocked(fetchWithAuth).mock.calls.some(([path]) => path.endsWith('/999/'))).toBe(false);
+  });
   it('blocks WhatsApp API text outside the window and offers the phone in Coexistence', async () => {
     query = 'conversa=7';
     const whatsapp = { ...thread, channel: 'whatsapp', whatsapp: { phone: '258849999999', can_reply: false, coexistence: true } };

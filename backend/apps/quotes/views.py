@@ -4,7 +4,7 @@ import os
 from io import BytesIO
 
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -182,6 +182,15 @@ class QuoteRequestViewSet(
                 queryset = queryset.filter(reception_owner=user)
             elif queue == "review":
                 queryset = queryset.filter(proposal_stage="review")
+            if self.request.query_params.get("operational_scope") == "unassigned":
+                queryset = queryset.filter(reception_owner__isnull=True)
+            state = self.request.query_params.get("operational_state")
+            if state == "active":
+                queryset = queryset.exclude(status="cancelled").exclude(order__status="delivered")
+            elif state == "waiting":
+                queryset = queryset.filter(proposal_stage__in=["review", "sent"], price_approved_at__isnull=True, order__isnull=True)
+            elif state == "closed":
+                queryset = queryset.filter(Q(status="cancelled") | Q(order__status="delivered"))
             return queryset
         return self.queryset.filter(user=user)
 

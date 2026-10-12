@@ -11,6 +11,15 @@ BASE = "/api/support-conversations/"
 
 @pytest.mark.django_db
 class TestSupport:
+    def test_operational_context_filters_same_quote_and_related_order(self, staff_client, client_user, quote, order):
+        direct = SupportConversation.objects.create(client=client_user, quote=quote, subject="Proposta")
+        related = SupportConversation.objects.create(client=client_user, order=order, subject="Entrega")
+        SupportConversation.objects.create(client=client_user, subject="Geral")
+        response = staff_client.get(BASE, {"operational_quote": quote.reference})
+        assert response.status_code == 200
+        assert {row["id"] for row in response.data["results"]} == {direct.pk, related.pk}
+        assert staff_client.get(BASE, {"operational_quote": "MP-INEXISTENTE"}).data["count"] == 0
+
     def test_context_choices_are_scoped_searchable_and_hide_draft_invoices(
         self, authenticated_client, client_user, quote, order
     ):

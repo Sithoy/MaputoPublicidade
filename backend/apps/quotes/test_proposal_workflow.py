@@ -27,6 +27,33 @@ def commercial(db):
 
 @pytest.mark.django_db
 class TestProposalWorkflow:
+    def test_operational_queue_keeps_handover_and_filters_waiting_and_closed(self, reception, quote, order):
+        api, user = reception
+        quote.reception_owner = user
+        quote.proposal_stage = "review"
+        quote.save()
+        response = api.get("/api/quotes/", {"proposal_queue": "mine", "operational_state": "active"})
+        assert response.status_code == 200
+        row = response.data["results"][0]
+        assert row["reference"] == quote.reference
+        assert row["operational_order_status"] == order.status
+        assert api.get("/api/quotes/", {"operational_scope": "unassigned"}).data["count"] == 0
+        # An order is no longer waiting for the initial client acceptance.
+        assert api.get("/api/quotes/", {"operational_state": "waiting"}).data["count"] == 0
+        order.status = "delivered"
+        order.save()
+        assert api.get("/api/quotes/", {"operational_state": "active"}).data["count"] == 0
+        assert api.get("/api/quotes/", {"operational_state": "closed"}).data["count"] == 1
+
+    def test_waiting_queue_includes_only_unaccepted_review_and_sent(self, reception, quote):
+        api, _ = reception
+        quote.proposal_stage = "review"
+        quote.save()
+        assert api.get("/api/quotes/", {"operational_state": "waiting"}).data["count"] == 1
+        quote.proposal_stage = "returned"
+        quote.save()
+        assert api.get("/api/quotes/", {"operational_state": "waiting"}).data["count"] == 0
+
     def command(self, api, quote, command, version=0, comment=""):
         return api.post(
             f"/api/quotes/{quote.reference}/proposal-workflow/",

@@ -18,7 +18,7 @@ import type { ClientOption, Product } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { formatMZN } from '@/lib/utils';
 
-export default function RequestForm({ reference }: { reference?: string }) {
+export default function RequestForm({ reference, onSaved, onClose }: { reference?: string; onSaved?: (reference: string) => void; onClose?: () => void }) {
   const router = useRouter();
   const { loading: authLoading, can } = useAdminAuth();
   const canManage = can('quotes.manage');
@@ -200,11 +200,13 @@ export default function RequestForm({ reference }: { reference?: string }) {
           delivery_method: deliveryMethod, delivery_address: deliveryAddress.trim(),
           items: data.items.map((item, index) => ({ ...item, unit_price: lines[index].unit_price === '' ? null : item.unit_price })),
         });
-        router.push(result.order_reference ? `/admin/encomendas/${result.order_reference}` : `/admin/orcamentos/${result.quote_reference}`);
+        if (onSaved) { onSaved(result.quote_reference); setSaving(false); }
+        else router.push(result.order_reference ? `/admin/encomendas/${result.order_reference}` : `/admin/orcamentos/${result.quote_reference}`);
         return;
       }
       const quote = reference ? await prepareExistingQuote(reference, data) : await createManualQuote(data);
-      router.push(`/admin/orcamentos/${quote.reference}`);
+      if (onSaved) { onSaved(quote.reference); setSaving(false); }
+      else router.push(`/admin/orcamentos/${quote.reference}`);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Não foi possível criar o orçamento.'));
       setSaving(false);
@@ -231,7 +233,7 @@ export default function RequestForm({ reference }: { reference?: string }) {
     }} className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <Button type="button" variant="outline" size="sm" onClick={() => router.back()}>
+          <Button type="button" variant="outline" size="sm" onClick={() => onClose ? onClose() : router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar
           </Button>

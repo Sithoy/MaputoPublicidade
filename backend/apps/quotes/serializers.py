@@ -119,6 +119,7 @@ class ProposalWorkflowMixin:
 
 
 class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    operational_order_status = serializers.CharField(source="order.status", default=None, read_only=True)
     proposal_workflow = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     item_count = serializers.IntegerField(source="items.count", read_only=True)
@@ -141,6 +142,8 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
             "id",
             "reference",
             "proposal_workflow",
+            "reception_completed_at",
+            "operational_order_status",
             "client_name",
             "client_company",
             "contact_source",
@@ -171,6 +174,7 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
 
 
 class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    operational_order_status = serializers.CharField(source="order.status", default=None, read_only=True)
     proposal_workflow = serializers.SerializerMethodField()
     subtotal = serializers.DecimalField(
         max_digits=12, decimal_places=2, read_only=True, coerce_to_string=False
@@ -231,6 +235,7 @@ class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSeria
             "request_attachments",
             "internal_notes",
             "reception",
+            "operational_order_status",
             "status",
             "status_display",
             "estimated_price",

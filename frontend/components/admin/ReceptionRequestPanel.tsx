@@ -26,8 +26,8 @@ function itemPayload(item: ItemDraft): ReceptionItem {
     ...(item.material_briefing ? { material_briefing: item.material_briefing } : {}) };
 }
 
-export function ReceptionRequestPanel({ request, userId, canReleaseOthers = false, onChange, onClose }: {
-  request: ReceptionRequest; userId: number; canReleaseOthers?: boolean;
+export function ReceptionRequestPanel({ request, userId, canReleaseOthers = false, embedded = false, onChange, onClose }: {
+  request: ReceptionRequest; userId: number; canReleaseOthers?: boolean; embedded?: boolean;
   onChange: (request: ReceptionRequest | null) => void; onClose: () => void;
 }) {
   const [form, setForm] = useState({ client_name: request.client_name, client_email: request.client_email,
@@ -95,7 +95,7 @@ export function ReceptionRequestPanel({ request, userId, canReleaseOthers = fals
     {!request.reception_owner && <button type="button" disabled={busy} onClick={() => perform('claim')} className="mt-4 rounded-xl bg-brand-800 px-4 py-3 text-sm font-semibold text-white">Assumir atendimento</button>}
     {request.reception_owner && !owns && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Este atendimento está a ser tratado por outra pessoa.</p>}
     {request.reception_owner && (owns || canReleaseOthers) && <button type="button" disabled={busy || dirty} onClick={() => { if (window.confirm('Devolver este atendimento à fila para outra pessoa assumir?')) void perform('release'); }} className="mt-3 text-sm text-slate-600 underline">Devolver à fila</button>}
-    <details className="my-5 rounded-xl bg-slate-50 p-4"><summary className="cursor-pointer text-sm font-semibold">Consultar mensagem original do cliente</summary><p className="mt-3 whitespace-pre-wrap break-words text-sm text-slate-600">{request.notes || 'Sem mensagem adicional.'}</p><Link href={`/admin/orcamentos/${encodeURIComponent(request.reference)}`} className="mt-3 inline-block text-sm font-semibold text-brand-700">Abrir pedido completo →</Link></details>
+    <details className="my-5 rounded-xl bg-slate-50 p-4"><summary className="cursor-pointer text-sm font-semibold">Consultar mensagem original do cliente</summary><p className="mt-3 whitespace-pre-wrap break-words text-sm text-slate-600">{request.notes || 'Sem mensagem adicional.'}</p>{!embedded ? <Link href={`/admin/orcamentos/${encodeURIComponent(request.reference)}`} className="mt-3 inline-block text-sm font-semibold text-brand-700">Abrir pedido completo →</Link> : null}</details>
     <form onSubmit={save} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_260px]">
       <div className="min-w-0 space-y-6">
       <fieldset disabled={disabled} className="space-y-4 rounded-2xl border border-[#dfe7e1] p-4 sm:p-5"><legend className="px-2 font-semibold">1. Cliente e contacto</legend>
@@ -152,7 +152,7 @@ export function ReceptionRequestPanel({ request, userId, canReleaseOthers = fals
           <dl className="mt-4 space-y-3 text-sm"><div><dt className="text-slate-500">Cliente</dt><dd className="mt-1 break-words font-medium">{form.client_name || 'A confirmar'}</dd></div><div><dt className="text-slate-500">Materiais registados</dt><dd className="mt-1 font-medium">{items.length || 'A definir com o cliente'}</dd></div></dl>
           {missing.length > 0 && <div className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800"><p className="font-semibold">Por completar{dirty ? ' na última versão guardada' : ''}</p><ul className="mt-2 list-disc space-y-1 pl-4">{missing.map((value) => <li key={value}>{value}</li>)}</ul></div>}
         </div>
-      {owns && <div className="flex flex-col gap-3"><button disabled={busy || !dirty} className="rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-50">Guardar triagem</button><button type="button" disabled={busy || dirty || missing.length > 0} onClick={() => perform('handoff')} className="rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-50">Concluir triagem</button><Link href={`/admin/orcamentos/${request.reference}/proposta`} aria-disabled={busy || dirty || missing.length > 0} onClick={(event) => { if (busy || dirty || missing.length > 0) event.preventDefault(); }} className="rounded-xl bg-brand-800 px-4 py-3 text-center text-sm font-semibold text-white">Preparar proposta neste pedido</Link></div>}
+      {owns && <div className="flex flex-col gap-3"><button disabled={busy || !dirty} className="rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-50">Guardar triagem</button><button type="button" disabled={busy || dirty || missing.length > 0} onClick={() => perform('handoff')} className="rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-50">Concluir triagem</button>{!embedded ? <Link href={`/admin/orcamentos/${request.reference}/proposta`} aria-disabled={busy || dirty || missing.length > 0} onClick={(event) => { if (busy || dirty || missing.length > 0) event.preventDefault(); }} className="rounded-xl bg-brand-800 px-4 py-3 text-center text-sm font-semibold text-white">Preparar proposta neste pedido</Link> : null}</div>}
       {owns && dirty && <p className="text-xs text-slate-500">Guarde o briefing e os anexos antes de preparar a proposta.</p>}
       </aside>
     </form>

@@ -9,6 +9,14 @@ Plataforma digital comercial inicial para a **Maputo Publicidade e Serviços Lda
 
 ## O que está incluído nesta Fase 1
 
+### Área operacional por função
+
+- `/admin/recepcao` mantém uma fila paginada de pedidos desde o atendimento até à entrega. A triagem, preparação da proposta, revisão interna, acompanhamento, mensagens contextualizadas, anexos e histórico abrem no mesmo espaço.
+- A fila distingue acompanhamento, espera pelo Comercial/cliente e concluídos/cancelados, com filtros por responsável. A aprovação comercial continua separada da aceitação do cliente; a Recepção não ganha permissões financeiras nem de confirmação da produção.
+- `/admin/producao` organiza o trabalho por briefing técnico, arte/apreciação quando necessária, produção/conferência e entrega/instalação. Mantém a API técnica sem valores comerciais. Os filtros desta lista aplicam-se às páginas já carregadas; utilize “Mais trabalhos” para consultar páginas adicionais.
+- A etapa indicada é uma orientação derivada dos estados reais, não um novo estado persistido. Consultar outra etapa não avança o pedido nem contorna a aprovação. Há confirmação antes de descartar alterações dentro do espaço e aviso ao fechar/recarregar a página.
+- Os formulários e ações reutilizam as permissões existentes: a Recepção pode consultar a entrega, mas só funções com `orders.manage_delivery` a podem alterar. Conversas gerais continuam disponíveis na caixa de mensagens; no pedido mostram-se apenas conversas ligadas à referência ou à encomenda correspondente.
+
 - Website institucional/comercial com homepage, serviços, catálogo, portfólio, orçamento, área de cliente, contactos e sobre.
 - Catálogo digital com produtos, materiais, tamanhos e prazos.
 - Formulário de orçamento com upload de ficheiro e geração automática de referência (`MP-AAAA-XXXX`).

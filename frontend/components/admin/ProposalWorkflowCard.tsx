@@ -29,7 +29,7 @@ export function ProposalWorkflowCard({ quote, onChange }: { quote: AdminQuote; o
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível concluir. Atualize a proposta.'); }
     finally { setBusy(false); }
   }
-  const closed = Boolean(quote.price_approved_at || quote.order_reference);
+  const closed = Boolean(quote.price_approved_at || quote.order_reference || quote.status === 'cancelled');
   return <section className="space-y-4 rounded-2xl border border-brand-200 bg-brand-50 p-5">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-brand-800">Receção prepara · Comercial aprova · Receção envia</p><h2 className="mt-2 text-lg font-semibold">{workflow.stage_display} · {workflow.stage === 'draft' ? `Rascunho para v${workflow.version + 1}` : `v${workflow.version}`}</h2></div><span className="text-sm font-medium">{quote.final_price == null ? 'Preço por definir' : formatMZN(quote.final_price)}</span></div>
     <dl className="grid gap-3 text-sm sm:grid-cols-3"><div><dt className="text-slate-500">Preparação</dt><dd>{workflow.prepared_by || 'Por atribuir'}</dd></div><div><dt className="text-slate-500">Revisão interna</dt><dd>{workflow.reviewed_by || 'Pendente'}</dd></div><div><dt className="text-slate-500">Decisão do cliente</dt><dd>{quote.price_approved_at ? 'Aceite pelo cliente' : 'Ainda não aceite'}</dd></div>

@@ -221,6 +221,9 @@ class SupportConversationViewSet(
         if user.is_staff:
             if not has_staff_capability(user, StaffCapability.MANAGE_SUPPORT):
                 raise PermissionDenied()
+            reference = self.request.query_params.get("operational_quote")
+            if reference:
+                queryset = queryset.filter(Q(quote__reference=reference) | Q(order__quote__reference=reference))
             return queryset.order_by("-updated_at", "-id")
         return queryset.filter(client=user).order_by("-updated_at", "-id")
 

@@ -26,11 +26,11 @@ const write = (path: string, data: object) => fetchWithAuth(path, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
 });
 
-export function SupportDesk({ staff = false }: { staff?: boolean }) {
+export function SupportDesk({ staff = false, quoteReference }: { staff?: boolean; quoteReference?: string }) {
   const params = useSearchParams();
   const [threads, setThreads] = useState<Conversation[]>([]);
   const [nextThreads, setNextThreads] = useState<string | null>(null);
-  const [selected, setSelected] = useState<number | null>(() => Number(params.get('conversa')) || null);
+  const [selected, setSelected] = useState<number | null>(() => quoteReference ? null : Number(params.get('conversa')) || null);
   const [detail, setDetail] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [older, setOlder] = useState<string | null>(null);
@@ -46,11 +46,11 @@ export function SupportDesk({ staff = false }: { staff?: boolean }) {
   active.current = selected;
   const key = String(selected ?? 'new');
   const draft = drafts[key] || '';
-  const quote = params.get('pedido') || '';
+  const quote = quoteReference || params.get('pedido') || '';
   const order = params.get('projeto') || '';
   const invoice = params.get('fatura') || '';
   const initialContext = quote ? { kind: 'quote' as const, reference: quote } : order ? { kind: 'order' as const, reference: order } : invoice ? { kind: 'invoice' as const, reference: invoice } : null;
-  const requestedConversation = params.get('conversa');
+  const requestedConversation = quoteReference ? null : params.get('conversa');
 
   useEffect(() => {
     setSelected(Number(requestedConversation) || null);
@@ -58,12 +58,12 @@ export function SupportDesk({ staff = false }: { staff?: boolean }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchWithAuth(base).then((page: Page<Conversation>) => {
+    fetchWithAuth(quoteReference ? `${base}?operational_quote=${encodeURIComponent(quoteReference)}` : base).then((page: Page<Conversation>) => {
       if (!cancelled) { setThreads(page.results); setNextThreads(page.next); }
     }).catch(() => { if (!cancelled) setError('Não foi possível carregar as conversas. Tente atualizar.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [revision]);
+  }, [revision, quoteReference]);
 
   useEffect(() => {
     let cancelled = false;

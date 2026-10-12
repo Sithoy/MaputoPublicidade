@@ -12,8 +12,12 @@ describe('Production workspace', () => {
   it('has a technical workspace and does not fetch financial APIs', async () => {
     render(<ProductionWorkspace />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026/ }));
-    expect(await screen.findByLabelText('Notas técnicas da Produção')).toHaveValue('Confirmar cores');
+    expect(await screen.findByText('Próxima ação')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Briefing técnico/ }));
+    expect(screen.getByLabelText('Notas técnicas da Produção')).toHaveValue('Confirmar cores');
+    fireEvent.click(screen.getByRole('button', { name: /Produzir e conferir/ }));
     expect(screen.getByRole('button', { name: 'Iniciar produção' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Arte e apreciação/ }));
     expect(screen.getByRole('button', { name: 'Guardar nova versão em rascunho' })).toBeDisabled();
     expect(vi.mocked(fetchWithAuth).mock.calls.every(([path]) => path.startsWith('/api/production/'))).toBe(true);
     expect(screen.queryByText('Saldo em dívida')).not.toBeInTheDocument();
