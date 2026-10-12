@@ -11,9 +11,10 @@ vi.mock('@/lib/admin-api', () => ({ getQuote: vi.fn(), convertQuoteToOrder: vi.f
 vi.mock('@/components/admin/ProposalWorkflowCard', () => ({ ProposalWorkflowCard: () => <p>Revisão da mesma proposta</p> }));
 vi.mock('@/components/admin/RequestForm', () => ({ default: ({ onSaved }: { onSaved: (ref: string) => void }) => <button onClick={() => onSaved('MP-0001-2026')}>Guardar proposta no espaço</button> }));
 const quote = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'reviewing', reception: { completed_at: '2026-10-12', owner_name: 'Dário' }, proposal_workflow: { stage: 'review', prepared_by: 'Dário', prepared_by_id: 1 }, items: [] };
+const hq = { scope: 'mine', unassigned_team: 4, updated_at: '2026-10-12T10:00:00Z', counts: { total: 30, urgent: 2, upcoming: 3, briefing: 5, proposal: 6, send: 2, delivery: 1, review: 4, client: 8, production: 4, handover: 0, messages: 3, messages_general: 2 } };
 beforeEach(() => {
   vi.clearAllMocks(); auth.loading = false; auth.allowed = true;
-  vi.mocked(fetchWithAuth).mockResolvedValue({ results: [quote], next: null, count: 30 });
+  vi.mocked(fetchWithAuth).mockImplementation(async (path) => path.startsWith('/api/reception/hq/') ? hq : { results: [quote], next: null, count: 30 });
   vi.mocked(getQuote).mockResolvedValue(quote as never);
 });
 describe('Reception workspace', () => {
@@ -22,18 +23,19 @@ describe('Reception workspace', () => {
     expect(await screen.findByText('Fila operacional (30)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     expect(await screen.findByText('Revisão da mesma proposta')).toBeInTheDocument();
-    expect(screen.getByText('Em espera')).toBeInTheDocument();
+    expect(screen.getByText('Em espera', { selector: 'p' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /2 Preparar proposta/ }));
+    expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar proposta' }));
     fireEvent.click(await screen.findByText('Guardar proposta no espaço'));
     await waitFor(() => expect(getQuote).toHaveBeenCalledTimes(2));
-    expect(screen.getByRole('heading', { name: /MP-0001-2026 · Empresa ABC/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Empresa ABC' })).toBeInTheDocument();
   });
   it('uses server filters and keeps completed requests available', async () => {
     render(<ReceptionPage />); await screen.findByText('Fila operacional (30)');
-    fireEvent.change(screen.getByLabelText('Responsável'), { target: { value: 'mine' } });
-    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&proposal_queue=mine'));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&proposal_queue=mine'));
     fireEvent.change(screen.getByLabelText('Mostrar'), { target: { value: 'closed' } });
-    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=closed&proposal_queue=mine'));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=closed&hq=1&proposal_queue=mine'));
   });
   it('does not fetch while authentication is loading or permission is denied', () => {
     auth.loading = true; const view = render(<ReceptionPage />); expect(fetchWithAuth).not.toHaveBeenCalled();
@@ -42,6 +44,22 @@ describe('Reception workspace', () => {
   });
   it('reports an unavailable queue', async () => {
     vi.mocked(fetchWithAuth).mockRejectedValue(new Error('Offline')); render(<ReceptionPage />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar');
+    expect(await screen.findByText('Não foi possível carregar a fila operacional.')).toBeInTheDocument();
+  });
+  it('starts with personal priorities and opens their exact task queue', async () => {
+    render(<ReceptionPage />);
+    expect(await screen.findByRole('button', { name: /4 pedidos por assumir/ })).toBeInTheDocument();
+    expect(fetchWithAuth).toHaveBeenCalledWith('/api/reception/hq/?scope=mine');
+    fireEvent.click(screen.getByRole('button', { name: /Prontas para enviar/ }));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&proposal_queue=mine&task=send'));
+    fireEvent.click(screen.getByRole('button', { name: /4 pedidos por assumir/ }));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/reception/hq/?scope=unassigned'));
+  });
+  it('offers an on-screen proposal without downloading or entering edit mode', async () => {
+    render(<ReceptionPage />); fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    await screen.findByText('Revisão da mesma proposta');
+    fireEvent.click(screen.getByRole('button', { name: 'Proposta' }));
+    expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
+    expect(screen.queryByText('Guardar proposta no espaço')).not.toBeInTheDocument();
   });
 });

@@ -104,7 +104,7 @@ class QuoteRequestViewSet(
 ):
     queryset = (
         QuoteRequest.objects.all()
-        .select_related("artwork", "user", "price_approved_by", "proposal_prepared_by", "proposal_reviewed_by")
+        .select_related("artwork", "user", "order", "reception_owner", "price_approved_by", "proposal_prepared_by", "proposal_reviewed_by")
         .prefetch_related("items", "items__product", "items__product_variant", Prefetch("proof_versions", queryset=ArtworkProofVersion.objects.defer("private_content")))
     )
     lookup_field = "reference"
@@ -191,6 +191,24 @@ class QuoteRequestViewSet(
                 queryset = queryset.filter(proposal_stage__in=["review", "sent"], price_approved_at__isnull=True, order__isnull=True)
             elif state == "closed":
                 queryset = queryset.filter(Q(status="cancelled") | Q(order__status="delivered"))
+            if self.request.query_params.get("hq") == "1":
+                from apps.core.reception_hq import open_work, prioritize, task_filters
+
+                if state != "closed":
+                    queryset = open_work(queryset)
+                task = self.request.query_params.get("task", "")
+                filters = task_filters()
+                if task in filters:
+                    queryset = queryset.filter(filters[task])
+                elif task == "messages":
+                    from apps.core.models import SupportConversation
+
+                    conversations = SupportConversation.objects.filter(status="awaiting_team")
+                    queryset = queryset.filter(Q(pk__in=conversations.values("quote_id")) | Q(pk__in=conversations.values("order__quote_id")))
+                search = self.request.query_params.get("search", "").strip()[:80]
+                if search:
+                    queryset = queryset.filter(Q(reference__icontains=search) | Q(client_name__icontains=search) | Q(client_company__icontains=search))
+                queryset = prioritize(queryset)
             return queryset
         return self.queryset.filter(user=user)
 

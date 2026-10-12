@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -19,6 +20,7 @@ from apps.quotes.models import QuoteItem, QuoteRequest, QuoteRequestAttachment
 from .models import PortalNotification, SupportConversation
 from .permissions import HasStaffCapability
 from .reception_briefing import reception_briefing
+from .reception_hq import open_work, task_filters
 
 
 def active_requests():
@@ -182,6 +184,32 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         elif self.request.query_params.get("scope") == "unassigned":
             queryset = queryset.filter(reception_owner__isnull=True)
         return queryset.order_by("-urgency", "created_at", "id")
+
+    @action(detail=False, methods=["get"])
+    def hq(self, request):
+        work = open_work(QuoteRequest.objects.all())
+        unassigned = work.filter(reception_owner__isnull=True).count()
+        scope = request.query_params.get("scope", "mine")
+        if scope == "mine":
+            work = work.filter(reception_owner=request.user)
+        elif scope == "unassigned":
+            work = work.filter(reception_owner__isnull=True)
+        counts = {key: work.filter(condition).count() for key, condition in task_filters().items()}
+        counts["total"] = work.count()
+        counts["urgent"] = work.filter(urgency="urgent").count()
+        conversations = SupportConversation.objects.filter(status="awaiting_team").filter(
+            Q(quote__in=work) | Q(order__quote__in=work)
+        )
+        counts["messages"] = conversations.count()
+        counts["messages_general"] = SupportConversation.objects.filter(
+            status="awaiting_team", quote__isnull=True, order__isnull=True, invoice__isnull=True
+        ).count()
+        counts["upcoming"] = work.filter(
+            order__scheduled_date__gte=timezone.now(),
+            order__scheduled_date__lte=timezone.now() + timedelta(days=7),
+        ).count()
+        return Response({"scope": scope, "counts": counts, "unassigned_team": unassigned,
+                         "updated_at": timezone.now()})
 
     @action(detail=False, methods=["get"])
     def summary(self, request):

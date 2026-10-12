@@ -11,6 +11,10 @@ Plataforma digital comercial inicial para a **Maputo Publicidade e Serviços Lda
 
 ### Área operacional por função
 
+- O Reception HQ abre em “Os meus atendimentos”, com resumo específico da função e acesso à fila da equipa. Os contadores são calculados no servidor sobre todos os pedidos abertos do âmbito selecionado, não apenas na página carregada. Pedidos sem responsável e conversas gerais aparecem também como entradas da equipa.
+- A fila do HQ prioriza urgentes, propostas devolvidas, trabalhos prontos para entrega e propostas aprovadas por enviar; a seguir utiliza a última atualização (não presume que seja o momento de entrada no estado). Há pesquisa por cliente/empresa/referência e filtros por tarefa.
+- A consulta da proposta é separada da edição: quantidades, preços, descontos, IVA, condições, prazo estimado e comentários de revisão aparecem no espaço. O documento completo é carregado apenas ao abrir a pré-visualização; o PDF é uma exportação opcional. O resumo do dia e a fila podem ser recolhidos para dar espaço ao atendimento.
+
 - `/admin/recepcao` mantém uma fila paginada de pedidos desde o atendimento até à entrega. A triagem, preparação da proposta, revisão interna, acompanhamento, mensagens contextualizadas, anexos e histórico abrem no mesmo espaço.
 - A fila distingue acompanhamento, espera pelo Comercial/cliente e concluídos/cancelados, com filtros por responsável. A aprovação comercial continua separada da aceitação do cliente; a Recepção não ganha permissões financeiras nem de confirmação da produção.
 - `/admin/producao` organiza o trabalho por briefing técnico, arte/apreciação quando necessária, produção/conferência e entrega/instalação. Mantém a API técnica sem valores comerciais. Os filtros desta lista aplicam-se às páginas já carregadas; utilize “Mais trabalhos” para consultar páginas adicionais.

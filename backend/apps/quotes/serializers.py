@@ -119,6 +119,8 @@ class ProposalWorkflowMixin:
 
 
 class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    owner_name = serializers.SerializerMethodField()
+    job_summary = serializers.SerializerMethodField()
     operational_order_status = serializers.CharField(source="order.status", default=None, read_only=True)
     proposal_workflow = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -143,6 +145,9 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
             "reference",
             "proposal_workflow",
             "reception_completed_at",
+            "owner_name",
+            "job_summary",
+            "updated_at",
             "operational_order_status",
             "client_name",
             "client_company",
@@ -166,6 +171,16 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
         if hasattr(obj, "order") and obj.order:
             return obj.order.reference
         return None
+
+    def get_owner_name(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_staff:
+            return "Equipa MP" if obj.reception_owner_id else ""
+        return (obj.reception_owner.get_full_name() or obj.reception_owner.username) if obj.reception_owner else ""
+
+    def get_job_summary(self, obj):
+        items = list(obj.items.all())
+        return items[0].description if items else "Necessidade por confirmar"
 
     def get_artwork_status(self, obj):
         if hasattr(obj, "artwork") and obj.artwork:

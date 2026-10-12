@@ -23,6 +23,55 @@ def reception_api(staff_user):
 
 @pytest.mark.django_db
 class TestReception:
+    def test_hq_counts_match_scoped_queue_and_persist_after_handover(self, reception_api, staff_user, quote):
+        from django.utils import timezone
+
+        quote.reception_owner = staff_user
+        quote.reception_completed_at = timezone.now()
+        quote.proposal_stage = "returned"
+        quote.save()
+        QuoteRequest.objects.create(client_name="Equipa", proposal_stage="approved", reception_owner=None)
+        summary = reception_api.get(BASE + "hq/", {"scope": "mine"})
+        assert summary.status_code == 200
+        assert summary.data["counts"]["total"] == 1
+        assert summary.data["counts"]["proposal"] == 1
+        assert summary.data["counts"]["briefing"] == 0
+        assert summary.data["unassigned_team"] == 1
+        rows = reception_api.get("/api/quotes/", {"hq": "1", "proposal_queue": "mine", "task": "proposal"})
+        assert rows.data["count"] == summary.data["counts"]["proposal"]
+        assert rows.data["results"][0]["owner_name"] == staff_user.username
+        assert reception_api.get(BASE + "hq/", {"scope": "all"}).data["counts"]["total"] == 2
+
+    def test_hq_excludes_closed_work_and_prioritizes_action(self, reception_api, staff_user, quote, order, client_user):
+        quote.reception_owner = staff_user
+        quote.save()
+        order.status = "delivered"
+        order.save()
+        sent = QuoteRequest.objects.create(client_name="Cliente em espera", reception_owner=staff_user, proposal_stage="sent")
+        ready = QuoteRequest.objects.create(client_name="Enviar agora", reception_owner=staff_user, proposal_stage="approved")
+        urgent = QuoteRequest.objects.create(client_name="Urgente", reception_owner=staff_user, urgency="urgent")
+        SupportConversation.objects.create(client=client_user, quote=sent, subject="Resposta")
+        SupportConversation.objects.create(client=client_user, subject="Geral")
+        summary = reception_api.get(BASE + "hq/").data
+        assert summary["counts"]["total"] == 3
+        assert summary["counts"]["client"] == 1
+        assert summary["counts"]["send"] == 1
+        assert summary["counts"]["messages"] == 1
+        assert summary["counts"]["messages_general"] == 1
+        rows = reception_api.get("/api/quotes/", {"hq": "1", "proposal_queue": "mine"}).data["results"]
+        assert [row["reference"] for row in rows] == [urgent.reference, ready.reference, sent.reference]
+        assert reception_api.get("/api/quotes/", {"hq": "1", "task": "messages"}).data["count"] == 1
+        assert reception_api.get("/api/quotes/", {"hq": "1", "search": "Enviar agora"}).data["count"] == 1
+
+    def test_hq_is_private_and_reception_only(self, authenticated_client, staff_user):
+        assert authenticated_client.get(BASE + "hq/").status_code == 403
+        assert APIClient().get(BASE + "hq/").status_code == 401
+        staff_user.profile.staff_role = StaffRole.PRODUCTION
+        staff_user.profile.save()
+        api = APIClient()
+        api.force_authenticate(staff_user)
+        assert api.get(BASE + "hq/").status_code == 403
+
     def test_complete_minimal_briefing_without_replacing_client_source(self, reception_api, quote):
         quote.notes = "Mensagem original"
         quote.briefing = {"project_name": "Original", "intent": "guidance"}
