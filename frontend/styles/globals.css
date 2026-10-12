@@ -172,6 +172,62 @@
   }
 }
 
+.admin-workdesk .desk-reception-filters {
+  background: #fafbf7;
+  border-color: #dce3d3;
+  box-shadow: 0 3px 14px rgb(19 60 46 / 3%);
+}
+
+.admin-workdesk .desk-quick-filter {
+  background: #edf1e8;
+  color: #496053;
+}
+
+.admin-workdesk .desk-quick-filter[aria-pressed="true"] {
+  background: #174c3b;
+  color: #fff;
+}
+
+.admin-workdesk .desk-reception-progress button {
+  background: #fafbf8;
+  border-color: #e2e7dc;
+  color: #758477;
+}
+
+.admin-workdesk .desk-reception-progress button[data-phase="past"] {
+  color: #35634e;
+  background: #f0f5ed;
+}
+
+.admin-workdesk .desk-reception-progress button[data-phase="current"] {
+  color: #173f30;
+  border-color: #c3a451;
+  background: #fcf8e9;
+}
+
+.admin-workdesk .desk-reception-progress button[aria-pressed="true"] {
+  box-shadow: inset 0 -3px 0 #c3a451;
+}
+
+.admin-workdesk .desk-progress-marker {
+  background: #e9eee4;
+  color: #58705c;
+}
+
+.admin-workdesk [data-phase="current"] .desk-progress-marker {
+  background: #174c3b;
+  color: #fff;
+}
+
+.admin-workdesk .desk-order-summary > section {
+  border-color: #dce3d3;
+  box-shadow: 0 3px 14px rgb(19 60 46 / 3%);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-workdesk .desk-edit-status { border-color: #e3e8dd; }
+
 @media print {
   @page {
     size: A4;

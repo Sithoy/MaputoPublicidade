@@ -4,8 +4,8 @@ import { fetchWithAuth } from '@/lib/auth';
 import { getQuote } from '@/lib/admin-api';
 import ReceptionPage from './page';
 
-const auth = vi.hoisted(() => ({ loading: false, allowed: true, editable: true }));
-vi.mock('@/hooks/useReceptionEdit', () => ({ useReceptionEdit: () => ({ editable: auth.editable, pending: false, session: null, error: '', acquire: vi.fn().mockResolvedValue(true), release: vi.fn() }) }));
+const auth = vi.hoisted(() => ({ loading: false, allowed: true, editable: true, acquire: vi.fn().mockResolvedValue(true) }));
+vi.mock('@/hooks/useReceptionEdit', () => ({ useReceptionEdit: () => ({ editable: auth.editable, pending: false, session: null, error: '', acquire: auth.acquire, release: vi.fn() }) }));
 vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ user: { id: 1 }, loading: auth.loading, can: () => auth.allowed }) }));
 vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('@/lib/admin-api', () => ({ getQuote: vi.fn(), convertQuoteToOrder: vi.fn(), downloadQuotePdf: vi.fn() }));
@@ -24,6 +24,9 @@ describe('Reception workspace', () => {
     render(<ReceptionPage />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     expect(await screen.findByRole('button', { name: 'Iniciar edição' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Resumo do pedido' })).toBeInTheDocument();
+    expect(auth.acquire).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Trabalho' }));
     expect(screen.getByText('Revisão da mesma proposta').closest('fieldset')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Mensagens' })).toBeEnabled();
     expect(screen.queryByLabelText('Responsável')).not.toBeInTheDocument();
@@ -33,10 +36,10 @@ describe('Reception workspace', () => {
     render(<ReceptionPage />);
     expect(await screen.findByRole('heading', { name: /Todos os trabalhos.*30/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
-    expect(await screen.findByText('Revisão da mesma proposta')).toBeInTheDocument();
+    await screen.findByRole('region', { name: 'Resumo do pedido' });
     expect(screen.getByText('O que estamos a aguardar?')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Agora' })).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/Percurso do pedido/));
+    expect(screen.getByRole('navigation', { name: 'Percurso do pedido' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /2 Preparar proposta/ }));
     expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Editar proposta' }));
@@ -69,9 +72,29 @@ describe('Reception workspace', () => {
   });
   it('offers an on-screen proposal without downloading or entering edit mode', async () => {
     render(<ReceptionPage />); fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
-    await screen.findByText('Revisão da mesma proposta');
+    await screen.findByRole('region', { name: 'Resumo do pedido' });
     fireEvent.click(screen.getByRole('button', { name: 'Proposta' }));
     expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
     expect(screen.queryByText('Guardar proposta no espaço')).not.toBeInTheDocument();
+  });
+  it('previews the first order automatically without reserving it and preserves the agenda', async () => {
+    auth.editable = false;
+    render(<ReceptionPage />);
+    expect(await screen.findByRole('region', { name: 'Resumo do pedido' })).toBeInTheDocument();
+    expect(getQuote).toHaveBeenCalledWith('MP-0001-2026');
+    expect(auth.acquire).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Dia da recepção' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'A acompanhar' })).toBeInTheDocument();
+    const filters = screen.getByRole('region', { name: 'Filtros dos pedidos' });
+    expect(filters).toContainElement(screen.getByLabelText('Mostrar'));
+    expect(screen.getByRole('complementary', { name: 'Fila de atendimentos' })).not.toContainElement(filters);
+    expect(screen.queryByText('Sem compromisso agendado')).not.toBeInTheDocument();
+  });
+  it('does not preview an order when the filtered queue is empty', async () => {
+    vi.mocked(fetchWithAuth).mockImplementation(async (path) => path.startsWith('/api/reception/hq/') ? hq : { results: [], next: null, count: 0 });
+    render(<ReceptionPage />);
+    expect(await screen.findByText('Nenhum pedido neste filtro.')).toBeInTheDocument();
+    expect(getQuote).not.toHaveBeenCalled();
+    expect(auth.acquire).not.toHaveBeenCalled();
   });
 });

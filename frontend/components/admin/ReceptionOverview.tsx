@@ -4,7 +4,7 @@ import { ArrowRight, CalendarDays, Clock3, MessagesSquare, Zap } from 'lucide-re
 
 export type ReceptionHQ = { counts: Record<string, number>; unassigned_team: number; scope: string; updated_at: string };
 export const taskLabels: Record<string, string> = {
-  all: 'Todos os trabalhos', briefing: 'Completar briefing', proposal: 'Preparar / corrigir proposta',
+  all: 'Todos os trabalhos', new: 'Novos pedidos', briefing: 'Completar briefing', proposal: 'Preparar / corrigir proposta',
   send: 'Prontas para enviar', delivery: 'Coordenar entrega', review: 'Com o Comercial', client: 'Com o cliente',
   production: 'Em produção', handover: 'Confirmar ordem de produção', messages: 'Conversas por responder',
   urgent: 'Pedidos urgentes', overdue: 'Compromissos de dias anteriores', today: 'Agenda de hoje',
