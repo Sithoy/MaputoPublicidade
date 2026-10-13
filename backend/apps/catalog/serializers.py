@@ -12,7 +12,18 @@ from .product_configuration import validate_options
 class ProductCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductCategory
-        fields = ['id', 'name', 'slug', 'description', 'configuration_template', 'display_order', 'is_active']
+        fields = ['id', 'name', 'slug', 'description', 'configuration_template', 'configuration_options', 'apparel_options', 'display_order', 'is_active']
+
+    def validate(self, values):
+        template = values.get('configuration_template', getattr(self.instance, 'configuration_template', 'standard'))
+        values['configuration_options'] = validate_options(template, values.get('configuration_options', getattr(self.instance, 'configuration_options', {})))
+        apparel = values.get('apparel_options', getattr(self.instance, 'apparel_options', {}))
+        # Empty defaults are allowed while setting up a category. Partial/invalid grids are not.
+        if apparel:
+            validator = ApparelOptionsSerializer(data=apparel)
+            validator.is_valid(raise_exception=True)
+            values['apparel_options'] = validator.validated_data
+        return values
 
 
 class ServiceCategorySerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):
@@ -90,6 +101,7 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
             "available_service_names",
             "configuration_template",
             "configuration_options",
+            "inherit_category_configuration",
             "description",
             "image",
             "variants",
@@ -132,6 +144,9 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
         return ProductVariantSerializer(sorted_variants, many=True, context=self.context).data
 
     def validate(self, values):
+        # Old editors explicitly configured products; do not silently opt them into inheritance.
+        if 'inherit_category_configuration' not in values and any(key in values for key in ['configuration_template', 'configuration_options', 'apparel_options']):
+            values['inherit_category_configuration'] = False
         if 'order_template' in values and 'configuration_template' not in values and values['order_template'] == 'apparel':
             values['configuration_template'] = 'apparel'
         category = values.get('product_category')
@@ -177,7 +192,9 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
                     raise serializers.ValidationError({'variant_config': {index: serializer.errors}})
                 plan.append((variant_id, serializer.validated_data))
             values['variant_config'] = plan
-        if values.get('order_template', getattr(self.instance, 'order_template', 'standard')) == 'apparel':
+        inherited_category = values.get('product_category', getattr(self.instance, 'product_category', None))
+        inherited = values.get('inherit_category_configuration', getattr(self.instance, 'inherit_category_configuration', True)) and inherited_category
+        if not inherited and values.get('order_template', getattr(self.instance, 'order_template', 'standard')) == 'apparel':
             options = ApparelOptionsSerializer(data=values.get('apparel_options', getattr(self.instance, 'apparel_options', {})))
             options.is_valid(raise_exception=True)
             values['apparel_options'] = options.validated_data
@@ -188,6 +205,16 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
         result['category_id'] = instance.category_id
         result['product_category_id'] = instance.product_category_id
         result['available_service_ids'] = [service.id for service in instance.available_services.all()]
+        result['own_configuration_template'] = instance.configuration_template
+        result['own_configuration_options'] = instance.configuration_options
+        result['own_apparel_options'] = instance.apparel_options
+        result['configuration_template'] = instance.effective_configuration_template
+        result['configuration_options'] = instance.effective_configuration_options
+        result['apparel_options'] = instance.effective_apparel_options
+        result['order_template'] = instance.effective_order_template
+        if instance.inherits_configuration:
+            result['materials'] = instance.effective_configuration_options.get('material', [])
+            result['sizes'] = instance.effective_configuration_options.get('size', [])
         return result
 
     def validate_available_service_ids(self, value):

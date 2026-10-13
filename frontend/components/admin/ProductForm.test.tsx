@@ -33,6 +33,7 @@ function mount(
           name: "Eletrónica",
           slug: "electronica",
           configuration_template: "electronics",
+          configuration_options: { capacity: ["10000 mAh", "20000 mAh"] },
         },
       ]}
       onSubmit={submit}
@@ -60,12 +61,10 @@ describe("Unified product editor", () => {
       target: { value: "6" },
     });
     next();
-    expect(screen.getByLabelText("Modelo de configuração")).toHaveValue(
-      "electronics",
-    );
+    expect(screen.getByText("Herdado de Eletrónica")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Modelo de configuração")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Tamanhos")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Capacidade")).toHaveValue("");
-    add("Capacidade", "20000 mAh");
+    expect(screen.getByText("Capacidade: 10000 mAh · 20000 mAh")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Serigrafia"));
     next();
     fireEvent.change(screen.getByLabelText("Como é definido o preço?"), {
@@ -75,12 +74,25 @@ describe("Unified product editor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar rascunho" }));
     await waitFor(() => expect(submit).toHaveBeenCalledOnce());
     const data = submit.mock.calls[0][0] as FormData;
-    expect(data.get("configuration_template")).toBe("electronics");
-    expect(JSON.parse(String(data.get("configuration_options")))).toEqual({
-      capacity: ["20000 mAh"],
-    });
+    expect(data.get("inherit_category_configuration")).toBe("true");
+    expect(JSON.parse(String(data.get("configuration_options")))).toEqual({});
     expect(data.get("available_service_ids")).toBe("[5]");
     expect(data.get("category_id")).toBe("");
+  });
+  it("lets a product customize inherited options and return to category defaults", () => {
+    mount();
+    fireEvent.change(screen.getByLabelText("Nome do produto"), { target: { value: "Powerbank" } });
+    fireEvent.change(screen.getByLabelText("Categoria do produto"), { target: { value: "6" } });
+    next();
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar para este produto" }));
+    expect(screen.getByLabelText("Modelo de configuração")).toHaveValue("electronics");
+    expect(screen.getByText("10000 mAh", { exact: true })).toBeInTheDocument();
+    add("Capacidade", "5000 mAh");
+    fireEvent.click(screen.getByRole("button", { name: "Usar configuração da categoria" }));
+    expect(screen.getByText("Capacidade: 10000 mAh · 20000 mAh")).toBeInTheDocument();
+    expect(screen.queryByText("5000 mAh", { exact: true })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar para este produto" }));
+    expect(screen.getByText("5000 mAh", { exact: true })).toBeInTheDocument();
   });
   it("generates a slug, saves a draft with one request and no public price for consultation", async () => {
     const submit = mount();

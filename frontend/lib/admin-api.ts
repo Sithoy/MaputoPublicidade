@@ -335,8 +335,8 @@ export async function updateProduct(slug: string, formData: FormData): Promise<P
 
 export async function saveProductDefinition(formData: FormData, slug?: string): Promise<Product> {
   return slug
-    ? patch<Product>(`/api/products/${slug}/editor-v2/`, formData, getToken())
-    : post<Product>('/api/products/editor-v2/', formData, getToken());
+    ? patch<Product>(`/api/products/${slug}/editor-v3/`, formData, getToken())
+    : post<Product>('/api/products/editor-v3/', formData, getToken());
 }
 
 export async function deleteProduct(slug: string) {
@@ -363,7 +363,7 @@ export async function getProductCategories(): Promise<ProductCategory[]> {
   return getAllPages<ProductCategory>('/api/product-categories/', { headers: authHeaders() });
 }
 export async function saveProductCategory(data: Record<string, unknown>, slug?: string): Promise<ProductCategory> {
-  return slug ? patch<ProductCategory>(`/api/product-categories/${slug}/`, data, getToken()) : post<ProductCategory>('/api/product-categories/', data, getToken());
+  return slug ? patch<ProductCategory>(`/api/product-categories/${slug}/editor-v2/`, data, getToken()) : post<ProductCategory>('/api/product-categories/editor-v2/', data, getToken());
 }
 
 export async function createCategory(formData: FormData): Promise<Category> {

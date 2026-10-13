@@ -252,6 +252,10 @@ export type Product = {
   available_service_names?: string[];
   configuration_template?: import('./product-configuration').ProductTemplate;
   configuration_options?: Record<string, string[]>;
+  inherit_category_configuration?: boolean;
+  own_configuration_template?: import('./product-configuration').ProductTemplate;
+  own_configuration_options?: Record<string, string[]>;
+  own_apparel_options?: import('./apparel').ApparelOptions;
   order_template?: 'standard' | 'apparel';
   apparel_options?: import('./apparel').ApparelOptions;
   id: number;
@@ -294,6 +298,8 @@ export type ProductCategory = {
   slug: string;
   description?: string;
   configuration_template: import('./product-configuration').ProductTemplate;
+  configuration_options?: Record<string, string[]>;
+  apparel_options?: import('./apparel').ApparelOptions;
   display_order?: number;
   is_active?: boolean;
 };

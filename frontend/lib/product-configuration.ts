@@ -1,8 +1,8 @@
 import type { Product } from "./api";
 
 export const productTemplates = {
-  standard: { label: "Produto simples / genérico", fields: [] },
-  apparel: { label: "Vestuário", fields: [] },
+  standard: { label: "Produto simples / genérico", fields: [{ key: "material", label: "Material" }, { key: "size", label: "Formato / tamanho" }] },
+  apparel: { label: "Vestuário", fields: [{ key: "material", label: "Material" }] },
   electronics: {
     label: "Eletrónica",
     fields: [

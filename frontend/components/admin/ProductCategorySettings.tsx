@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { getProductCategories, saveProductCategory } from "@/lib/admin-api";
 import type { ProductCategory } from "@/lib/api";
+import type { ApparelOptions } from "@/lib/apparel";
+import { ProductOptionTags } from "./ProductOptionTags";
 import {
   productTemplates,
   type ProductTemplate,
@@ -14,6 +16,8 @@ export function ProductCategorySettings() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [template, setTemplate] = useState<ProductTemplate>("standard");
+  const [options, setOptions] = useState<Partial<Record<ProductTemplate, Record<string, string[]>>>>({});
+  const [apparel, setApparel] = useState<ApparelOptions>({ models: [], colors: [], sizes: [], techniques: [], placements: [] });
   const [active, setActive] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -30,6 +34,8 @@ export function ProductCategorySettings() {
     setName(category?.name || "");
     setDescription(category?.description || "");
     setTemplate(category?.configuration_template || "standard");
+    setOptions(category ? { [category.configuration_template]: category.configuration_options || {} } : {});
+    setApparel({ models: [], colors: [], sizes: [], techniques: [], placements: [], ...category?.apparel_options });
     setActive(category?.is_active ?? true);
     setNotice("");
     setError("");
@@ -44,6 +50,8 @@ export function ProductCategorySettings() {
           name: name.trim(),
           description,
           configuration_template: template,
+          configuration_options: options[template] || {},
+          apparel_options: template === "apparel" && Object.values(apparel).some((values) => values?.length) ? apparel : {},
           is_active: active,
           ...(editing
             ? {}
@@ -60,7 +68,7 @@ export function ProductCategorySettings() {
       );
       setCategories(await getProductCategories());
       edit(null);
-      setNotice("Categoria guardada. Produtos existentes não foram alterados.");
+      setNotice("Categoria guardada. Produtos que herdam esta configuração foram atualizados; personalizações e pedidos anteriores foram preservados.");
     } catch (err) {
       setError(
         err instanceof Error
@@ -78,9 +86,8 @@ export function ProductCategorySettings() {
           Organize o que o cliente pode encomendar.
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          A categoria sugere os campos relevantes. Cada produto define as opções
-          reais. Alterar o modelo da categoria não reconfigura produtos
-          existentes.
+          Defina aqui o modelo e as opções comuns. Os produtos herdam esta configuração
+          automaticamente, salvo quando têm uma personalização própria. Pedidos e propostas anteriores mantêm os detalhes registados.
         </p>
       </div>
       {error ? (
@@ -150,6 +157,18 @@ export function ProductCategorySettings() {
                   .join(" · ") ||
                 "Descrição e quantidade, sem campos específicos."}
           </p>
+          <div className="space-y-4 sm:col-span-2">
+            {template === "apparel" ? ([
+              ["models", "Modelos", "Até 3 opções. Ex.: Masculino, Feminino, Unissexo."],
+              ["colors", "Cores", "Até 12 cores."],
+              ["sizes", "Tamanhos", "Até 12 tamanhos."],
+              ["techniques", "Técnicas de personalização", "Até 8 técnicas; opcional."],
+              ["placements", "Posições de personalização", "Até 8 posições; opcional."],
+            ] as const).map(([key, label, hint]) => <ProductOptionTags key={key} id={`category-${key}`} label={label} hint={hint} value={apparel[key] || []} onChange={(values) => setApparel((current) => ({ ...current, [key]: values }))} />)
+              : null}
+            {productTemplates[template].fields.map((field) => <ProductOptionTags key={`${template}-${field.key}`} id={`category-${field.key}`} label={field.label} hint="Até 20 opções. Deixe vazio se não se aplica à categoria." value={options[template]?.[field.key] || []} onChange={(values) => setOptions((current) => ({ ...current, [template]: { ...current[template], [field.key]: values } }))} />)}
+            <p className="text-xs leading-6 text-slate-500">Use apenas opções reais. Produtos com disponibilidade diferente podem personalizar estas listas. Preços e versões comerciais continuam definidos no produto.</p>
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -199,6 +218,8 @@ export function ProductCategorySettings() {
         ))}
       </div>
       <p className="text-xs leading-6 text-slate-500">
+        Novos produtos herdam por defeito. Produtos anteriores mantêm a sua configuração até escolher “Usar configuração da categoria” no editor.
+        {" "}
         Para retirar uma categoria, desative-a. As ligações e o histórico dos
         produtos são preservados.
       </p>

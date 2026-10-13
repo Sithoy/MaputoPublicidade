@@ -106,7 +106,7 @@ class TestProductCategories:
 
     def test_client_selections_are_validated_then_snapshotted_through_production(self):
         category = ProductCategory.objects.get(slug='electronica')
-        product = Product.objects.create(name='Powerbank', slug='powerbank', product_category=category, configuration_template='electronics', configuration_options={'capacity': ['20000 mAh'], 'color': ['Preto']})
+        product = Product.objects.create(name='Powerbank', slug='powerbank', product_category=category, inherit_category_configuration=False, configuration_template='electronics', configuration_options={'capacity': ['20000 mAh'], 'color': ['Preto']})
         payload = {'product_slug': product.slug, 'quantity': 20, 'description': 'Powerbank', 'material_briefing': {'catalogue_configuration': {'template': 'electronics', 'category': 'Forged', 'selections': [{'key': 'capacity', 'label': 'Forged', 'value': '20000 mAh'}]}}}
         serializer = CartItemCreateUpdateSerializer(data=payload)
         assert serializer.is_valid(), serializer.errors

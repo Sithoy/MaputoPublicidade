@@ -34,6 +34,20 @@ class ProductCategoryViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
     http_method_names = ['get', 'post', 'put', 'patch', 'head', 'options']
 
+    def _check_configuration_editor(self, request):
+        if any(key not in request.data for key in ['configuration_template', 'configuration_options', 'apparel_options']):
+            raise ValidationError('Envie o modelo e as opções completas da categoria.')
+
+    @action(detail=False, methods=['post'], url_path='editor-v2')
+    def configuration_editor_create(self, request, *args, **kwargs):
+        self._check_configuration_editor(request)
+        return self.create(request, *args, **kwargs)
+
+    @action(detail=True, methods=['patch'], url_path='editor-v2')
+    def configuration_editor_update(self, request, *args, **kwargs):
+        self._check_configuration_editor(request)
+        return self.partial_update(request, *args, **kwargs)
+
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
@@ -60,6 +74,18 @@ class ProductViewSet(viewsets.ModelViewSet):
     def _check_category_editor(self, request):
         if any(key not in request.data for key in ['product_category_id', 'configuration_template', 'configuration_options', 'available_service_ids']):
             raise ValidationError('Envie a categoria, o modelo, as opções e os serviços do editor.')
+
+    @action(detail=False, methods=['post'], url_path='editor-v3')
+    def inheritance_editor_create(self, request, *args, **kwargs):
+        if 'inherit_category_configuration' not in request.data:
+            raise ValidationError('Indique se o produto herda a configuração da categoria.')
+        return self.category_editor_create(request, *args, **kwargs)
+
+    @action(detail=True, methods=['patch'], url_path='editor-v3')
+    def inheritance_editor_update(self, request, *args, **kwargs):
+        if 'inherit_category_configuration' not in request.data:
+            raise ValidationError('Indique se o produto herda a configuração da categoria.')
+        return self.category_editor_update(request, *args, **kwargs)
 
     @action(detail=False, methods=['post'], url_path='editor-v2')
     def category_editor_create(self, request, *args, **kwargs):

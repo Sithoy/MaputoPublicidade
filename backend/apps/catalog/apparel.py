@@ -57,17 +57,17 @@ def validate_distribution(values, instance=None, catalogue=False):
     if catalogue and variant and (not variant.is_active or not product or variant.product_id != product.pk):
         raise serializers.ValidationError('Variante indisponível neste produto.')
     if distribution is None:
-        if briefing.get('work_type') == 'apparel' or (product and product.order_template == 'apparel'):
+        if briefing.get('work_type') == 'apparel' or (product and product.effective_order_template == 'apparel'):
             values['material_briefing'] = {**briefing, 'work_type': 'apparel', 'apparel': {'pending': True, 'rows': []}}
         return values
     quantity = values.get('quantity', getattr(instance, 'quantity', 1))
     total = sum(row['quantity'] for row in distribution.get('rows', []))
     if total > quantity or (not distribution.get('pending') and total != quantity):
         raise serializers.ValidationError({'material_briefing': f'A distribuição deve totalizar {quantity} unidades. Para uma distribuição incompleta, marque “por confirmar”.'})
-    if catalogue and product and product.order_template == 'apparel':
-        options = product.apparel_options
+    if catalogue and product and product.effective_order_template == 'apparel':
+        options = product.effective_apparel_options
         for row in distribution['rows']:
-            if any(row[field] not in options[key] for field, key in [('model', 'models'), ('color', 'colors'), ('size', 'sizes')]):
+            if any(row[field] not in options.get(key, []) for field, key in [('model', 'models'), ('color', 'colors'), ('size', 'sizes')]):
                 raise serializers.ValidationError('A combinação selecionada não está disponível neste produto.')
         for field, key in [('technique', 'techniques'), ('placement', 'placements')]:
             if distribution.get(field) and distribution[field] not in options.get(key, []):

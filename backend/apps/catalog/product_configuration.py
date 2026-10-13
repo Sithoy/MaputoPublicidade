@@ -2,8 +2,8 @@
 from rest_framework import serializers
 
 FIELDS = {
-    'standard': {},
-    'apparel': {},
+    'standard': {'material': 'Material', 'size': 'Formato / tamanho'},
+    'apparel': {'material': 'Material'},
     'electronics': {'model': 'Modelo', 'capacity': 'Capacidade', 'color': 'Cor', 'branding_area': 'Área de personalização'},
     'banner': {'format': 'Formato / dimensões', 'material': 'Material', 'finishing': 'Acabamento'},
     'stationery': {'format': 'Formato', 'paper': 'Papel', 'pages': 'Número de páginas', 'finishing': 'Acabamento'},
@@ -51,10 +51,10 @@ def validate_catalogue_configuration(values, instance=None, catalogue=False):
     snapshot = serializer.validated_data
     product = values.get('product', getattr(instance, 'product', None))
     if catalogue:
-        if not product or snapshot['template'] != product.configuration_template:
+        if not product or snapshot['template'] != product.effective_configuration_template:
             raise serializers.ValidationError('Modelo de configuração indisponível neste produto.')
         for row in snapshot['selections']:
-            if row['value'] not in product.configuration_options.get(row['key'], []):
+            if row['value'] not in product.effective_configuration_options.get(row['key'], []):
                 raise serializers.ValidationError('A opção selecionada não está disponível neste produto.')
         snapshot['category'] = product.product_category.name if product.product_category else ''
     values['material_briefing'] = {**briefing, 'catalogue_configuration': snapshot}

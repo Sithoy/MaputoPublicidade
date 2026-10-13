@@ -28,7 +28,8 @@ export function AddToCartModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
-  const [apparel, setApparel] = useState<ApparelDistribution>({ pending: false, rows: [] });
+  const apparelPending = product.order_template === 'apparel' && (!product.apparel_options?.models?.length || !product.apparel_options?.colors?.length || !product.apparel_options?.sizes?.length);
+  const [apparel, setApparel] = useState<ApparelDistribution>({ pending: apparelPending, rows: [] });
   const [configuration, setConfiguration] = useState<CatalogueConfiguration | undefined>();
   const template = productTemplate(product);
   const configured = !['standard', 'apparel'].includes(template);
@@ -45,7 +46,7 @@ export function AddToCartModal({
   useEffect(() => {
     if (open) {
       setQuantity(product.min_quantity || 1);
-      setApparel({ pending: false, rows: [] });
+      setApparel({ pending: apparelPending, rows: [] });
       setConfiguration(undefined);
       setSize('');
       setMaterial('');
@@ -55,7 +56,7 @@ export function AddToCartModal({
       setArtworkFile(null);
       setError('');
     }
-  }, [open, product.min_quantity]);
+  }, [open, product.id, product.min_quantity, apparelPending]);
 
   useEffect(() => {
     if (!open) return;

@@ -10,9 +10,9 @@ describe('Product editor API boundary', () => {
     const data = new FormData();
     data.set('variant_config', '[]');
     await saveProductDefinition(data);
-    expect(post).toHaveBeenCalledWith('/api/products/editor-v2/', data, 'local-test-token');
+    expect(post).toHaveBeenCalledWith('/api/products/editor-v3/', data, 'local-test-token');
     await saveProductDefinition(data, 'polo');
-    expect(patch).toHaveBeenCalledWith('/api/products/polo/editor-v2/', data, 'local-test-token');
+    expect(patch).toHaveBeenCalledWith('/api/products/polo/editor-v3/', data, 'local-test-token');
   });
   it('keeps quick product toggles on the existing partial-update endpoint', async () => {
     const data = new FormData();

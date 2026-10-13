@@ -16,12 +16,14 @@ export function ProductVariantSelector({ product }: { product: Product }) {
   const [cartOpen, setCartOpen] = useState(false);
   const price = product.pricing_complexity === 'complex' ? undefined : selected?.price ?? product.starting_price ?? product.base_price;
   const apparel = product.order_template === 'apparel';
+  const template = productTemplate(product);
+  const configured = !['standard', 'apparel'].includes(template);
   const sizes = apparel ? product.apparel_options?.sizes : product.sizes;
   const facts = [
     { label: 'Serviços aplicáveis', value: product.available_service_names?.join(', ') },
-    ...productTemplates[productTemplate(product)].fields.map(field => ({ label: field.label, value: product.configuration_options?.[field.key]?.join(', ') })),
-    { label: 'Materiais', value: product.materials?.join(', ') },
-    { label: 'Tamanhos', value: sizes?.join(', ') },
+    ...productTemplates[template].fields.filter(() => configured).map(field => ({ label: field.label, value: product.configuration_options?.[field.key]?.join(', ') })),
+    { label: 'Materiais', value: !configured ? product.materials?.join(', ') : '' },
+    { label: 'Tamanhos', value: !configured ? sizes?.join(', ') : '' },
     { label: 'Modelos', value: apparel ? product.apparel_options?.models?.join(', ') : '' },
     { label: 'Cores', value: apparel ? product.apparel_options?.colors?.join(', ') : '' },
     { label: 'Pedido mínimo', value: product.min_quantity ? `${product.min_quantity} ${product.min_quantity === 1 ? 'unidade' : 'unidades'}` : '' },

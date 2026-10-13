@@ -40,6 +40,8 @@ class ProductCategory(models.Model):
     slug = models.SlugField(max_length=220, unique=True)
     description = models.TextField(blank=True)
     configuration_template = models.CharField(max_length=20, choices=CONFIGURATION_TEMPLATES, default='standard')
+    configuration_options = models.JSONField(default=dict, blank=True)
+    apparel_options = models.JSONField(default=dict, blank=True)
     display_order = models.PositiveSmallIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -60,6 +62,7 @@ class Product(models.Model):
     available_services = models.ManyToManyField(ServiceCategory, blank=True, related_name='catalogue_products')
     configuration_template = models.CharField(max_length=20, choices=CONFIGURATION_TEMPLATES, default='standard')
     configuration_options = models.JSONField(default=dict, blank=True)
+    inherit_category_configuration = models.BooleanField(default=True)
     order_template = models.CharField(max_length=20, default='standard', choices=[('standard', 'Standard'), ('apparel', 'Vestuário')])
     apparel_options = models.JSONField(default=dict, blank=True)
     PRICING_SIMPLE = "simple"
@@ -117,6 +120,29 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def inherits_configuration(self):
+        return self.inherit_category_configuration and self.product_category_id is not None
+
+    @property
+    def effective_configuration_template(self):
+        if self.inherits_configuration:
+            return self.product_category.configuration_template
+        return 'apparel' if self.order_template == 'apparel' else self.configuration_template
+
+    @property
+    def effective_configuration_options(self):
+        return self.product_category.configuration_options if self.inherits_configuration else self.configuration_options
+
+    @property
+    def effective_apparel_options(self):
+        options = self.product_category.apparel_options if self.inherits_configuration else self.apparel_options
+        return {'models': [], 'colors': [], 'sizes': [], **options} if not options else options
+
+    @property
+    def effective_order_template(self):
+        return 'apparel' if self.effective_configuration_template == 'apparel' else 'standard'
 
     @property
     def starting_price(self):

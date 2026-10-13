@@ -111,14 +111,19 @@ export function ProductForm({
     featured: product?.is_featured ?? false,
   }));
   const [customSlug, setCustomSlug] = useState(Boolean(product));
-  const [template, setTemplate] = useState<ProductTemplate>(
-    product ? productTemplate(product) : "standard",
+  const [customTemplate, setTemplate] = useState<ProductTemplate>(
+    product?.own_configuration_template || (product ? productTemplate(product) : "standard"),
   );
+  const [inherit, setInherit] = useState(product ? product.inherit_category_configuration ?? false : true);
+  const customizedOnce = useRef(Boolean(product?.product_category_id && product.inherit_category_configuration === false));
+  const selectedCategory = productCategories.find((category) => String(category.id) === draft.productCategory);
+  const inherited = inherit && Boolean(selectedCategory);
+  const template = inherited ? selectedCategory!.configuration_template : customTemplate;
   const [templateOptions, setTemplateOptions] = useState<
     Partial<Record<ProductTemplate, Record<string, string[]>>>
   >(() =>
     product
-      ? { [productTemplate(product)]: product.configuration_options || {} }
+      ? { [product?.own_configuration_template || productTemplate(product)]: product.own_configuration_options || product.configuration_options || {} }
       : {},
   );
   const [services, setServices] = useState<number[]>(
@@ -136,13 +141,14 @@ export function ProductForm({
           : "options",
     );
   }
-  const [kind, setKind] = useState<"simple" | "options" | "apparel">(
+  const [customKind, setKind] = useState<"simple" | "options" | "apparel">(
     product?.order_template === "apparel"
       ? "apparel"
       : product?.materials?.length || product?.sizes?.length
         ? "options"
         : "simple",
   );
+  const kind = inherited ? template === "apparel" ? "apparel" : template === "standard" && !Object.values(selectedCategory?.configuration_options || {}).some((values) => values.length) ? "simple" : "options" : customKind;
   const [pricing, setPricing] = useState<"fixed" | "versions" | "quote">(
     product?.pricing_complexity === "complex"
       ? "quote"
@@ -152,11 +158,13 @@ export function ProductForm({
   );
   const [materials, setMaterials] = useState(product?.materials || []);
   const [sizes, setSizes] = useState(product?.sizes || []);
-  const [apparel, setApparel] = useState<ApparelOptions>(() =>
-    product?.apparel_options?.models?.length
-      ? product.apparel_options
+  const [customApparel, setApparel] = useState<ApparelOptions>(() =>
+    (product?.own_apparel_options || product?.apparel_options)?.models?.length
+      ? (product!.own_apparel_options || product!.apparel_options)!
       : { models: [], colors: [], sizes: [], techniques: [], placements: [] },
   );
+  const apparel = inherited ? { models: [], colors: [], sizes: [], ...selectedCategory?.apparel_options } : customApparel;
+  const effectiveOptions = inherited ? selectedCategory?.configuration_options || {} : templateOptions[template] || {};
   const [versions, setVersions] = useState<Version[]>(() =>
     (product?.variants || []).map(versionDraft),
   );
@@ -199,7 +207,7 @@ export function ProductForm({
       return "Indique o nome e um endereço válido para o produto.";
     if (section === 0 && !/^[a-zA-Z0-9_-]+$/.test(draft.slug))
       return "O endereço só pode conter letras, números, hífen e underscore.";
-    if (section === 1 && kind === "apparel") {
+    if (section === 1 && kind === "apparel" && !inherited) {
       for (const [key, max, length, label] of [
         ["models", 3, 40, "modelos"],
         ["colors", 12, 40, "cores"],
@@ -281,10 +289,11 @@ export function ProductForm({
     data.set("category_id", draft.category);
     data.set("product_category_id", draft.productCategory);
     data.set("available_service_ids", JSON.stringify(services));
-    data.set("configuration_template", template);
+    data.set("inherit_category_configuration", String(inherited));
+    data.set("configuration_template", inherited ? customTemplate : template);
     data.set(
       "configuration_options",
-      JSON.stringify(generic ? templateOptions[template] || {} : {}),
+      JSON.stringify(inherited ? templateOptions[customTemplate] || {} : generic ? templateOptions[template] || {} : kind === "apparel" ? { material: materials } : kind === "options" ? { material: materials, size: sizes } : {}),
     );
     data.set("min_quantity", draft.minimum);
     data.set("lead_time", draft.leadTime);
@@ -307,9 +316,9 @@ export function ProductForm({
             : sizes,
       ),
     );
-    data.set("order_template", kind === "apparel" ? "apparel" : "standard");
-    if (kind === "apparel")
-      data.set("apparel_options", JSON.stringify(apparel));
+    data.set("order_template", (inherited ? customTemplate : template) === "apparel" ? "apparel" : "standard");
+    if (customTemplate === "apparel" || kind === "apparel")
+      data.set("apparel_options", JSON.stringify(customApparel));
     data.set("is_active", String(draft.active));
     data.set("is_featured", String(draft.featured));
     if (imageFile) data.set("image", imageFile);
@@ -361,10 +370,10 @@ export function ProductForm({
     category: categoryName,
     product_category_name: categoryName || null,
     configuration_template: template,
-    configuration_options: templateOptions[template] || {},
+    configuration_options: effectiveOptions,
     image: imagePreview,
-    materials,
-    sizes: kind === "apparel" ? apparel.sizes : sizes,
+    materials: inherited ? effectiveOptions.material || [] : materials,
+    sizes: kind === "apparel" ? apparel.sizes : inherited ? effectiveOptions.size || [] : sizes,
     min_quantity: Number(draft.minimum),
     order_template: kind === "apparel" ? "apparel" : "standard",
     pricing_complexity: pricing === "quote" ? "complex" : "simple",
@@ -466,7 +475,10 @@ export function ProductForm({
                     const chosen = productCategories.find(
                       (category) => String(category.id) === e.target.value,
                     );
-                    if (chosen) chooseTemplate(chosen.configuration_template);
+                    if (chosen) {
+                      setInherit(true);
+                      customizedOnce.current = false;
+                    }
                   }}
                   className={inputClass}
                 >
@@ -541,6 +553,35 @@ export function ProductForm({
           ) : null}
           {step === 1 ? (
             <div className="space-y-6">
+              {selectedCategory ? (
+                <div className="rounded-xl border border-[#E3D6B7] bg-[#FAF7EF] p-5">
+                  <p className="font-semibold text-brand-800">{inherited ? `Herdado de ${selectedCategory.name}` : "Configuração personalizada deste produto"}</p>
+                  <p className="mt-2 text-sm text-slate-500">{inherited ? "Modelo e opções definidos na categoria. As alterações da categoria aplicam-se a este produto, sem alterar pedidos anteriores." : "Este produto mantém as suas próprias opções e não acompanha alterações da categoria."}</p>
+                  <button type="button" className="mt-3 text-sm font-semibold text-brand-800 underline" onClick={() => {
+                    if (inherited && !customizedOnce.current) {
+                      chooseTemplate(template);
+                      setTemplateOptions((current) => ({ ...current, [template]: effectiveOptions }));
+                      setApparel(apparel);
+                      if (template === "standard" || template === "apparel") {
+                        setMaterials(effectiveOptions.material || []);
+                        setSizes(effectiveOptions.size || []);
+                        if (template === "standard" && Object.values(effectiveOptions).some((values) => values.length)) setKind("options");
+                      }
+                      customizedOnce.current = true;
+                    }
+                    setInherit(!inherited);
+                  }}>{inherited ? "Personalizar para este produto" : "Usar configuração da categoria"}</button>
+                  {inherited ? (
+                    <div className="mt-4 space-y-2 text-sm text-brand-800">
+                      <p>{productTemplates[template].label}</p>
+                      {template === "apparel" && effectiveOptions.material?.length ? <p>Material: {effectiveOptions.material.join(" · ")}</p> : null}
+                      {Object.entries(template === "apparel" ? apparel : effectiveOptions).map(([key, values]) => values?.length ? <p key={key}>{(template === "apparel" ? { models: "Modelos", colors: "Cores", sizes: "Tamanhos", techniques: "Técnicas", placements: "Posições" }[key as "models"] : productTemplates[template].fields.find((field) => field.key === key)?.label) || key}: {values.join(" · ")}</p> : null)}
+                      {!(template === "apparel" ? apparel.models?.length : Object.values(effectiveOptions).some((values) => values.length)) ? <p className="text-slate-500">A categoria ainda não tem opções. Defina-as em Categorias → Produtos do catálogo; o cliente pode enviar uma descrição entretanto.</p> : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {!inherited ? <>
               <label className="block text-sm font-semibold text-brand-800">
                 Modelo de configuração
                 <select
@@ -562,9 +603,7 @@ export function ProductForm({
                   id="configuration-template-help"
                   className="mt-2 block text-xs font-normal leading-6 text-slate-500"
                 >
-                  Sugerido pela categoria. Pode adaptar este produto sem alterar
-                  os restantes. As listas começam vazias: adicione apenas opções
-                  disponíveis.
+                  Configuração própria. Adicione apenas opções disponíveis neste produto.
                 </span>
               </label>
               <p className="text-sm leading-6 text-slate-500">
@@ -707,6 +746,7 @@ export function ProductForm({
                   ))}
                 </div>
               ) : null}
+              </> : null}
               <fieldset className="rounded-xl border border-[#DCE5DE] p-4">
                 <legend className="px-2 text-sm font-semibold text-brand-800">
                   Serviços aplicáveis (opcional)
