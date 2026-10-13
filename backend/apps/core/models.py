@@ -2,6 +2,18 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+class EmailConnection(models.Model):
+    """Zoho mailbox configuration; the encrypted password is never serialized."""
+
+    mailbox = models.EmailField(default="atendimento@maputopublicidade.com")
+    display_name = models.CharField(max_length=160, default="Maputo Publicidade · Atendimento")
+    smtp_host = models.CharField(max_length=100, default="smtppro.zoho.com")
+    imap_host = models.CharField(max_length=100, default="imappro.zoho.com")
+    credentials = models.TextField(blank=True)
+    tested_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class ReceptionEditLease(models.Model):
     quote = models.OneToOneField("quotes.QuoteRequest", on_delete=models.CASCADE, related_name="reception_edit_lease")
     editor = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reception_edit_leases")

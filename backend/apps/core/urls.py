@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
+from .email_connection import EmailSettingsView, EmailTestView
 from .notification_views import PortalNotificationViewSet
 from .production_views import AuthenticatedArtFile, ProductionViewSet, PublicArtReview
 from .reception_views import ReceptionViewSet
@@ -21,6 +22,8 @@ router.register(
 router.register("reception", ReceptionViewSet, basename="reception")
 router.register("production", ProductionViewSet, basename="production")
 urlpatterns = [
+    path("integrations/email/", EmailSettingsView.as_view(), name="email-settings"),
+    path("integrations/email/test/", EmailTestView.as_view(), name="email-test"),
     path("tracking/lookup/", TrackingLookup.as_view(), name="tracking-lookup"),
     path("tracking/detail/", TrackingDetail.as_view(), name="tracking-detail"),
     path("tracking/messages/", TrackingMessages.as_view(), name="tracking-messages"),
