@@ -14,6 +14,7 @@ from apps.core.email_connection import cipher
 from apps.core.models import (
     EmailConnection,
     PortalNotification,
+    StaffEmailSignature,
     SupportConversation,
     SupportMessage,
 )
@@ -21,6 +22,11 @@ from apps.core.zoho_email_backend import ZohoEmailBackend
 from apps.core.zoho_mail import access, send, sync_mail
 
 BASE = '/api/integrations/email/oauth/'
+
+
+@pytest.fixture(autouse=True)
+def approved_staff_signature(staff_user):
+    return StaffEmailSignature.objects.create(user=staff_user, display_name='Recepção MP', title='Atendimento', approved=True, approved_by=staff_user)
 
 
 @pytest.fixture(autouse=True)

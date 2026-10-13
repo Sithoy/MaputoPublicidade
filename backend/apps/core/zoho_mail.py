@@ -58,7 +58,7 @@ def address(value):
     return result
 
 
-def send(config, subject, body, to, cc=None, bcc=None, reply_id=None, mail_format='plaintext'):
+def send(config, subject, body, to, cc=None, bcc=None, reply_id=None, mail_format='plaintext', files=None):
     if not config or not config.sending_enabled:
         raise ValidationError('O envio por email está desativado nas Definições.')
     if '\n' in subject or '\r' in subject:
@@ -71,8 +71,18 @@ def send(config, subject, body, to, cc=None, bcc=None, reply_id=None, mail_forma
         payload['ccAddress'] = ','.join(address(value) for value in cc)
     if bcc:
         payload['bccAddress'] = ','.join(address(value) for value in bcc)
+    if files:
+        payload['attachments'] = []
+        for file in files:
+            uploaded = provider('POST', f'https://mail.zoho.com/api/accounts/{config.oauth_account_id}/messages/attachments',
+                                headers={**headers(config), 'Content-Type': file.mime_type},
+                                params={'fileName': file.name, 'isInline': 'false'}, data=bytes(file.content)).get('data', {})
+            if not isinstance(uploaded, dict) or not all(uploaded.get(key) for key in ['storeName', 'attachmentPath', 'attachmentName']):
+                raise ValidationError('O Zoho não confirmou o carregamento do anexo.')
+            payload['attachments'].append({key: uploaded[key] for key in ['storeName', 'attachmentPath', 'attachmentName']})
     url = f'https://mail.zoho.com/api/accounts/{config.oauth_account_id}/messages'
-    if reply_id:
+    # Zoho documents attachments on the send endpoint, not the native reply endpoint.
+    if reply_id and not files:
         if not str(reply_id).isdigit():
             raise ValidationError('Mensagem de origem inválida.')
         url += '/' + str(reply_id)
@@ -145,7 +155,7 @@ def sync_mail():
                     'conversation': conversation, 'sender': None, 'is_staff': False, 'source': 'email',
                     'body': body or '[Email sem conteúdo textual]', 'delivery_status': 'received',
                     'email_subject': unescape(strip_tags(str(row.get('subject', ''))))[:255],
-                    'email_headers': {'from': sender, 'to': str(row.get('toAddress', ''))[:1000], 'cc': str(row.get('ccAddress', ''))[:1000]},
+                    'email_headers': {'from': sender, 'to': str(row.get('toAddress', ''))[:1000], 'cc': str(row.get('ccAddress', ''))[:1000], 'folder_id': folder_id, 'has_attachments': str(row.get('hasAttachment', '0')) == '1'},
                 })
                 if created:
                     SupportMessage.objects.filter(pk=message.pk).update(created_at=received)
@@ -168,7 +178,14 @@ def sync_mail():
         EmailConnection.objects.filter(pk=1, sync_lock_until=lease).update(sync_lock_until=None)
 
 
-def send_reply(conversation, sender, body, request_id, *, subject=None, rendered_body=None, signature=None):
+def send_reply(conversation, sender, body, request_id, *, subject=None, rendered_body=None, signature=None, prepared_by=None, files=None):
+    mail_format = 'html' if rendered_body is not None else 'plaintext'
+    from .signatures import staff_signature
+    # Internal callers cannot bypass signature approval using the legacy reply endpoint.
+    approved_signature = staff_signature(sender, required=True)
+    if signature is not None and signature != approved_signature:
+        raise ValidationError('A assinatura mudou. Pré-visualize novamente antes de enviar.')
+    signature = approved_signature
     config = connection()
     if not config or not config.sending_enabled:
         raise ValidationError('O envio por email está desativado.')
@@ -185,10 +202,18 @@ def send_reply(conversation, sender, body, request_id, *, subject=None, rendered
         original = conversation.messages.filter(source='email', is_staff=False, email_id__isnull=False).order_by('-created_at', '-id').first()
         if not original or not original.email_id.startswith(config.oauth_account_id + ':'):
             raise ValidationError('Email original indisponível nesta ligação.')
+        from django.contrib.auth.models import User
+        preparer = User.objects.filter(pk=prepared_by or sender.pk).first()
+        prepared_by_name = (preparer.get_full_name() or preparer.email) if preparer else ''
         message = SupportMessage.objects.create(conversation=conversation, sender=sender, is_staff=True,
                                                 source='email', body=body, delivery_status='unconfirmed', email_request_id=request_id,
-                                                email_subject=subject, email_headers={'from': MAILBOX, 'to': conversation.contact_email, 'signature': signature})
-    send(config, subject, rendered_body if rendered_body is not None else body, [conversation.contact_email], reply_id=original.email_id.split(':')[1], mail_format='html' if rendered_body is not None else 'plaintext')
+                                                email_subject=subject, email_headers={'from': MAILBOX, 'to': conversation.contact_email, 'signature': signature, 'sent_by': sender.pk, 'prepared_by': prepared_by or sender.pk, 'prepared_by_name': prepared_by_name, 'sent_as_new': bool(files)})
+        for file in files or []:
+            file.message = message
+            file.save(update_fields=['message'])
+    if rendered_body is None:
+        rendered_body = body + '\n\n' + '\n'.join(signature[key] for key in ['staff_name', 'staff_title', 'name', 'email', 'phone', 'address'])
+    send(config, subject, rendered_body, [conversation.contact_email], reply_id=original.email_id.split(':')[1], mail_format=mail_format, files=files)
     message.delivery_status = 'accepted'
     message.save(update_fields=['delivery_status'])
     # Do not turn a new incoming email into "waiting" if it arrived during sending.

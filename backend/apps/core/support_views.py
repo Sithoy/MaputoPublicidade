@@ -1,3 +1,5 @@
+from pathlib import PurePath
+
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, F, Q
@@ -16,6 +18,7 @@ from apps.quotes.models import QuoteRequest
 
 from .email_workspace import EmailWorkspaceMixin
 from .models import PortalNotification, SupportConversation, SupportMessage
+from .support_files import SupportFilesMixin, file_response, metadata, selected_files
 
 
 class SupportWriteThrottle(UserRateThrottle):
@@ -29,6 +32,7 @@ class SupportWriteThrottle(UserRateThrottle):
 class MessageInput(serializers.Serializer):
     body = serializers.CharField(max_length=4000)
     request_id = serializers.UUIDField(required=False)
+    attachment_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), max_length=3, required=False)
 
 
 class WhatsAppReadThrottle(UserRateThrottle):
@@ -98,12 +102,22 @@ def context_data(kind, target, user):
 
 
 class MessageSerializer(serializers.ModelSerializer):
+    files = serializers.SerializerMethodField()
+    sender_name = serializers.SerializerMethodField()
+
+    def get_files(self, obj):
+        return [metadata(row) for row in obj.files.defer('content').all()]
+
+    def get_sender_name(self, obj):
+        if not obj.sender:
+            return None
+        return obj.sender.get_full_name() or obj.sender.email
     email_headers = serializers.SerializerMethodField()
 
     def get_email_headers(self, obj):
         # Incoming email metadata is never exposed to BrandDesk clients.
         request = self.context.get('request')
-        return {key: obj.email_headers.get(key) for key in ['from', 'to', 'cc', 'signature']} if request and request.user.is_staff and obj.source == 'email' else None
+        return {key: obj.email_headers.get(key) for key in ['from', 'to', 'cc', 'signature', 'sent_by', 'prepared_by', 'prepared_by_name', 'has_attachments']} if request and request.user.is_staff and obj.source == 'email' else None
     attachment = serializers.SerializerMethodField()
     template = serializers.SerializerMethodField()
 
@@ -118,7 +132,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SupportMessage
-        fields = ["id", "body", "is_staff", "created_at", "source", "delivery_status", "attachment", "template", "email_subject", "email_headers"]
+        fields = ["id", "body", "is_staff", "created_at", "source", "delivery_status", "attachment", "template", "email_subject", "email_headers", "files", "sender_name"]
 
 
 class ConversationSerializer(serializers.ModelSerializer):
@@ -225,7 +239,7 @@ def notify_message(conversation, sender):
 
 
 class SupportConversationViewSet(
-    EmailWorkspaceMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+    EmailWorkspaceMixin, SupportFilesMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):
     permission_classes = [IsAuthenticated]
     throttle_classes = [SupportWriteThrottle]
@@ -331,6 +345,9 @@ class SupportConversationViewSet(
             return self.get_paginated_response(MessageSerializer(page, many=True, context=self.get_serializer_context()).data)
         data = MessageInput(data=request.data)
         data.is_valid(raise_exception=True)
+        attachment_ids = data.validated_data.pop('attachment_ids', [])
+        if attachment_ids and conversation.channel != 'branddesk':
+            raise serializers.ValidationError('Utilize o editor de Email para enviar os anexos revistos.')
         if conversation.channel == 'email':
             if not request.user.is_staff:
                 raise PermissionDenied()
@@ -350,6 +367,7 @@ class SupportConversationViewSet(
             return Response(MessageSerializer(message).data, status=201)
         with transaction.atomic():
             conversation = SupportConversation.objects.select_for_update().get(pk=conversation.pk)
+            files = selected_files(conversation, attachment_ids, request.user)
             message = SupportMessage.objects.create(
                 conversation=conversation,
                 sender=request.user,
@@ -360,7 +378,62 @@ class SupportConversationViewSet(
             conversation.updated_at = timezone.now()
             conversation.save(update_fields=["status", "updated_at"])
             notify_message(conversation, request.user)
+            for file in files:
+                file.message = message
+                file.save(update_fields=['message'])
         return Response(MessageSerializer(message).data, status=201)
+
+    @action(detail=True, methods=['get', 'post'], url_path='files')
+    def correspondence_files(self, request, pk=None):
+        conversation = self.get_object()
+        if request.method == 'POST':
+            if conversation.channel == 'email':
+                from .email_workspace import get_draft
+                get_draft(conversation)
+            return Response(self.upload_support_file(request), status=201)
+        query = conversation.files.defer('content').filter(message__isnull=True)
+        if not request.user.is_staff:
+            query = query.filter(uploaded_by=request.user)
+        return Response([metadata(row) for row in query.order_by('-id')[:30]])
+
+    @action(detail=True, methods=['get', 'post'], url_path='documents')
+    def correspondence_documents(self, request, pk=None):
+        if request.method == 'GET':
+            return Response(self.document_options())
+        return Response(self.attach_document(request), status=201)
+
+    @action(detail=True, methods=['get'], url_path=r'files/(?P<file_id>[0-9]+)')
+    def correspondence_file(self, request, pk=None, file_id=None):
+        from django.shortcuts import get_object_or_404
+        conversation = self.get_object()
+        query = conversation.files.all()
+        if not request.user.is_staff:
+            query = query.filter(Q(message__isnull=False) | Q(uploaded_by=request.user))
+        return file_response(get_object_or_404(query, pk=file_id))
+
+    @action(detail=True, methods=['post'], url_path='email-files')
+    def inbound_email_files(self, request, pk=None):
+        from django.shortcuts import get_object_or_404
+
+        from .models import SupportFile
+        from .zoho_mail import connection, headers, provider
+        conversation = self.email_conversation()
+        message = get_object_or_404(conversation.messages, pk=serializers.IntegerField(min_value=1).run_validation(request.data.get('message_id')), source='email', is_staff=False)
+        config = connection()
+        folder = str(message.email_headers.get('folder_id', ''))
+        if not config or not config.receiving_enabled or not folder.isdigit() or not message.email_id or not message.email_id.startswith(config.oauth_account_id + ':'):
+            raise serializers.ValidationError('Para emails anteriores a esta atualização, consulte os anexos no Zoho.')
+        message_id = message.email_id.split(':')[1]
+        result = provider('GET', f'https://mail.zoho.com/api/accounts/{config.oauth_account_id}/folders/{folder}/messages/{message_id}/attachmentinfo', headers=headers(config), params={'includeInline': 'false'})
+        for entry in result.get('data', {}).get('attachments', [])[:20]:
+            name = str(entry.get('attachmentName', ''))[:180]
+            mime = {'.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp'}.get(PurePath(name).suffix.lower())
+            size = str(entry.get('attachmentSize', ''))
+            attachment_id = str(entry.get('attachmentId', ''))
+            if not mime or not size.isdigit() or int(size) > 3 * 1024 * 1024 or not attachment_id.isdigit():
+                continue
+            SupportFile.objects.get_or_create(conversation=conversation, message=message, zoho={'account': config.oauth_account_id, 'folder': folder, 'message': message_id, 'attachment': attachment_id}, defaults={'name': name, 'mime_type': mime, 'size': int(size), 'sha256': ''})
+        return Response({'files': [metadata(row) for row in message.files.defer('content').all()], 'detail': 'PDF e imagens até 3 MB disponíveis. Outros formatos permanecem no Zoho.'})
 
     @action(detail=True, methods=["post"])
     def read(self, request, pk=None):

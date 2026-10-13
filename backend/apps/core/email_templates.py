@@ -41,16 +41,18 @@ def models_for(conversation, user):
              'missing': PLACEHOLDER.findall(subject + '\n' + body)} for key, label, subject, body in entries]
 
 
-def preview(subject, body):
-    profile = signature()
+def preview(subject, body, staff_profile=None, attachments=None):
+    profile = staff_profile or signature()
     def rich_text(text):
         parts = re.split(r'(https?://[^\s<>]+)', text)
         return ''.join(f'<a href="{escape(part)}" style="color:#174733;text-decoration:underline">{escape(part)}</a>' if part.startswith(('https://', 'http://')) else str(escape(part)) for part in parts).replace('\n', '<br>')
     paragraphs = ''.join(f'<p style="margin:0 0 16px;line-height:1.7">{rich_text(part)}</p>' for part in body.split('\n\n'))
     html = f'''<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src https://maputopublicidade.com;"></head><body style="margin:0;background:#f3f5ef;font-family:Arial,sans-serif;color:#243d32"><table role="presentation" style="width:100%;max-width:640px;margin:24px auto;background:white;border-collapse:collapse"><tr><td style="padding:24px 32px;border-top:4px solid #bc9c50;border-bottom:1px solid #e5e9df"><img src="https://maputopublicidade.com/logo-tight.png" width="150" alt="Maputo Publicidade"><p style="font-size:10px;letter-spacing:2px;color:#68816c">ATENDIMENTO · MAPUTO PUBLICIDADE</p></td></tr><tr><td style="padding:32px"><h1 style="font-size:22px;font-weight:600;margin:0 0 24px;color:#174733">{escape(subject)}</h1>{paragraphs}<div style="margin-top:28px;padding-top:20px;border-top:1px solid #ddcf9d;font-size:13px;line-height:1.8"><strong>Equipa de Atendimento</strong><br>{escape(profile['name'])}<br>{escape(profile['email'])}<br>{escape(profile['phone'])}<br>{escape(profile['address'])}</div></td></tr><tr><td style="padding:16px 32px;background:#174733;color:#eef3e8;font-size:11px">Pode responder diretamente a este email. Estamos disponíveis para ajudar.</td></tr></table></body></html>'''
-    digest = hashlib.sha256(json.dumps({'subject': subject, 'body': body, 'signature': profile}, sort_keys=True).encode()).hexdigest()
+    if staff_profile:
+        html = html.replace('<strong>Equipa de Atendimento</strong>', f"<strong>{escape(profile['staff_name'])}</strong><br>{escape(profile['staff_title'])}")
+    digest = hashlib.sha256(json.dumps({'subject': subject, 'body': body, 'signature': profile, 'attachments': attachments or []}, sort_keys=True).encode()).hexdigest()
     text = subject + '\n' + body
     missing = PLACEHOLDER.findall(text)
     if ('⟦' in text or '⟧' in text) and not missing:
         missing = ['Marcadores de informação por completar']
-    return {'html': html, 'hash': digest, 'signature': profile, 'missing': missing}
+    return {'html': html, 'hash': digest, 'signature': profile, 'missing': missing, 'attachments': attachments or [], 'signature_approved': bool(staff_profile)}

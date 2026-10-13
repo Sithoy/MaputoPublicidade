@@ -5,6 +5,7 @@ from .email_connection import EmailSettingsView, EmailTestView
 from .notification_views import PortalNotificationViewSet
 from .production_views import AuthenticatedArtFile, ProductionViewSet, PublicArtReview
 from .reception_views import ReceptionViewSet
+from .signatures import StaffSignatures
 from .support_views import SupportConversationViewSet
 from .tracking_views import TrackingDetail, TrackingLookup, TrackingMessages
 from .whatsapp_views import (
@@ -31,6 +32,7 @@ router.register(
 router.register("reception", ReceptionViewSet, basename="reception")
 router.register("production", ProductionViewSet, basename="production")
 urlpatterns = [
+    path('staff-email-signatures/', StaffSignatures.as_view(), name='staff-email-signatures'),
     path("integrations/email/oauth/activate/", ZohoActivate.as_view(), name="zoho-activate"),
     path("integrations/email/oauth/sync/", ZohoSync.as_view(), name="zoho-sync"),
     path("integrations/email/oauth/send-test/", ZohoSendTest.as_view(), name="zoho-send-test"),

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithAuth } from '@/lib/auth';
+vi.mock('./StaffSignatures', () => ({ StaffSignatures: () => <p>Assinaturas da equipa</p> }));
 import { SettingsWorkspace } from './SettingsWorkspace';
 
 const auth = vi.hoisted(() => ({ loading: false, allowed: true, users: true }));

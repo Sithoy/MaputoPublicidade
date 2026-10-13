@@ -88,11 +88,35 @@ class EmailDraft(models.Model):
     subject = models.CharField(max_length=255)
     body = models.TextField(blank=True, max_length=4000)
     template_key = models.CharField(max_length=40, blank=True)
+    attachment_ids = models.JSONField(default=list, blank=True)
     version = models.PositiveIntegerField(default=0)
     request_id = models.UUIDField(default=uuid.uuid4)
     send_state = models.CharField(max_length=20, default='idle')
     updated_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name='+')
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class StaffEmailSignature(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='email_signature')
+    display_name = models.CharField(max_length=160)
+    title = models.CharField(max_length=120)
+    approved = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class SupportFile(models.Model):
+    conversation = models.ForeignKey(SupportConversation, on_delete=models.CASCADE, related_name='files')
+    message = models.ForeignKey(SupportMessage, null=True, on_delete=models.CASCADE, related_name='files')
+    uploaded_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
+    name = models.CharField(max_length=180)
+    mime_type = models.CharField(max_length=80)
+    size = models.PositiveIntegerField()
+    sha256 = models.CharField(max_length=64)
+    content = models.BinaryField(default=bytes, blank=True)
+    zoho = models.JSONField(default=dict, blank=True)
+    document_source = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class WhatsAppConnection(models.Model):

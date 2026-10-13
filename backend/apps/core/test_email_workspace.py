@@ -9,9 +9,20 @@ from rest_framework.test import APIClient
 from apps.accounts.roles import StaffRole
 from apps.core.email_connection import cipher
 from apps.core.email_templates import preview
-from apps.core.models import EmailConnection, EmailDraft, SupportConversation, SupportMessage
+from apps.core.models import (
+    EmailConnection,
+    EmailDraft,
+    StaffEmailSignature,
+    SupportConversation,
+    SupportMessage,
+)
 
 BASE = '/api/support-conversations/'
+
+
+@pytest.fixture(autouse=True)
+def approved_staff_signature(staff_user):
+    return StaffEmailSignature.objects.create(user=staff_user, display_name='Recepção MP', title='Atendimento', approved=True, approved_by=staff_user)
 
 
 @pytest.fixture(autouse=True)
