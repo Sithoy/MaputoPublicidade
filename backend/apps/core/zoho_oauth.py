@@ -55,7 +55,9 @@ def account(access_token):
 def oauth_data(config):
     return {'client_id': config.oauth_client_id, 'secret_configured': bool(config.oauth_secret),
             'connected': bool(config.oauth_refresh and config.oauth_account_id), 'tested_at': config.tested_at,
-            'sending_active': False, 'receiving_active': False, 'callback_url': CALLBACK}
+            'sending_active': config.sending_enabled, 'receiving_active': config.receiving_enabled,
+            'last_synced_at': config.last_synced_at, 'receiving_since': config.receiving_since,
+            'sync_mode': 'inbox_open', 'callback_url': CALLBACK}
 
 
 class OAuthInput(serializers.Serializer):
@@ -86,6 +88,8 @@ class ZohoOAuthSettings(EmailSettingsView):
         if secret:
             config.oauth_secret = cipher().encrypt(secret.encode()).decode()
         if changed:
+            config.sending_enabled = config.receiving_enabled = False
+            config.receiving_since = None
             config.oauth_refresh = config.oauth_account_id = config.oauth_state_hash = ''
             config.oauth_state_expires = config.tested_at = None
             config.oauth_actor = None
@@ -154,8 +158,10 @@ class ZohoOAuthCallback(EmailSettingsView):
                     raise ValidationError('Configuração alterada.')
                 current.oauth_refresh = cipher().encrypt(token['refresh_token'].encode()).decode()
                 current.oauth_account_id = account_id
+                current.sending_enabled = current.receiving_enabled = False
+                current.receiving_since = None
                 current.tested_at = timezone.now()
-                current.save(update_fields=['oauth_refresh', 'oauth_account_id', 'tested_at'])
+                current.save(update_fields=['oauth_refresh', 'oauth_account_id', 'tested_at', 'sending_enabled', 'receiving_enabled', 'receiving_since'])
             outcome = 'connected'
         except Exception:
             # Never return/log authorization codes, token responses or provider errors.
@@ -186,3 +192,56 @@ class ZohoOAuthTest(EmailSettingsView):
             current.tested_at = timezone.now()
             current.save(update_fields=['oauth_account_id', 'tested_at'])
         return Response({**oauth_data(current), 'detail': 'API Zoho autenticada. Não foram enviados nem importados emails.'})
+
+
+class ZohoActivate(EmailSettingsView):
+    http_method_names = ['post', 'options']
+
+    def post(self, request):
+        enabled = serializers.BooleanField().run_validation(request.data.get('enabled'))
+        if set(request.data) != {'enabled'}:
+            raise ValidationError('Campos desconhecidos.')
+        config = EmailConnection.objects.get_or_create(pk=1)[0]
+        snapshot = (config.oauth_client_id, config.oauth_secret, config.oauth_refresh)
+        if enabled:
+            from .zoho_mail import access
+            token = access(config)
+            if account(token) != config.oauth_account_id:
+                raise ValidationError('A conta Zoho mudou. Autorize novamente.')
+            provider('GET', f'https://mail.zoho.com/api/accounts/{config.oauth_account_id}/messages/view',
+                     headers={'Authorization': 'Zoho-oauthtoken ' + token}, params={'limit': 1, 'includesent': 'false'})
+        with transaction.atomic():
+            current = EmailConnection.objects.select_for_update().get(pk=1)
+            if snapshot != (current.oauth_client_id, current.oauth_secret, current.oauth_refresh):
+                raise ValidationError('Configuração alterada. Tente novamente.')
+            if enabled and not current.receiving_enabled:
+                current.receiving_since = timezone.now()
+                current.sync_start = 1
+            current.sending_enabled = current.receiving_enabled = enabled
+            current.save()
+        return Response({**oauth_data(current), 'detail': 'Envio ativo. Os novos emails são importados ao abrir/atualizar a caixa MP.' if enabled else 'Envio e importação desativados.'})
+
+
+class ZohoSync(EmailSettingsView):
+    http_method_names = ['post', 'options']
+
+    def get_permissions(self):
+        from apps.accounts.roles import StaffCapability
+
+        from .permissions import HasStaffCapability
+        return [HasStaffCapability(StaffCapability.MANAGE_SUPPORT)]
+
+    def post(self, request):
+        from .zoho_mail import sync_mail
+        return Response(sync_mail())
+
+
+class ZohoSendTest(EmailSettingsView):
+    http_method_names = ['post', 'options']
+
+    def post(self, request):
+        email = serializers.EmailField().run_validation(request.data.get('email'))
+        from .zoho_mail import send
+        send(EmailConnection.objects.get_or_create(pk=1)[0], 'Maputo Publicidade — teste de ligação Zoho API',
+             'Este é um email de teste da ligação Atendimento à plataforma MP. Pode responder a este email para confirmar a receção na caixa MP.', [email])
+        return Response({'detail': 'O Zoho aceitou o email de teste. Confirme a entrega no destinatário.'})

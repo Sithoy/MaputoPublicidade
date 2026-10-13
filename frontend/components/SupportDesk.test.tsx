@@ -21,6 +21,34 @@ function setup() {
 }
 
 describe('SupportDesk', () => {
+  it('syncs incoming emails for staff and sends email replies with a stable request identifier', async () => {
+    query = 'conversa=7';
+    const email = { ...thread, channel: 'email', email: { address: 'client@example.com', can_reply: true } };
+    vi.mocked(fetchWithAuth).mockImplementation(async (path, options) => {
+      if (path.endsWith('/sync/')) return { active: true, imported: 0, more: false };
+      if (path.endsWith('/7/')) return email;
+      if (path.endsWith('/read/')) return {};
+      if (path.endsWith('/messages/')) {
+        if (options?.method === 'POST') throw new Error('Envio não confirmado. Verifique no Zoho.');
+        return { results: [message], next: null };
+      }
+      return { results: [email], next: null };
+    });
+    render(<SupportDesk staff />);
+    await screen.findByText('Quando estará pronto?');
+    expect(fetchWithAuth).toHaveBeenCalledWith('/api/integrations/email/oauth/sync/', expect.objectContaining({ method: 'POST' }));
+    fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Resposta por email' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta por email' }));
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta por email' }));
+    await waitFor(() => expect(vi.mocked(fetchWithAuth).mock.calls.filter(([path, options]) => path.endsWith('/messages/') && options?.method === 'POST')).toHaveLength(2));
+    const calls = vi.mocked(fetchWithAuth).mock.calls.filter(([path, options]) => path.endsWith('/messages/') && options?.method === 'POST');
+    const first = JSON.parse(String(calls[0][1]?.body));
+    const second = JSON.parse(String(calls[1][1]?.body));
+    expect(first.request_id).toMatch(/^[a-f0-9-]{36}$/);
+    expect(second.request_id).toBe(first.request_id);
+    expect(screen.getByLabelText('Mensagem')).toHaveValue('Resposta por email');
+  });
   it('filters embedded conversations by the operational quote, ignoring unrelated conversation links', async () => {
     query = 'conversa=999'; setup();
     render(<SupportDesk staff quoteReference="MP-0001-2026" />);

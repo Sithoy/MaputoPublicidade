@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '@/lib/auth';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 
-type Config = { client_id: string; secret_configured: boolean; connected: boolean; tested_at: string | null; callback_url: string };
+type Config = { client_id: string; secret_configured: boolean; connected: boolean; tested_at: string | null; callback_url: string; sending_active?: boolean; receiving_active?: boolean; last_synced_at?: string | null };
 const base = '/api/integrations/email/oauth/';
 
 export function EmailSettings({ embedded = false, onDirtyChange, onBusyChange }: {
@@ -18,6 +18,7 @@ export function EmailSettings({ embedded = false, onDirtyChange, onBusyChange }:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [testEmail, setTestEmail] = useState('');
   const dirty = Boolean(secret) || Boolean(config && clientId !== config.client_id);
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
@@ -37,13 +38,13 @@ export function EmailSettings({ embedded = false, onDirtyChange, onBusyChange }:
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
-  async function perform(action: 'save' | 'start' | 'test') {
+  async function perform(action: 'save' | 'start' | 'test' | 'activate') {
     if (!config || busy || (action !== 'save' && dirty)) return;
     setBusy(true); setError(''); setNotice('');
     try {
       const value = await fetchWithAuth(action === 'save' ? base : `${base}${action}/`, {
         method: action === 'save' ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(action === 'save' ? { client_id: clientId, client_secret: secret } : {}),
+        body: JSON.stringify(action === 'save' ? { client_id: clientId, client_secret: secret } : action === 'activate' ? { enabled: !config.sending_active } : {}),
       });
       if (action === 'start') {
         const url = new URL(value.url);
@@ -54,6 +55,13 @@ export function EmailSettings({ embedded = false, onDirtyChange, onBusyChange }:
       setConfig(value); setClientId(value.client_id); setSecret('');
       setNotice(value.detail || 'Cliente OAuth guardado. Autorize agora a conta Atendimento.');
     } catch { setError(action === 'test' ? 'A API Zoho não confirmou a ligação. Autorize novamente a conta Atendimento.' : 'Não foi possível concluir. Verifique o cliente OAuth, as permissões e a ligação ao backend.'); }
+    finally { setBusy(false); }
+  }
+  async function sendTest() {
+    if (!testEmail || busy || dirty) return;
+    setBusy(true); setError(''); setNotice('');
+    try { const result = await fetchWithAuth(`${base}send-test/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: testEmail }) }); setNotice(result.detail); }
+    catch { setError('O envio não foi confirmado. Verifique a caixa Zoho antes de repetir o teste.'); }
     finally { setBusy(false); }
   }
   if (loading || !allowed) return null;
@@ -73,8 +81,11 @@ export function EmailSettings({ embedded = false, onDirtyChange, onBusyChange }:
         <button disabled={busy} className="rounded-xl bg-brand-800 px-4 py-3 text-sm font-semibold text-white">Guardar ligação</button>
         <button type="button" disabled={busy || dirty || !config.secret_configured} onClick={() => void perform('start')} className="rounded-xl border px-4 py-3 text-sm disabled:opacity-40">Autorizar no Zoho</button>
         <button type="button" disabled={busy || dirty || !config.connected} onClick={() => void perform('test')} className="rounded-xl border px-4 py-3 text-sm disabled:opacity-40">Testar API Zoho</button>
+        <button type="button" disabled={busy || dirty || !config.connected} onClick={() => void perform('activate')} className="rounded-xl bg-brand-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{config.sending_active ? 'Desativar email' : 'Ativar envio e receção'}</button>
       </div>
-      <p className="text-xs text-slate-500">{config.connected ? 'Conta ligada à API.' : 'Autorização OAuth pendente.'} O teste não envia emails. O envio pelo site e a sincronização com a caixa MP ainda não estão ativos.</p>
+      <p className="text-xs text-slate-500">{config.connected ? 'Conta ligada à API.' : 'Autorização OAuth pendente.'} O teste de autenticação não envia emails. {config.sending_active ? 'Envio pelo site ativo por atendimento@maputopublicidade.com.' : 'O envio pelo site e a sincronização com a caixa MP ainda não estão ativos.'}</p>
+      {config.receiving_active ? <p className="rounded-xl bg-brand-50 p-4 text-xs leading-6 text-brand-900">Importação ativa para novos emails a partir da ativação. Sincronização ao abrir/atualizar Mensagens e apoio, e a cada minuto enquanto a caixa estiver aberta. Não existe ainda um agendamento com o painel fechado. Anexos continuam na caixa Zoho.</p> : null}
+      {config.sending_active ? <fieldset disabled={busy || dirty} className="rounded-xl border p-4"><label className="text-xs">Destinatário do teste<input type="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} className="mt-2 block w-full rounded-xl border p-3 text-sm" /></label><button type="button" disabled={!testEmail || busy || dirty} onClick={() => void sendTest()} className="mt-3 rounded-xl border px-4 py-3 text-sm disabled:opacity-40">Enviar email de teste</button></fieldset> : null}
     </form> : <p className="mt-4 text-sm">A carregar ligação…</p>}
   </section>;
 }

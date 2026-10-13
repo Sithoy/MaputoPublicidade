@@ -246,6 +246,11 @@ if DEBUG:
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
+LEGACY_EMAIL_BACKEND = EMAIL_BACKEND
+if EMAIL_BACKEND not in {'django.core.mail.backends.locmem.EmailBackend', 'django.core.mail.backends.dummy.EmailBackend'}:
+    if EMAIL_BACKEND == 'apps.core.zoho_email_backend.ZohoEmailBackend':
+        LEGACY_EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_BACKEND = 'apps.core.zoho_email_backend.ZohoEmailBackend'
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("1", "true", "yes")

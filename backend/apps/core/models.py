@@ -17,6 +17,12 @@ class EmailConnection(models.Model):
     oauth_state_hash = models.CharField(max_length=64, blank=True)
     oauth_state_expires = models.DateTimeField(null=True, blank=True)
     oauth_actor = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    sending_enabled = models.BooleanField(default=False)
+    receiving_enabled = models.BooleanField(default=False)
+    receiving_since = models.DateTimeField(null=True, blank=True)
+    sync_start = models.PositiveIntegerField(default=1)
+    sync_lock_until = models.DateTimeField(null=True, blank=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
     tested_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -31,6 +37,8 @@ class ReceptionEditLease(models.Model):
 class SupportConversation(models.Model):
     client = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE, related_name="support_conversations")
     channel = models.CharField(max_length=20, default="branddesk")
+    email_thread_key = models.CharField(max_length=64, null=True, blank=True, unique=True)
+    contact_email = models.EmailField(blank=True)
     whatsapp_phone = models.CharField(max_length=20, null=True, blank=True, unique=True)
     contact_name = models.CharField(max_length=160, blank=True)
     last_inbound_at = models.DateTimeField(null=True, blank=True)
@@ -53,6 +61,8 @@ class SupportConversation(models.Model):
 
 
 class SupportMessage(models.Model):
+    email_id = models.CharField(max_length=160, null=True, blank=True, unique=True)
+    email_request_id = models.UUIDField(null=True, blank=True, unique=True)
     attachment = models.JSONField(default=dict, blank=True)
     template = models.JSONField(default=dict, blank=True)
     whatsapp_id = models.CharField(max_length=255, null=True, blank=True, unique=True)

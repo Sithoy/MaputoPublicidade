@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Headphones, Plus, RefreshCw, Send } from 'lucide-react';
@@ -10,7 +10,8 @@ import { WhatsAppTemplateComposer } from './WhatsAppTemplateComposer';
 import { SupportContextCard, SupportContextPicker, type SupportContext } from './SupportContext';
 
 type Conversation = {
-  channel?: 'branddesk' | 'whatsapp';
+  channel?: 'branddesk' | 'whatsapp' | 'tracking' | 'email';
+  email?: { address: string; can_reply: boolean } | null;
   whatsapp?: { phone: string; can_reply: boolean; coexistence: boolean; last_inbound_at: string | null } | null;
   id: number; subject: string; client_name: string; status: string; unread_count: number;
   quote_reference: string; order_reference: string;
@@ -44,6 +45,10 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncNotice, setSyncNotice] = useState('');
+  const emailRequest = useRef<{ target: number; body: string; id: string } | null>(null);
+  const syncing = useRef(false);
   const active = useRef(selected);
   active.current = selected;
   const key = String(selected ?? 'new');
@@ -57,6 +62,23 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
     onDirtyChange?.(Object.values(drafts).some((value) => Boolean(value.trim())) || Boolean(subject.trim()));
   }, [drafts, subject, onDirtyChange]);
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
+
+  const syncEmails = useCallback(async () => {
+    if (!staff || syncing.current) return;
+    syncing.current = true; setSyncBusy(true);
+    try {
+      const result = await write('/api/integrations/email/oauth/sync/', {});
+      setSyncNotice(result?.active ? result.busy ? 'Sincronização em curso por outro colega.' : `Email atualizado · ${result.imported || 0} novos${result.more ? ' · há mais emails por sincronizar' : ''}` : 'Email ainda não ativo nas Definições.');
+      if (result?.imported) setRevision((value) => value + 1);
+    } catch { setSyncNotice('Não foi possível sincronizar o email. Tente atualizar a caixa.'); }
+    finally { syncing.current = false; setSyncBusy(false); }
+  }, [staff]);
+  useEffect(() => {
+    if (!staff) return;
+    void syncEmails();
+    const timer = window.setInterval(() => { void syncEmails(); }, 60000);
+    return () => window.clearInterval(timer);
+  }, [staff, syncEmails]);
 
   useEffect(() => {
     setSelected(Number(requestedConversation) || null);
@@ -93,7 +115,14 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
     const target = selected;
     setBusy(true); setError('');
     try {
-      if (target) await write(`${base}${target}/messages/`, { body: draft.trim() });
+      if (target) {
+        let requestId: string | undefined;
+        if (detail?.channel === 'email') {
+          if (emailRequest.current?.target !== target || emailRequest.current?.body !== draft.trim()) emailRequest.current = { target, body: draft.trim(), id: crypto.randomUUID() };
+          requestId = emailRequest.current.id;
+        }
+        await write(`${base}${target}/messages/`, { body: draft.trim(), ...(requestId ? { request_id: requestId } : {}) });
+      }
       else {
         const created: Conversation = await write(base, {
           subject: subject.trim(), body: draft.trim(),
@@ -107,8 +136,8 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
       setDrafts((current) => ({ ...current, [String(target ?? 'new')]: '' }));
       setRevision((value) => value + 1);
     } catch (reason) {
-      const failure = detail?.channel === 'whatsapp' && reason instanceof Error ? reason.message : 'Não foi possível enviar. Confirme os dados e a ligação e tente novamente.';
-      if (target && detail?.channel === 'whatsapp') {
+      const failure = (detail?.channel === 'whatsapp' || detail?.channel === 'email') && reason instanceof Error ? reason.message : 'Não foi possível enviar. Confirme os dados e a ligação e tente novamente.';
+      if (target && (detail?.channel === 'whatsapp' || detail?.channel === 'email')) {
         // Preserve the draft, but show the durable "unconfirmed" record before a retry.
         try {
           const page: Page<Message> = await fetchWithAuth(`${base}${target}/messages/`);
@@ -156,8 +185,9 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><div className="flex items-center gap-2 text-brand-800"><Headphones className="h-5 w-5" /><h2 className="text-2xl font-semibold">{staff ? 'Mensagens e apoio' : 'Falar com a MP'}</h2></div>
           <p className="mt-2 text-sm text-slate-600">{staff ? 'Uma caixa de entrada para acompanhar e responder aos clientes.' : 'Deixe a sua questão. A Recepção responderá por aqui; não é um chat instantâneo.'}</p></div>
-        <button type="button" disabled={busy} onClick={() => setRevision((value) => value + 1)} className="inline-flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-sm"><RefreshCw className="h-4 w-4" />Atualizar</button>
+        <button type="button" disabled={busy || syncBusy} onClick={() => { setRevision((value) => value + 1); if (staff) void syncEmails(); }} className="inline-flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-sm"><RefreshCw className="h-4 w-4" />{syncBusy ? 'A sincronizar email…' : 'Atualizar'}</button>
       </div>
+      {staff ? <p role="status" className="text-xs text-slate-500">{syncNotice} Sincronização de email enquanto esta caixa estiver aberta.</p> : null}
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       <div className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white lg:grid-cols-[320px_1fr]">
         <aside className="border-b p-4 lg:border-b-0 lg:border-r" aria-label="Conversas">
@@ -168,6 +198,7 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
             <button key={thread.id} type="button" disabled={busy} onClick={() => setSelected(thread.id)} aria-pressed={selected === thread.id} className={`w-full rounded-xl border p-3 text-left ${selected === thread.id ? 'border-brand-300 bg-brand-50' : 'border-transparent hover:bg-slate-50'}`}>
               {staff && <p className="text-xs font-semibold text-brand-700">{thread.client_name}</p>}
               {thread.channel === 'whatsapp' ? <span className="text-xs font-semibold text-brand-700">WhatsApp</span> : null}
+              {thread.channel === 'email' ? <span className="text-xs font-semibold text-brand-700">Email</span> : null}
               <p className="text-sm font-semibold">{thread.subject}</p><p className="mt-1 text-xs text-slate-500">{statuses[thread.status]}{thread.unread_count > 0 ? ` · ${thread.unread_count} por ler` : ''}</p>
             </button>))}</div>
           {nextThreads && <button type="button" disabled={busy} onClick={() => loadMore(nextThreads, 'threads')} className="mt-3 text-sm text-brand-800">Mais conversas</button>}
@@ -181,7 +212,7 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
               {staff && detail.whatsapp && !detail.whatsapp.can_reply ? <div className="my-3 rounded-xl bg-amber-50 p-4 text-sm"><p>A resposta livre pela API está indisponível: a janela de 24 horas terminou ou a integração está desativada. Uma resposta enviada pela empresa não reabre essa janela.</p>{detail.whatsapp.coexistence ? <a href={`https://wa.me/${detail.whatsapp.phone}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold text-brand-800">Abrir conversa no WhatsApp Business →</a> : <p className="mt-2">Use um template aprovado no editor abaixo, com a integração ativa.</p>}</div> : null}
               <div className="my-4 max-h-[460px] space-y-4 overflow-y-auto" aria-label="Histórico de mensagens">
                 {older && <button type="button" disabled={busy} onClick={() => loadMore(older, 'messages')} className="text-sm text-brand-800">Mensagens anteriores</button>}
-                {messages.map((message) => <div key={message.id} className={`max-w-[90%] rounded-2xl p-4 ${message.is_staff === staff ? 'ml-auto bg-brand-50' : 'bg-slate-100'}`}><p className="text-xs font-semibold text-brand-800">{message.is_staff ? 'Equipa MP' : detail.client_name}{message.source === 'whatsapp_app' ? ' · telefone' : ''}</p>{message.template ? <p className="mt-1 text-xs text-brand-700">Template: {message.template.name} · {message.template.language}</p> : null}<p className="mt-2 whitespace-pre-wrap break-words text-sm">{message.body}</p>{staff && message.attachment ? <WhatsAppAttachment conversationId={detail.id} messageId={message.id} file={message.attachment} /> : null}{message.delivery_status === 'unconfirmed' || message.delivery_status === 'failed' ? <p className="mt-2 text-xs text-amber-800">Envio {message.delivery_status === 'failed' ? 'falhou' : 'não confirmado — verifique no telefone antes de reenviar'}.</p> : null}<time className="mt-2 block text-[11px] text-slate-500" dateTime={message.created_at}>{new Date(message.created_at).toLocaleString('pt-MZ')}</time></div>)}
+                {messages.map((message) => <div key={message.id} className={`max-w-[90%] rounded-2xl p-4 ${message.is_staff === staff ? 'ml-auto bg-brand-50' : 'bg-slate-100'}`}><p className="text-xs font-semibold text-brand-800">{message.is_staff ? 'Equipa MP' : detail.client_name}{message.source === 'whatsapp_app' ? ' · telefone' : ''}</p>{message.template ? <p className="mt-1 text-xs text-brand-700">Template: {message.template.name} · {message.template.language}</p> : null}<p className="mt-2 whitespace-pre-wrap break-words text-sm">{message.body}</p>{staff && message.attachment ? <WhatsAppAttachment conversationId={detail.id} messageId={message.id} file={message.attachment} /> : null}{message.delivery_status === 'unconfirmed' || message.delivery_status === 'failed' ? <p className="mt-2 text-xs text-amber-800">Envio {message.delivery_status === 'failed' ? 'falhou' : message.source === 'email' ? 'não confirmado — verifique no Zoho antes de reenviar' : 'não confirmado — verifique no telefone antes de reenviar'}.</p> : null}{message.source === 'email' && message.delivery_status === 'accepted' ? <p className="mt-2 text-xs text-brand-700">Aceite pelo Zoho para envio.</p> : null}<time className="mt-2 block text-[11px] text-slate-500" dateTime={message.created_at}>{new Date(message.created_at).toLocaleString('pt-MZ')}</time></div>)}
               </div>
               {staff && detail.channel === 'whatsapp' ? <WhatsAppTemplateComposer key={detail.id} conversationId={detail.id} onSending={setBusy} onSent={() => setRevision((value) => value + 1)} onFailed={() => {
                 const target = detail.id;
@@ -196,7 +227,8 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
             {!selected ? <fieldset disabled={busy}><SupportContextPicker key={`${quote}:${order}:${invoice}`} initial={initialContext} onChange={setChosenContext} onReady={setContextReady} /></fieldset> : null}
             {!selected && <label className="block text-sm font-medium">Assunto<input required maxLength={160} value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-2 w-full rounded-xl border p-3" placeholder="Ex.: Uma dúvida sobre a minha proposta" /></label>}
             <label className="block text-sm font-medium">Mensagem<textarea required maxLength={4000} rows={4} value={draft} disabled={busy} onChange={(event) => setDrafts((current) => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full resize-y rounded-xl border p-3" placeholder="Explique a sua questão…" /></label>
-            <button disabled={busy || !draft.trim() || (staff && Boolean(detail?.whatsapp) && !detail?.whatsapp?.can_reply) || (!selected && (!subject.trim() || !contextReady))} className="inline-flex items-center gap-2 rounded-xl bg-brand-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"><Send className="h-4 w-4" />{busy ? 'A enviar…' : 'Enviar mensagem'}</button>
+            {staff && detail?.email ? <p className="text-xs text-slate-500">Resposta por atendimento@maputopublicidade.com para {detail.email.address}. Emails são contactos externos e não confirmam a identidade do remetente.</p> : null}
+            <button disabled={busy || !draft.trim() || (staff && Boolean(detail?.email) && !detail?.email?.can_reply) || (staff && Boolean(detail?.whatsapp) && !detail?.whatsapp?.can_reply) || (!selected && (!subject.trim() || !contextReady))} className="inline-flex items-center gap-2 rounded-xl bg-brand-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"><Send className="h-4 w-4" />{busy ? 'A enviar…' : detail?.channel === 'email' ? 'Enviar resposta por email' : 'Enviar mensagem'}</button>
           </form>}
         </div>
       </div>

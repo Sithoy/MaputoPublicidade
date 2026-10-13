@@ -27,6 +27,7 @@ class SupportWriteThrottle(UserRateThrottle):
 
 class MessageInput(serializers.Serializer):
     body = serializers.CharField(max_length=4000)
+    request_id = serializers.UUIDField(required=False)
 
 
 class WhatsAppReadThrottle(UserRateThrottle):
@@ -114,6 +115,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
 
 class ConversationSerializer(serializers.ModelSerializer):
+    email = serializers.SerializerMethodField()
     whatsapp = serializers.SerializerMethodField()
     client_name = serializers.SerializerMethodField()
     quote_reference = serializers.SerializerMethodField()
@@ -142,6 +144,8 @@ class ConversationSerializer(serializers.ModelSerializer):
     unread_count = serializers.IntegerField(read_only=True)
 
     def get_client_name(self, obj):
+        if obj.channel == "email":
+            return obj.contact_name or obj.contact_email or 'Contacto por email'
         if obj.channel == "tracking":
             return obj.contact_name or "Cliente MP"
         if obj.channel == "whatsapp":
@@ -161,6 +165,13 @@ class ConversationSerializer(serializers.ModelSerializer):
                 "last_inbound_at": obj.last_inbound_at,
                 "coexistence": config.details.get("mode", "coexistence") == "coexistence"}
 
+    def get_email(self, obj):
+        if obj.channel != 'email' or not self.context['request'].user.is_staff:
+            return None
+        from .zoho_mail import connection
+        config = connection()
+        return {'address': obj.contact_email, 'can_reply': bool(config and config.sending_enabled)}
+
     class Meta:
         model = SupportConversation
         fields = [
@@ -175,6 +186,7 @@ class ConversationSerializer(serializers.ModelSerializer):
             "updated_at",
             "channel",
             "whatsapp",
+            "email",
         ]
 
 
@@ -231,7 +243,7 @@ class SupportConversationViewSet(
             if reference:
                 queryset = queryset.filter(Q(quote__reference=reference) | Q(order__quote__reference=reference))
             return queryset.order_by("-updated_at", "-id")
-        return queryset.filter(client=user).order_by("-updated_at", "-id")
+        return queryset.filter(client=user).exclude(channel='email').order_by("-updated_at", "-id")
 
     @action(detail=False, methods=["get"])
     def contexts(self, request):
@@ -294,6 +306,16 @@ class SupportConversationViewSet(
             return self.get_paginated_response(MessageSerializer(page, many=True).data)
         data = MessageInput(data=request.data)
         data.is_valid(raise_exception=True)
+        if conversation.channel == 'email':
+            if not request.user.is_staff:
+                raise PermissionDenied()
+            from .zoho_mail import send_reply
+            request_id = data.validated_data.get('request_id')
+            if not request_id:
+                raise serializers.ValidationError('Identificador de envio obrigatório.')
+            message = send_reply(conversation, request.user, data.validated_data['body'], request_id)
+            return Response(MessageSerializer(message).data, status=201)
+        data.validated_data.pop('request_id', None)
         if conversation.channel == "whatsapp":
             if not request.user.is_staff:
                 raise PermissionDenied()

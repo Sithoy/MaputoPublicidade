@@ -10,6 +10,27 @@ const config = { mailbox: 'atendimento@maputopublicidade.com', client_id: '1000.
 beforeEach(() => { vi.clearAllMocks(); auth.loading = false; auth.allowed = true; vi.mocked(fetchWithAuth).mockResolvedValue(config); });
 
 describe('Email settings', () => {
+  it('activates only through an explicit action and accurately describes inbox-open sync', async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ...config, connected: true, secret_configured: true });
+    render(<EmailSettings />);
+    const button = await screen.findByRole('button', { name: 'Ativar envio e receção' });
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ...config, connected: true, secret_configured: true, sending_active: true, receiving_active: true });
+    fireEvent.click(button);
+    expect(await screen.findByRole('button', { name: 'Desativar email' })).toBeInTheDocument();
+    expect(fetchWithAuth).toHaveBeenLastCalledWith('/api/integrations/email/oauth/activate/', expect.objectContaining({ method: 'POST', body: JSON.stringify({ enabled: true }) }));
+    expect(screen.getByText(/Não existe ainda um agendamento com o painel fechado/)).toBeInTheDocument();
+  });
+  it('sends a real test only to the explicitly entered address', async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ...config, connected: true, secret_configured: true, sending_active: true });
+    render(<EmailSettings />);
+    const field = await screen.findByLabelText('Destinatário do teste');
+    fireEvent.change(field, { target: { value: 'test@example.com' } });
+    vi.mocked(fetchWithAuth).mockResolvedValue({ detail: 'Aceite pelo Zoho.' });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar email de teste' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Aceite pelo Zoho.');
+    expect(fetchWithAuth).toHaveBeenLastCalledWith('/api/integrations/email/oauth/send-test/', expect.objectContaining({ body: JSON.stringify({ email: 'test@example.com' }) }));
+  });
   it('offers a protected credential field, not active delivery claims', async () => {
     render(<EmailSettings />);
     expect(await screen.findByLabelText('Caixa dedicada')).toHaveValue(config.mailbox);
