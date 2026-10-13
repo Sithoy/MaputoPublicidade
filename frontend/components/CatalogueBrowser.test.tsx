@@ -44,4 +44,11 @@ describe('Catalogue experience', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Personalize o seu pedido' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+  it('does not expose old variant prices for a product sold under consultation', () => {
+    render(<ProductVariantSelector product={{ ...products[0], pricing_complexity: 'complex' }} />);
+    expect(screen.getByText('Sob consulta')).toBeInTheDocument();
+    expect(screen.getAllByText('Valor na proposta')).toHaveLength(2);
+    expect(screen.queryByText('500 MZN')).not.toBeInTheDocument();
+    expect(screen.queryByText('700 MZN')).not.toBeInTheDocument();
+  });
 });

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { ProductForm } from '@/components/admin/ProductForm';
-import { getCategories, getProduct, updateProduct } from '@/lib/admin-api';
+import { getCategories, getProduct, saveProductDefinition } from '@/lib/admin-api';
 import type { Category, Product } from '@/lib/api';
 
 export default function EditProductPage() {
@@ -31,7 +31,7 @@ export default function EditProductPage() {
     setLoading(true);
     setError('');
     try {
-      const product = await updateProduct(slug, formData);
+      const product = await saveProductDefinition(formData, slug);
       return product;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao actualizar produto';

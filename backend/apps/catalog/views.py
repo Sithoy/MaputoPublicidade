@@ -1,4 +1,6 @@
 from rest_framework import permissions, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
 from apps.accounts.roles import StaffCapability, has_staff_capability
@@ -35,6 +37,18 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     lookup_field = "slug"
     parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+    @action(detail=False, methods=['post'], url_path='editor')
+    def editor_create(self, request, *args, **kwargs):
+        if 'variant_config' not in request.data:
+            raise ValidationError({'variant_config': 'Envie a configuração completa do editor.'})
+        return self.create(request, *args, **kwargs)
+
+    @action(detail=True, methods=['patch'], url_path='editor')
+    def editor_update(self, request, *args, **kwargs):
+        if 'variant_config' not in request.data:
+            raise ValidationError({'variant_config': 'Envie a configuração completa do editor.'})
+        return self.partial_update(request, *args, **kwargs)
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:

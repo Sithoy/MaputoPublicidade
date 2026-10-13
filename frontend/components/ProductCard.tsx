@@ -8,7 +8,7 @@ import type { Product } from '@/lib/api';
 
 export function ProductCard({ product }: { product: Product }) {
   const firstVariant = product.variants?.find(v => v.is_active !== false);
-  const price = product.starting_price || product.base_price;
+  const price = product.pricing_complexity === 'complex' ? undefined : product.starting_price ?? product.base_price;
   const currency = new Intl.NumberFormat('pt-MZ', { maximumFractionDigits: 2 });
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#E3E8E4] bg-white transition duration-200 hover:border-[#B3D8C3] hover:shadow-[0_16px_40px_-24px_rgba(6,63,43,0.3)]">
@@ -21,7 +21,7 @@ export function ProductCard({ product }: { product: Product }) {
         <h3 className="mt-2 text-lg font-bold leading-snug tracking-tight text-brand-800"><Link href={`/catalogo/${product.slug}`} className="hover:underline">{product.name}</Link></h3>
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#66736D]">{product.description}</p>
         <div className="mt-auto pt-5">
-          <p className="text-sm font-bold text-dark">{price ? `${product.has_variants ? 'Desde ' : ''}${currency.format(price)} MZN` : 'Sob consulta'}</p>
+          <p className="text-sm font-bold text-dark">{price != null ? `${product.has_variants ? 'Desde ' : ''}${currency.format(price)} MZN` : 'Sob consulta'}</p>
           <p className="mt-1 text-xs text-[#66736D]">{product.min_quantity ? `Pedido mínimo: ${product.min_quantity} ${product.min_quantity === 1 ? 'unidade' : 'unidades'}` : 'Proposta personalizada'}</p>
           <Link href={`/catalogo/${product.slug}`} className="mt-4 flex items-center justify-between border-t border-[#E3E8E4] pt-4 text-xs font-bold text-brand-800 hover:text-brand">Conheça e personalize <ArrowUpRight className="h-4 w-4" /></Link>
         </div>

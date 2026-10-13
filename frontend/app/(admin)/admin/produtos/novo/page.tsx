@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { ProductForm } from '@/components/admin/ProductForm';
-import { createProduct, getCategories } from '@/lib/admin-api';
+import { saveProductDefinition, getCategories } from '@/lib/admin-api';
 import type { Category, Product } from '@/lib/api';
 
 export default function NewProductPage() {
@@ -23,7 +23,7 @@ export default function NewProductPage() {
     setLoading(true);
     setError('');
     try {
-      const product = await createProduct(formData);
+      const product = await saveProductDefinition(formData);
       return product;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao criar produto';

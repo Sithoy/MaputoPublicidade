@@ -13,7 +13,7 @@ export function ProductVariantSelector({ product }: { product: Product }) {
   const [selectedId, setSelectedId] = useState(variants[0]?.id);
   const selected = variants.find(v => v.id === selectedId) ?? null;
   const [cartOpen, setCartOpen] = useState(false);
-  const price = selected?.price || product.starting_price || product.base_price;
+  const price = product.pricing_complexity === 'complex' ? undefined : selected?.price ?? product.starting_price ?? product.base_price;
   const apparel = product.order_template === 'apparel';
   const sizes = apparel ? product.apparel_options?.sizes : product.sizes;
   const facts = [
@@ -38,10 +38,10 @@ export function ProductVariantSelector({ product }: { product: Product }) {
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">{product.category || 'Catálogo MP'}</p>
           <h1 className="mt-3 text-balance text-3xl font-extrabold leading-tight tracking-[-0.035em] text-brand-800 sm:text-4xl">{product.name}</h1>
           <p className="mt-4 whitespace-pre-line text-base leading-7 text-[#66736D]">{product.description}</p>
-          {variants.length ? <fieldset className="mt-6"><legend className="mb-3 text-sm font-bold text-brand-800">Escolha a opção para o seu pedido</legend><div className="flex flex-wrap gap-2">{variants.map(variant => <button type="button" key={variant.id} onClick={() => setSelectedId(variant.id)} aria-pressed={selectedId === variant.id} className={`rounded-xl border px-4 py-3 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${selectedId === variant.id ? 'border-brand bg-brand-50 text-brand-800' : 'border-[#DCE5DE] bg-white text-[#52635B] hover:border-brand'}`}><span className="block font-bold">{variant.name}</span><span className="mt-1 block text-xs">{new Intl.NumberFormat('pt-MZ').format(variant.price)} MZN</span></button>)}</div></fieldset> : null}
+          {variants.length ? <fieldset className="mt-6"><legend className="mb-3 text-sm font-bold text-brand-800">Escolha a opção para o seu pedido</legend><div className="flex flex-wrap gap-2">{variants.map(variant => <button type="button" key={variant.id} onClick={() => setSelectedId(variant.id)} aria-pressed={selectedId === variant.id} className={`rounded-xl border px-4 py-3 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${selectedId === variant.id ? 'border-brand bg-brand-50 text-brand-800' : 'border-[#DCE5DE] bg-white text-[#52635B] hover:border-brand'}`}><span className="block font-bold">{variant.name}</span><span className="mt-1 block text-xs">{product.pricing_complexity === 'complex' ? 'Valor na proposta' : `${new Intl.NumberFormat('pt-MZ').format(variant.price)} MZN`}</span></button>)}</div></fieldset> : null}
           <div className="mt-7 rounded-2xl border border-[#DCE5DE] bg-white p-6">
-            <p className="text-xs font-semibold text-[#66736D]">{price ? 'Preço de referência' : 'Preparado à sua medida'}</p>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-brand-800">{price ? `${!selected && product.has_variants ? 'Desde ' : ''}${new Intl.NumberFormat('pt-MZ').format(price)} MZN` : 'Sob consulta'}</p>
+            <p className="text-xs font-semibold text-[#66736D]">{price != null ? 'Preço de referência' : 'Preparado à sua medida'}</p>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-brand-800">{price != null ? `${!selected && product.has_variants ? 'Desde ' : ''}${new Intl.NumberFormat('pt-MZ').format(price)} MZN` : 'Sob consulta'}</p>
             <p className="mt-2 text-xs leading-5 text-[#66736D]">O valor final e o prazo são confirmados pela equipa, de acordo com a quantidade e a personalização.</p>
             <button onClick={() => setCartOpen(true)} className="mt-5 flex w-full items-center justify-between rounded-xl bg-brand-800 px-5 py-4 text-sm font-bold text-white transition hover:bg-brand-700">{apparel ? 'Configure a sua distribuição' : 'Personalize o seu pedido'}<ArrowRight className="h-4 w-4" /></button>
             <p className="mt-3 text-center text-xs text-[#66736D]">Adicione ao carrinho para solicitar a proposta. Não efetua um pagamento.</p>

@@ -53,7 +53,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
 
   if (!product) notFound();
 
-  const price = product.starting_price || product.base_price || product.variants?.[0]?.price;
+  const price = product.pricing_complexity === 'complex' ? undefined : product.starting_price ?? product.base_price ?? product.variants?.[0]?.price;
   const imageUrl = absoluteImageUrl(getProductImageSrc(product));
 
   const productSchema = {
@@ -66,13 +66,12 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
       '@type': 'Brand',
       name: 'Maputo Publicidade',
     },
-    offers: {
+    ...(price != null ? { offers: {
       '@type': 'Offer',
       url: `${siteUrl}/catalogo/${product.slug}`,
       priceCurrency: 'MZN',
       price: price || '0',
-      availability: 'https://schema.org/InStock',
-    },
+    } } : {}),
   };
 
   return (

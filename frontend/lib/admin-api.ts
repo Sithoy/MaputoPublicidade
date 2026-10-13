@@ -333,6 +333,12 @@ export async function updateProduct(slug: string, formData: FormData): Promise<P
   return patch<Product>(`/api/products/${slug}/`, formData, getToken());
 }
 
+export async function saveProductDefinition(formData: FormData, slug?: string): Promise<Product> {
+  return slug
+    ? patch<Product>(`/api/products/${slug}/editor/`, formData, getToken())
+    : post<Product>('/api/products/editor/', formData, getToken());
+}
+
 export async function deleteProduct(slug: string) {
   return del(`/api/products/${slug}/`, getToken());
 }
