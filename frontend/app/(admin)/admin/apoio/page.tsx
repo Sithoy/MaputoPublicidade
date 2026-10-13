@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
-import { SupportDesk } from '@/components/SupportDesk';
+import { CommunicationWorkspace } from '@/components/admin/CommunicationWorkspace';
 
 export default function SupportInboxPage() {
-  return <Suspense fallback={<p>A carregar mensagens…</p>}><SupportDesk staff /></Suspense>;
+  return <Suspense fallback={<p>A carregar mensagens…</p>}><CommunicationWorkspace /></Suspense>;
 }

@@ -27,8 +27,8 @@ const write = (path: string, data: object) => fetchWithAuth(path, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
 });
 
-export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBusyChange }: {
-  staff?: boolean; quoteReference?: string; onDirtyChange?: (value: boolean) => void; onBusyChange?: (value: boolean) => void;
+export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBusyChange, channelGroup, ignoreConversationLink = false }: {
+  staff?: boolean; quoteReference?: string; onDirtyChange?: (value: boolean) => void; onBusyChange?: (value: boolean) => void; channelGroup?: 'conversations'; ignoreConversationLink?: boolean;
 }) {
   const params = useSearchParams();
   const [threads, setThreads] = useState<Conversation[]>([]);
@@ -57,7 +57,7 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
   const order = params.get('projeto') || '';
   const invoice = params.get('fatura') || '';
   const initialContext = quote ? { kind: 'quote' as const, reference: quote } : order ? { kind: 'order' as const, reference: order } : invoice ? { kind: 'invoice' as const, reference: invoice } : null;
-  const requestedConversation = quoteReference ? null : params.get('conversa');
+  const requestedConversation = quoteReference || ignoreConversationLink ? null : params.get('conversa');
   useEffect(() => {
     onDirtyChange?.(Object.values(drafts).some((value) => Boolean(value.trim())) || Boolean(subject.trim()));
   }, [drafts, subject, onDirtyChange]);
@@ -86,12 +86,13 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
 
   useEffect(() => {
     let cancelled = false;
-    fetchWithAuth(quoteReference ? `${base}?operational_quote=${encodeURIComponent(quoteReference)}` : base).then((page: Page<Conversation>) => {
+    const query = new URLSearchParams(); if (quoteReference) query.set('operational_quote', quoteReference); if (channelGroup) query.set('channel_group', channelGroup);
+    fetchWithAuth(query.size ? `${base}?${query}` : base).then((page: Page<Conversation>) => {
       if (!cancelled) { setThreads(page.results); setNextThreads(page.next); }
     }).catch(() => { if (!cancelled) setError('Não foi possível carregar as conversas. Tente atualizar.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [revision, quoteReference]);
+  }, [revision, quoteReference, channelGroup]);
 
   useEffect(() => {
     let cancelled = false;

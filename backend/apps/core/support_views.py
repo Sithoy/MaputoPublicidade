@@ -14,6 +14,7 @@ from apps.invoices.models import Invoice
 from apps.orders.models import Order
 from apps.quotes.models import QuoteRequest
 
+from .email_workspace import EmailWorkspaceMixin
 from .models import PortalNotification, SupportConversation, SupportMessage
 
 
@@ -97,6 +98,12 @@ def context_data(kind, target, user):
 
 
 class MessageSerializer(serializers.ModelSerializer):
+    email_headers = serializers.SerializerMethodField()
+
+    def get_email_headers(self, obj):
+        # Incoming email metadata is never exposed to BrandDesk clients.
+        request = self.context.get('request')
+        return {key: obj.email_headers.get(key) for key in ['from', 'to', 'cc', 'signature']} if request and request.user.is_staff and obj.source == 'email' else None
     attachment = serializers.SerializerMethodField()
     template = serializers.SerializerMethodField()
 
@@ -111,7 +118,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SupportMessage
-        fields = ["id", "body", "is_staff", "created_at", "source", "delivery_status", "attachment", "template"]
+        fields = ["id", "body", "is_staff", "created_at", "source", "delivery_status", "attachment", "template", "email_subject", "email_headers"]
 
 
 class ConversationSerializer(serializers.ModelSerializer):
@@ -187,6 +194,7 @@ class ConversationSerializer(serializers.ModelSerializer):
             "channel",
             "whatsapp",
             "email",
+            "email_stage",
         ]
 
 
@@ -217,11 +225,16 @@ def notify_message(conversation, sender):
 
 
 class SupportConversationViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+    EmailWorkspaceMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):
     permission_classes = [IsAuthenticated]
     throttle_classes = [SupportWriteThrottle]
     serializer_class = ConversationSerializer
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response['Cache-Control'] = 'private, no-store'
+        return response
 
     def get_queryset(self):
         user = self.request.user
@@ -242,6 +255,18 @@ class SupportConversationViewSet(
             reference = self.request.query_params.get("operational_quote")
             if reference:
                 queryset = queryset.filter(Q(quote__reference=reference) | Q(order__quote__reference=reference))
+            if self.action == 'list':
+                group = self.request.query_params.get('channel_group')
+                if group == 'email':
+                    queryset = queryset.filter(channel='email')
+                elif group == 'conversations':
+                    queryset = queryset.exclude(channel='email')
+                stage = self.request.query_params.get('email_stage')
+                if stage:
+                    queryset = queryset.filter(channel='email', email_stage=serializers.ChoiceField(choices=['new', 'preparing', 'waiting', 'resolved']).run_validation(stage))
+                search = self.request.query_params.get('q', '').strip()[:100]
+                if search:
+                    queryset = queryset.filter(Q(subject__icontains=search) | Q(contact_name__icontains=search) | Q(contact_email__icontains=search))
             return queryset.order_by("-updated_at", "-id")
         return queryset.filter(client=user).exclude(channel='email').order_by("-updated_at", "-id")
 
@@ -303,7 +328,7 @@ class SupportConversationViewSet(
         conversation = self.get_object()
         if request.method == "GET":
             page = self.paginate_queryset(conversation.messages.all())
-            return self.get_paginated_response(MessageSerializer(page, many=True).data)
+            return self.get_paginated_response(MessageSerializer(page, many=True, context=self.get_serializer_context()).data)
         data = MessageInput(data=request.data)
         data.is_valid(raise_exception=True)
         if conversation.channel == 'email':
@@ -355,7 +380,9 @@ class SupportConversationViewSet(
         if not request.user.is_staff:
             raise PermissionDenied()
         conversation.status = "resolved"
-        conversation.save(update_fields=["status"])
+        if conversation.channel == 'email':
+            conversation.email_stage = 'resolved'
+        conversation.save(update_fields=["status", "email_stage"])
         return Response(self.get_serializer(conversation).data)
 
     @action(detail=True, methods=["get"], url_path=r"attachments/(?P<message_id>[0-9]+)", throttle_classes=[WhatsAppReadThrottle])

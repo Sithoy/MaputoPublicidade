@@ -13,6 +13,7 @@ from django.utils.html import strip_tags
 from rest_framework.exceptions import ValidationError
 
 from .email_connection import cipher
+from .email_text import email_text
 from .models import EmailConnection, SupportConversation, SupportMessage
 from .zoho_oauth import decrypt, provider
 
@@ -97,7 +98,7 @@ def sync_mail():
         # Five emails per batch bounds execution and content requests. Read/unread untouched.
         result = provider('GET', f'https://mail.zoho.com/api/accounts/{config.oauth_account_id}/messages/view',
                           headers=auth, params={'start': config.sync_start, 'limit': 5, 'sortorder': 'false',
-                                              'status': 'all', 'includesent': 'false', 'includearchive': 'false'})
+                                              'status': 'all', 'includesent': 'false', 'includearchive': 'false', 'includeto': 'true'})
         rows = result.get('data')
         if not isinstance(rows, list):
             raise ValidationError('Resposta de sincronização Zoho inválida.')
@@ -124,7 +125,10 @@ def sync_mail():
                 continue
             content = provider('GET', f'https://mail.zoho.com/api/accounts/{config.oauth_account_id}/folders/{folder_id}/messages/{message_id}/content',
                                headers=auth, params={'includeBlockContent': 'true'})
-            body = unescape(strip_tags(str(content.get('data', {}).get('content', ''))))[:3900]
+            text = email_text(content.get('data', {}).get('content', ''))
+            body = text[:99000]
+            if len(text) > 99000:
+                body += '\n\n[Email abreviado. Consulte o conteúdo completo na caixa Zoho.]'
             if str(row.get('hasAttachment', '0')) == '1':
                 body += '\n\n[Este email contém anexos. Consulte os anexos na caixa Zoho.]'
             subject = strip_tags(str(row.get('subject', 'Sem assunto')))[:160] or 'Sem assunto'
@@ -140,12 +144,15 @@ def sync_mail():
                 message, created = SupportMessage.objects.get_or_create(email_id=external_id, defaults={
                     'conversation': conversation, 'sender': None, 'is_staff': False, 'source': 'email',
                     'body': body or '[Email sem conteúdo textual]', 'delivery_status': 'received',
+                    'email_subject': unescape(strip_tags(str(row.get('subject', ''))))[:255],
+                    'email_headers': {'from': sender, 'to': str(row.get('toAddress', ''))[:1000], 'cc': str(row.get('ccAddress', ''))[:1000]},
                 })
                 if created:
                     SupportMessage.objects.filter(pk=message.pk).update(created_at=received)
                     conversation.status = 'awaiting_team'
+                    conversation.email_stage = 'new'
                     conversation.last_inbound_at = received
-                    conversation.save(update_fields=['status', 'last_inbound_at', 'updated_at'])
+                    conversation.save(update_fields=['status', 'email_stage', 'last_inbound_at', 'updated_at'])
                     from .support_views import notify_message
                     notify_message(conversation, None)
                     imported += 1
@@ -161,15 +168,16 @@ def sync_mail():
         EmailConnection.objects.filter(pk=1, sync_lock_until=lease).update(sync_lock_until=None)
 
 
-def send_reply(conversation, sender, body, request_id):
+def send_reply(conversation, sender, body, request_id, *, subject=None, rendered_body=None, signature=None):
     config = connection()
     if not config or not config.sending_enabled:
         raise ValidationError('O envio por email está desativado.')
+    subject = subject or (conversation.subject if conversation.subject.lower().startswith('re:') else 'Re: ' + conversation.subject)
     with transaction.atomic():
         conversation = SupportConversation.objects.select_for_update().get(pk=conversation.pk)
         previous = SupportMessage.objects.filter(email_request_id=request_id).first()
         if previous:
-            if previous.conversation_id != conversation.pk or previous.sender_id != sender.pk or previous.body != body:
+            if previous.conversation_id != conversation.pk or previous.sender_id != sender.pk or previous.body != body or previous.email_subject != subject:
                 raise ValidationError('Identificador de envio inválido.')
             if previous.delivery_status == 'accepted':
                 return previous
@@ -178,10 +186,16 @@ def send_reply(conversation, sender, body, request_id):
         if not original or not original.email_id.startswith(config.oauth_account_id + ':'):
             raise ValidationError('Email original indisponível nesta ligação.')
         message = SupportMessage.objects.create(conversation=conversation, sender=sender, is_staff=True,
-                                                source='email', body=body, delivery_status='unconfirmed', email_request_id=request_id)
-    send(config, 'Re: ' + conversation.subject, body, [conversation.contact_email], reply_id=original.email_id.split(':')[1])
+                                                source='email', body=body, delivery_status='unconfirmed', email_request_id=request_id,
+                                                email_subject=subject, email_headers={'from': MAILBOX, 'to': conversation.contact_email, 'signature': signature})
+    send(config, subject, rendered_body if rendered_body is not None else body, [conversation.contact_email], reply_id=original.email_id.split(':')[1], mail_format='html' if rendered_body is not None else 'plaintext')
     message.delivery_status = 'accepted'
     message.save(update_fields=['delivery_status'])
-    conversation.status = 'awaiting_client'
-    conversation.save(update_fields=['status', 'updated_at'])
+    # Do not turn a new incoming email into "waiting" if it arrived during sending.
+    with transaction.atomic():
+        conversation = SupportConversation.objects.select_for_update().get(pk=conversation.pk)
+        incoming = conversation.messages.filter(source='email', is_staff=False).order_by('-created_at', '-id').first()
+        conversation.status = 'awaiting_team' if incoming and incoming.pk != original.pk else 'awaiting_client'
+        conversation.email_stage = 'new' if conversation.status == 'awaiting_team' else 'waiting'
+        conversation.save(update_fields=['status', 'email_stage', 'updated_at'])
     return message

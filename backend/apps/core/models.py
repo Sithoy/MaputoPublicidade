@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import User
 from django.db import models
 
@@ -35,6 +37,7 @@ class ReceptionEditLease(models.Model):
 
 
 class SupportConversation(models.Model):
+    email_stage = models.CharField(max_length=20, default='new', choices=[('new', 'Por tratar'), ('preparing', 'Em preparação'), ('waiting', 'A aguardar cliente'), ('resolved', 'Resolvido')])
     client = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE, related_name="support_conversations")
     channel = models.CharField(max_length=20, default="branddesk")
     email_thread_key = models.CharField(max_length=64, null=True, blank=True, unique=True)
@@ -61,6 +64,8 @@ class SupportConversation(models.Model):
 
 
 class SupportMessage(models.Model):
+    email_subject = models.CharField(max_length=255, blank=True)
+    email_headers = models.JSONField(default=dict, blank=True)
     email_id = models.CharField(max_length=160, null=True, blank=True, unique=True)
     email_request_id = models.UUIDField(null=True, blank=True, unique=True)
     attachment = models.JSONField(default=dict, blank=True)
@@ -71,11 +76,23 @@ class SupportMessage(models.Model):
     conversation = models.ForeignKey(SupportConversation, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     is_staff = models.BooleanField(default=False)
-    body = models.TextField(max_length=4000)
+    body = models.TextField(max_length=100000)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-id"]
+
+
+class EmailDraft(models.Model):
+    conversation = models.OneToOneField(SupportConversation, on_delete=models.CASCADE, related_name='email_draft')
+    subject = models.CharField(max_length=255)
+    body = models.TextField(blank=True, max_length=4000)
+    template_key = models.CharField(max_length=40, blank=True)
+    version = models.PositiveIntegerField(default=0)
+    request_id = models.UUIDField(default=uuid.uuid4)
+    send_state = models.CharField(max_length=20, default='idle')
+    updated_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class WhatsAppConnection(models.Model):
