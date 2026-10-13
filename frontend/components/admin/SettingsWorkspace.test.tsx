@@ -22,23 +22,23 @@ describe('Settings workspace', () => {
     expect(screen.getByRole('navigation', { name: 'Áreas de Definições' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('Por configurar')).toHaveLength(2));
     expect(screen.queryByLabelText('Credencial da caixa / palavra-passe de aplicação')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Empresa', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Empresa' }));
     expect(screen.getByRole('region', { name: 'Dados da empresa' })).toBeInTheDocument();
     expect(screen.getByText(/A edição destes dados continua na configuração técnica/)).toBeInTheDocument();
     expect(window.location.hash).toBe('#company');
   });
   it('preserves email drafts when switching is declined and discards only after confirmation', async () => {
     render(<SettingsWorkspace />);
-    fireEvent.click(screen.getByRole('button', { name: 'Email', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Email' }));
     const field = await screen.findByLabelText('Credencial da caixa / palavra-passe de aplicação');
     fireEvent.change(field, { target: { value: 'private-draft' } });
     await screen.findByText('Alterações por guardar');
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    fireEvent.click(screen.getByRole('button', { name: 'WhatsApp', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'WhatsApp' }));
     expect(confirm).toHaveBeenCalledOnce();
     expect(field).toHaveValue('private-draft');
     confirm.mockReturnValue(true);
-    fireEvent.click(screen.getByRole('button', { name: 'WhatsApp', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'WhatsApp' }));
     expect(await screen.findByLabelText('Nome da empresa')).toBeInTheDocument();
     expect(screen.queryByLabelText('Credencial da caixa / palavra-passe de aplicação')).not.toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
@@ -47,7 +47,7 @@ describe('Settings workspace', () => {
     window.history.replaceState(null, '', '/admin/definicoes#email');
     render(<SettingsWorkspace />);
     expect(await screen.findByLabelText('Caixa dedicada')).toHaveValue(email.mailbox);
-    fireEvent.click(screen.getByRole('button', { name: 'Equipa e acessos', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Equipa e acessos' }));
     expect(screen.getByRole('link', { name: 'Gerir equipa e acessos' })).toHaveAttribute('href', '/admin/utilizadores');
   });
   it('keeps unavailable state distinct from an unconfigured channel', async () => {
@@ -65,7 +65,7 @@ describe('Settings workspace', () => {
   });
   it('hides user-management actions from roles without that permission', () => {
     auth.users = false; render(<SettingsWorkspace />);
-    fireEvent.click(screen.getByRole('button', { name: 'Equipa e acessos', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Equipa e acessos' }));
     expect(screen.queryByRole('link', { name: 'Gerir equipa e acessos' })).not.toBeInTheDocument();
     expect(screen.getByText('A sua função não permite gerir utilizadores.')).toBeInTheDocument();
   });
