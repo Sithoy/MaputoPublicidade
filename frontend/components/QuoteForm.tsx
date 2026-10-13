@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { MessageCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -35,7 +36,7 @@ export function QuoteForm() {
   const packageParam = searchParams.get('pacote');
 
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ reference: string; estimated_price?: number } | null>(null);
+  const [result, setResult] = useState<{ reference: string; estimated_price?: number; tracking_token?: string } | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -78,7 +79,7 @@ export function QuoteForm() {
 
     try {
       const data = await post('/api/quotes/', payload);
-      setResult(data as { reference: string; estimated_price?: number });
+      setResult(data as { reference: string; estimated_price?: number; tracking_token?: string });
       form.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao enviar pedido');
@@ -105,6 +106,7 @@ export function QuoteForm() {
           <div className="mb-6 rounded-lg border border-brand/30 bg-brand/10 p-5 text-center">
             <p className="font-semibold text-brand">Pedido enviado com sucesso!</p>
             <p className="text-sm text-dark">Referência: {result.reference}</p>
+            <Link href={result.tracking_token ? `/acompanhar#token=${encodeURIComponent(result.tracking_token)}` : '/acompanhar'} className="mt-4 inline-block rounded-xl bg-brand-800 px-4 py-3 text-sm font-semibold text-white">Acompanhar o meu pedido</Link>
             {result.estimated_price && (
               <p className="text-sm text-dark">Estimativa: {result.estimated_price.toLocaleString()} MZN</p>
             )}

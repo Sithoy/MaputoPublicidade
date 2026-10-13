@@ -65,7 +65,9 @@ def _send(template_name, subject, context, recipient_list, reply_to=None):
 
 
 def notify_quote_received(quote: QuoteRequest):
-    context = {"quote": quote}
+    from .tracking_views import tracking_link
+
+    context = {"quote": quote, "tracking_link": tracking_link(quote)}
     _send(
         "quote_received",
         f"Maputo Publicidade — Pedido de orçamento recebido ({quote.reference})",

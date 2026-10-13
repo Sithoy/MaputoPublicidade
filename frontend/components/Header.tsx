@@ -109,6 +109,7 @@ function AccountMenu({ inverted = false }: { inverted?: boolean }) {
           <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#829087]">
             Escolha o seu acesso
           </p>
+          <Link href="/acompanhar" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50">Acompanhar pedido<span className="mt-1 block text-xs font-normal text-slate-500">Consulte o estado e fale com a Recepção</span></Link>
           <Link
             href="/area-cliente/login"
             onClick={() => setOpen(false)}
@@ -300,6 +301,7 @@ export function Header() {
               </Link>
             </div>
           ) : null}
+          <Link href="/acompanhar" onClick={() => setMobileOpen(false)} className="mt-3 block rounded-xl border px-3 py-3 text-sm font-semibold text-brand-800">Acompanhar pedido</Link>
           <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#dde6df] pt-4">
             <a
               href={telephoneHref()}

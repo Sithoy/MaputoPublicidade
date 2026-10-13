@@ -8,5 +8,9 @@ Estado: {{ quote.get_status_display }}
 
 A nossa equipa irá analisar o pedido e entrar em contacto consigo em breve.
 
+Acompanhe o pedido e fale com a Recepção:
+{{ tracking_link }}
+Link pessoal, válido por 7 dias. Não o partilhe. Pode pedir outro em /acompanhar.
+
 Cumprimentos,
 Maputo Publicidade

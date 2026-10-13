@@ -278,7 +278,11 @@ class QuoteRequestViewSet(
         )
         notify_quote_received(quote)
         detail = QuoteRequestDetailSerializer(quote, context={"request": request})
-        return Response(detail.data, status=status.HTTP_201_CREATED)
+        from apps.core.tracking_views import tracking_token
+
+        response = Response({**detail.data, "tracking_token": tracking_token(quote)}, status=status.HTTP_201_CREATED)
+        response["Cache-Control"] = "no-store, private"
+        return response
 
     @action(detail=False, methods=["post"], url_path="brand-request", throttle_classes=[BrandRequestThrottle])
     @transaction.atomic

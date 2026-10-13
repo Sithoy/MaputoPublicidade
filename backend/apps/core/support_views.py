@@ -142,6 +142,8 @@ class ConversationSerializer(serializers.ModelSerializer):
     unread_count = serializers.IntegerField(read_only=True)
 
     def get_client_name(self, obj):
+        if obj.channel == "tracking":
+            return obj.contact_name or "Cliente MP"
         if obj.channel == "whatsapp":
             return obj.contact_name or f"+{obj.whatsapp_phone}"
         profile = getattr(obj.client, "profile", None)
@@ -177,7 +179,11 @@ class ConversationSerializer(serializers.ModelSerializer):
 
 
 def notify_message(conversation, sender):
-    if sender.is_staff:
+    if sender and sender.is_staff:
+        if conversation.channel == "tracking" and conversation.quote:
+            from .tracking_views import email_tracking_link
+
+            email_tracking_link(conversation.quote)
         recipients = [conversation.client]
         href = f"/area-cliente/apoio?conversa={conversation.pk}"
     else:
@@ -193,7 +199,7 @@ def notify_message(conversation, sender):
                 recipient=u, title=f"Nova mensagem: {conversation.subject}"[:255], href=href
             )
             for u in recipients
-            if u.pk != sender.pk
+            if u and u.pk != getattr(sender, "pk", None)
         ]
     )
 

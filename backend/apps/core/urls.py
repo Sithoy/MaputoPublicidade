@@ -5,6 +5,7 @@ from .notification_views import PortalNotificationViewSet
 from .production_views import AuthenticatedArtFile, ProductionViewSet, PublicArtReview
 from .reception_views import ReceptionViewSet
 from .support_views import SupportConversationViewSet
+from .tracking_views import TrackingDetail, TrackingLookup, TrackingMessages
 from .whatsapp_views import (
     WhatsAppSettingsView,
     WhatsAppTestView,
@@ -20,6 +21,9 @@ router.register(
 router.register("reception", ReceptionViewSet, basename="reception")
 router.register("production", ProductionViewSet, basename="production")
 urlpatterns = [
+    path("tracking/lookup/", TrackingLookup.as_view(), name="tracking-lookup"),
+    path("tracking/detail/", TrackingDetail.as_view(), name="tracking-detail"),
+    path("tracking/messages/", TrackingMessages.as_view(), name="tracking-messages"),
     path("artwork-files/<int:version_id>/", AuthenticatedArtFile.as_view(), name="authenticated-art-file"),
     path("art-review/<str:token>/", PublicArtReview.as_view(), name="public-art-review"),
     path("art-review/<str:token>/file/", PublicArtReview.as_view(), {"file": True}, name="public-art-file"),
