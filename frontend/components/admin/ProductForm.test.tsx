@@ -20,7 +20,21 @@ function mount(
   render(
     <ProductForm
       product={product}
-      categories={[{ id: 5, name: "Vestuário", slug: "vestuario" }]}
+      categories={[{ id: 5, name: "Serigrafia", slug: "serigrafia" }]}
+      productCategories={[
+        {
+          id: 5,
+          name: "Outros produtos",
+          slug: "outros",
+          configuration_template: "standard",
+        },
+        {
+          id: 6,
+          name: "Eletrónica",
+          slug: "electronica",
+          configuration_template: "electronics",
+        },
+      ]}
       onSubmit={submit}
       loading={false}
       error=""
@@ -37,12 +51,43 @@ function add(label: string, value: string) {
 }
 
 describe("Unified product editor", () => {
+  it("inherits relevant fields from a product category without inventing options or mixing services", async () => {
+    const submit = mount();
+    fireEvent.change(screen.getByLabelText("Nome do produto"), {
+      target: { value: "Powerbank" },
+    });
+    fireEvent.change(screen.getByLabelText("Categoria do produto"), {
+      target: { value: "6" },
+    });
+    next();
+    expect(screen.getByLabelText("Modelo de configuração")).toHaveValue(
+      "electronics",
+    );
+    expect(screen.queryByLabelText("Tamanhos")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Capacidade")).toHaveValue("");
+    add("Capacidade", "20000 mAh");
+    fireEvent.click(screen.getByLabelText("Serigrafia"));
+    next();
+    fireEvent.change(screen.getByLabelText("Como é definido o preço?"), {
+      target: { value: "quote" },
+    });
+    next();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar rascunho" }));
+    await waitFor(() => expect(submit).toHaveBeenCalledOnce());
+    const data = submit.mock.calls[0][0] as FormData;
+    expect(data.get("configuration_template")).toBe("electronics");
+    expect(JSON.parse(String(data.get("configuration_options")))).toEqual({
+      capacity: ["20000 mAh"],
+    });
+    expect(data.get("available_service_ids")).toBe("[5]");
+    expect(data.get("category_id")).toBe("");
+  });
   it("generates a slug, saves a draft with one request and no public price for consultation", async () => {
     const submit = mount();
     fireEvent.change(screen.getByLabelText("Nome do produto"), {
       target: { value: "Polo de Algodão" },
     });
-    fireEvent.change(screen.getByLabelText("Categoria"), {
+    fireEvent.change(screen.getByLabelText("Categoria do produto"), {
       target: { value: "5" },
     });
     next();
@@ -58,6 +103,7 @@ describe("Unified product editor", () => {
     expect(data.get("is_active")).toBe("false");
     expect(data.get("base_price")).toBe("");
     expect(data.get("variant_config")).toBe("[]");
+    expect(data.get("product_category_id")).toBe("5");
   });
   it("shows only apparel sizes and preserves the configuration through navigation", () => {
     mount({
@@ -90,7 +136,7 @@ describe("Unified product editor", () => {
       category_id: 5,
       variants: [{ id: 9, name: "Premium", price: 200 }],
     });
-    expect(screen.getByLabelText("Categoria")).toHaveValue("5");
+    expect(screen.getByLabelText("Categoria do produto")).toHaveValue("");
     fireEvent.change(screen.getByLabelText("Nome do produto"), {
       target: { value: "Polo novo" },
     });
@@ -100,6 +146,8 @@ describe("Unified product editor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar rascunho" }));
     await waitFor(() => expect(submit).toHaveBeenCalledOnce());
     const data = submit.mock.calls[0][0] as FormData;
+    expect(data.get("category_id")).toBe("5");
+    expect(data.get("available_service_ids")).toBe("[5]");
     expect(data.get("slug")).toBe("old-shared-url");
     expect(JSON.parse(String(data.get("variant_config")))[0]).toMatchObject({
       id: 9,

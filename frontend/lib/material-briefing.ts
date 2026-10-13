@@ -11,6 +11,7 @@ export const workTypes = {
 } as const;
 export type WorkType = keyof typeof workTypes;
 export type MaterialBriefing = {
+  catalogue_configuration?: import('./product-configuration').CatalogueConfiguration;
   apparel?: import('./apparel').ApparelDistribution;
   work_type?: WorkType;
   needs_dimensions?: boolean;
@@ -25,7 +26,7 @@ export function supportsSiteWork(type: WorkType = 'other') {
 }
 export function materialBriefingLines(value?: MaterialBriefing): string[] {
   if (!value) return [];
-  return [...apparelLines(value.apparel), value.work_type ? workTypes[value.work_type] : '',
+  return [...(value.catalogue_configuration?.selections || []).map(row => `${row.label}: ${row.value}`), ...apparelLines(value.apparel), value.work_type ? workTypes[value.work_type] : '',
     value.needs_dimensions ? `Medidas: ${value.dimensions || 'a confirmar'}` : '',
     value.needs_installation ? `Instalação / aplicação: ${value.installation_notes || 'detalhes a confirmar'}` : '',
     value.needs_visit ? `Visita / avaliação: ${value.visit_notes || 'a combinar'}` : '',

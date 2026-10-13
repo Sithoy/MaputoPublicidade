@@ -3,9 +3,11 @@
 from rest_framework import serializers
 
 from apps.catalog.apparel import ApparelDistributionSerializer
+from apps.catalog.product_configuration import CatalogueConfigurationSerializer
 
 
 class MaterialBriefingSerializer(serializers.Serializer):
+    catalogue_configuration = CatalogueConfigurationSerializer(required=False)
     apparel = ApparelDistributionSerializer(required=False)
     work_type = serializers.ChoiceField(
         choices=["other", "paper", "promotional", "apparel", "vehicle", "space", "signage"], required=False

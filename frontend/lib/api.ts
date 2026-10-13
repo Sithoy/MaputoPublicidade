@@ -246,6 +246,12 @@ export type ProductVariant = {
 };
 
 export type Product = {
+  product_category_id?: number | null;
+  product_category_name?: string | null;
+  available_service_ids?: number[];
+  available_service_names?: string[];
+  configuration_template?: import('./product-configuration').ProductTemplate;
+  configuration_options?: Record<string, string[]>;
   order_template?: 'standard' | 'apparel';
   apparel_options?: import('./apparel').ApparelOptions;
   id: number;
@@ -278,6 +284,16 @@ export type Category = {
   short_description?: string;
   description?: string;
   image?: string;
+  display_order?: number;
+  is_active?: boolean;
+};
+
+export type ProductCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  configuration_template: import('./product-configuration').ProductTemplate;
   display_order?: number;
   is_active?: boolean;
 };

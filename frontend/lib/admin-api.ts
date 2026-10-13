@@ -1,6 +1,6 @@
 import { getToken, downloadWithAuth } from './auth';
 import { del, get, getAllPages, patch, post, put } from './api';
-import type { BrandAsset, Category, ClientOption, Invoice, InvoiceStatus, Order, Package, PaginatedResponse, Partner, Payment, PortfolioItem, Product, ProductVariant, Quote, User } from './api';
+import type { BrandAsset, Category, ClientOption, Invoice, InvoiceStatus, Order, Package, PaginatedResponse, Partner, Payment, PortfolioItem, Product, ProductCategory, ProductVariant, Quote, User } from './api';
 
 export type DashboardStats = {
   quotes: {
@@ -335,8 +335,8 @@ export async function updateProduct(slug: string, formData: FormData): Promise<P
 
 export async function saveProductDefinition(formData: FormData, slug?: string): Promise<Product> {
   return slug
-    ? patch<Product>(`/api/products/${slug}/editor/`, formData, getToken())
-    : post<Product>('/api/products/editor/', formData, getToken());
+    ? patch<Product>(`/api/products/${slug}/editor-v2/`, formData, getToken())
+    : post<Product>('/api/products/editor-v2/', formData, getToken());
 }
 
 export async function deleteProduct(slug: string) {
@@ -357,6 +357,13 @@ export async function deleteVariant(id: number) {
 
 export async function getCategories(): Promise<Category[]> {
   return getAllPages<Category>('/api/categories/', { headers: authHeaders() });
+}
+
+export async function getProductCategories(): Promise<ProductCategory[]> {
+  return getAllPages<ProductCategory>('/api/product-categories/', { headers: authHeaders() });
+}
+export async function saveProductCategory(data: Record<string, unknown>, slug?: string): Promise<ProductCategory> {
+  return slug ? patch<ProductCategory>(`/api/product-categories/${slug}/`, data, getToken()) : post<ProductCategory>('/api/product-categories/', data, getToken());
 }
 
 export async function createCategory(formData: FormData): Promise<Category> {

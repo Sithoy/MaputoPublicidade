@@ -4,19 +4,20 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { ProductForm } from '@/components/admin/ProductForm';
-import { saveProductDefinition, getCategories } from '@/lib/admin-api';
-import type { Category, Product } from '@/lib/api';
+import { saveProductDefinition, getCategories, getProductCategories } from '@/lib/admin-api';
+import type { Category, Product, ProductCategory } from '@/lib/api';
 
 export default function NewProductPage() {
   const router = useRouter();
   const { loading: authLoading } = useAdminAuth();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (authLoading) return;
-    getCategories().then(setCategories).catch(() => setError('Erro ao carregar categorias'));
+    Promise.all([getCategories(), getProductCategories()]).then(([services, products]) => { setCategories(services); setProductCategories(products); }).catch(() => setError('Erro ao carregar categorias'));
   }, [authLoading]);
 
   async function handleSubmit(formData: FormData): Promise<Product> {
@@ -48,7 +49,7 @@ export default function NewProductPage() {
         <h1 className="text-2xl font-bold text-dark">Novo produto</h1>
         <p className="text-sm text-gray-500">Adicionar produto ao catálogo</p>
       </div>
-      <ProductForm categories={categories} onSubmit={handleSubmit} loading={loading} error={error} />
+      <ProductForm categories={categories} productCategories={productCategories} onSubmit={handleSubmit} loading={loading} error={error} />
     </div>
   );
 }

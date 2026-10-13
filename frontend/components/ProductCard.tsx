@@ -5,6 +5,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { SafeImage } from '@/components/SafeImage';
 import { getProductFallback, getProductImageSrc } from '@/lib/image-fallbacks';
 import type { Product } from '@/lib/api';
+import { productCategoryName } from '@/lib/product-configuration';
 
 export function ProductCard({ product }: { product: Product }) {
   const firstVariant = product.variants?.find(v => v.is_active !== false);
@@ -17,7 +18,7 @@ export function ProductCard({ product }: { product: Product }) {
         {product.order_template === 'apparel' ? <span className="absolute left-3 top-3 rounded-full border border-white/80 bg-white/95 px-3 py-1.5 text-[10px] font-bold text-brand-800">Por modelo, cor e tamanho</span> : null}
       </Link>
       <div className="flex flex-1 flex-col p-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#66736D]">{product.category || 'Personalizado para a sua marca'}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#66736D]">{productCategoryName(product)}</p>
         <h3 className="mt-2 text-lg font-bold leading-snug tracking-tight text-brand-800"><Link href={`/catalogo/${product.slug}`} className="hover:underline">{product.name}</Link></h3>
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#66736D]">{product.description}</p>
         <div className="mt-auto pt-5">

@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     PackageViewSet,
+    ProductCategoryViewSet,
     ProductVariantViewSet,
     ProductViewSet,
     ServiceCategoryViewSet,
@@ -10,6 +11,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r"categories", ServiceCategoryViewSet, basename="category")
+router.register(r"product-categories", ProductCategoryViewSet, basename="product-category")
 router.register(r"products", ProductViewSet, basename="product")
 router.register(r"variants", ProductVariantViewSet, basename="variant")
 router.register(r"packages", PackageViewSet, basename="package")

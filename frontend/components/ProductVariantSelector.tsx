@@ -7,6 +7,7 @@ import { AddToCartModal } from '@/components/AddToCartModal';
 import { getProductFallback, getProductImageSrc } from '@/lib/image-fallbacks';
 import { whatsappHref } from '@/lib/company';
 import type { Product } from '@/lib/api';
+import { productCategoryName, productTemplate, productTemplates } from '@/lib/product-configuration';
 
 export function ProductVariantSelector({ product }: { product: Product }) {
   const variants = (product.variants ?? []).filter(v => v.is_active !== false);
@@ -17,6 +18,8 @@ export function ProductVariantSelector({ product }: { product: Product }) {
   const apparel = product.order_template === 'apparel';
   const sizes = apparel ? product.apparel_options?.sizes : product.sizes;
   const facts = [
+    { label: 'Serviços aplicáveis', value: product.available_service_names?.join(', ') },
+    ...productTemplates[productTemplate(product)].fields.map(field => ({ label: field.label, value: product.configuration_options?.[field.key]?.join(', ') })),
     { label: 'Materiais', value: product.materials?.join(', ') },
     { label: 'Tamanhos', value: sizes?.join(', ') },
     { label: 'Modelos', value: apparel ? product.apparel_options?.models?.join(', ') : '' },
@@ -35,7 +38,7 @@ export function ProductVariantSelector({ product }: { product: Product }) {
           <p className="mt-4 flex items-center gap-2 text-xs text-[#66736D]"><Check className="h-4 w-4 text-brand" />A personalização final é confirmada na proposta.</p>
         </div>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">{product.category || 'Catálogo MP'}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">{productCategoryName(product)}</p>
           <h1 className="mt-3 text-balance text-3xl font-extrabold leading-tight tracking-[-0.035em] text-brand-800 sm:text-4xl">{product.name}</h1>
           <p className="mt-4 whitespace-pre-line text-base leading-7 text-[#66736D]">{product.description}</p>
           {variants.length ? <fieldset className="mt-6"><legend className="mb-3 text-sm font-bold text-brand-800">Escolha a opção para o seu pedido</legend><div className="flex flex-wrap gap-2">{variants.map(variant => <button type="button" key={variant.id} onClick={() => setSelectedId(variant.id)} aria-pressed={selectedId === variant.id} className={`rounded-xl border px-4 py-3 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${selectedId === variant.id ? 'border-brand bg-brand-50 text-brand-800' : 'border-[#DCE5DE] bg-white text-[#52635B] hover:border-brand'}`}><span className="block font-bold">{variant.name}</span><span className="mt-1 block text-xs">{product.pricing_complexity === 'complex' ? 'Valor na proposta' : `${new Intl.NumberFormat('pt-MZ').format(variant.price)} MZN`}</span></button>)}</div></fieldset> : null}

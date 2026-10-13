@@ -6,8 +6,18 @@ import { ArrowLeft, ArrowRight, Check, Plus, Save, Trash2 } from "lucide-react";
 import { ImageUploader } from "./ImageUploader";
 import { ProductOptionTags } from "./ProductOptionTags";
 import { ProductCard } from "../ProductCard";
-import type { Category, Product, ProductVariant } from "@/lib/api";
+import type {
+  Category,
+  Product,
+  ProductCategory,
+  ProductVariant,
+} from "@/lib/api";
 import type { ApparelOptions } from "@/lib/apparel";
+import {
+  productTemplates,
+  productTemplate,
+  type ProductTemplate,
+} from "@/lib/product-configuration";
 
 type Version = {
   key: string;
@@ -73,12 +83,14 @@ function VersionImage({
 export function ProductForm({
   product,
   categories,
+  productCategories = [],
   onSubmit,
   loading,
   error,
 }: {
   product?: Product | null;
   categories: Category[];
+  productCategories?: ProductCategory[];
   onSubmit: (data: FormData) => Promise<Product>;
   loading: boolean;
   error: string;
@@ -91,6 +103,7 @@ export function ProductForm({
     slug: product?.slug || "",
     description: product?.description || "",
     category: String(product?.category_id || ""),
+    productCategory: String(product?.product_category_id || ""),
     minimum: String(product?.min_quantity || 1),
     leadTime: product?.lead_time || "",
     price: product?.base_price == null ? "" : String(product.base_price),
@@ -98,6 +111,31 @@ export function ProductForm({
     featured: product?.is_featured ?? false,
   }));
   const [customSlug, setCustomSlug] = useState(Boolean(product));
+  const [template, setTemplate] = useState<ProductTemplate>(
+    product ? productTemplate(product) : "standard",
+  );
+  const [templateOptions, setTemplateOptions] = useState<
+    Partial<Record<ProductTemplate, Record<string, string[]>>>
+  >(() =>
+    product
+      ? { [productTemplate(product)]: product.configuration_options || {} }
+      : {},
+  );
+  const [services, setServices] = useState<number[]>(
+    product?.available_service_ids ||
+      (product?.category_id ? [product.category_id] : []),
+  );
+  const generic = !["standard", "apparel"].includes(template);
+  function chooseTemplate(value: ProductTemplate) {
+    setTemplate(value);
+    setKind(
+      value === "apparel"
+        ? "apparel"
+        : value === "standard"
+          ? "simple"
+          : "options",
+    );
+  }
   const [kind, setKind] = useState<"simple" | "options" | "apparel">(
     product?.order_template === "apparel"
       ? "apparel"
@@ -142,6 +180,21 @@ export function ProductForm({
     setDraft((current) => ({ ...current, [key]: value }));
   }
   function validate(section: number) {
+    if (section === 1 && generic) {
+      const fields = new Set<string>(
+        productTemplates[template].fields.map((field) => field.key),
+      );
+      const options = templateOptions[template] || {};
+      if (
+        Object.entries(options).some(
+          ([key, values]) =>
+            !fields.has(key) ||
+            values.length > 20 ||
+            values.some((value) => !value.trim() || value.length > 80),
+        )
+      )
+        return "Reveja as opções: até 20 por campo, com 80 caracteres cada.";
+    }
     if (section === 0 && (!draft.name.trim() || !draft.slug.trim()))
       return "Indique o nome e um endereço válido para o produto.";
     if (section === 0 && !/^[a-zA-Z0-9_-]+$/.test(draft.slug))
@@ -226,16 +279,28 @@ export function ProductForm({
     data.set("slug", draft.slug.trim());
     data.set("description", draft.description);
     data.set("category_id", draft.category);
+    data.set("product_category_id", draft.productCategory);
+    data.set("available_service_ids", JSON.stringify(services));
+    data.set("configuration_template", template);
+    data.set(
+      "configuration_options",
+      JSON.stringify(generic ? templateOptions[template] || {} : {}),
+    );
     data.set("min_quantity", draft.minimum);
     data.set("lead_time", draft.leadTime);
     data.set("base_price", pricing === "fixed" ? draft.price : "");
     data.set("pricing_complexity", pricing === "quote" ? "complex" : "simple");
-    data.set("materials", JSON.stringify(kind === "simple" ? [] : materials));
+    data.set(
+      "materials",
+      JSON.stringify(
+        generic ? product?.materials || [] : kind === "simple" ? [] : materials,
+      ),
+    );
     // The apparel grid owns apparel sizes. Preserve legacy general sizes, but never expose a second input.
     data.set(
       "sizes",
       JSON.stringify(
-        kind === "apparel"
+        generic || kind === "apparel"
           ? product?.sizes || []
           : kind === "simple"
             ? []
@@ -285,8 +350,8 @@ export function ProductForm({
       current.map((v) => (v.key === key ? { ...v, ...change } : v)),
     );
   }
-  const categoryName = categories.find(
-    (c) => String(c.id) === draft.category,
+  const categoryName = productCategories.find(
+    (c) => String(c.id) === draft.productCategory,
   )?.name;
   const preview: Product = {
     id: product?.id || 0,
@@ -294,6 +359,9 @@ export function ProductForm({
     name: draft.name || "Nome do seu produto",
     description: draft.description,
     category: categoryName,
+    product_category_name: categoryName || null,
+    configuration_template: template,
+    configuration_options: templateOptions[template] || {},
     image: imagePreview,
     materials,
     sizes: kind === "apparel" ? apparel.sizes : sizes,
@@ -390,20 +458,39 @@ export function ProductForm({
                 />
               </label>
               <label className="text-sm font-semibold text-brand-800 sm:col-span-2">
-                Categoria
+                Categoria do produto
                 <select
-                  value={draft.category}
-                  onChange={(e) => field("category", e.target.value)}
+                  value={draft.productCategory}
+                  onChange={(e) => {
+                    field("productCategory", e.target.value);
+                    const chosen = productCategories.find(
+                      (category) => String(category.id) === e.target.value,
+                    );
+                    if (chosen) chooseTemplate(chosen.configuration_template);
+                  }}
                   className={inputClass}
                 >
                   <option value="">Selecionar categoria</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {productCategories
+                    .filter(
+                      (category) =>
+                        category.is_active !== false ||
+                        String(category.id) === draft.productCategory,
+                    )
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                 </select>
               </label>
+              {!draft.productCategory && product ? (
+                <p className="text-xs leading-6 text-[#8A671E] sm:col-span-2">
+                  Este produto ainda não foi classificado. O serviço antigo é
+                  preservado separadamente; escolha uma categoria de produto
+                  quando estiver pronto.
+                </p>
+              ) : null}
               <label className="text-sm font-semibold text-brand-800 sm:col-span-2">
                 O que o cliente deve saber?
                 <textarea
@@ -454,61 +541,115 @@ export function ProductForm({
           ) : null}
           {step === 1 ? (
             <div className="space-y-6">
+              <label className="block text-sm font-semibold text-brand-800">
+                Modelo de configuração
+                <select
+                  aria-label="Modelo de configuração"
+                  aria-describedby="configuration-template-help"
+                  value={template}
+                  onChange={(event) =>
+                    chooseTemplate(event.target.value as ProductTemplate)
+                  }
+                  className={inputClass}
+                >
+                  {Object.entries(productTemplates).map(([key, preset]) => (
+                    <option key={key} value={key}>
+                      {preset.label}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  id="configuration-template-help"
+                  className="mt-2 block text-xs font-normal leading-6 text-slate-500"
+                >
+                  Sugerido pela categoria. Pode adaptar este produto sem alterar
+                  os restantes. As listas começam vazias: adicione apenas opções
+                  disponíveis.
+                </span>
+              </label>
               <p className="text-sm leading-6 text-slate-500">
                 Como deve o cliente especificar este produto? Isto é diferente
                 de definir preços ou versões comerciais.
               </p>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {(
-                  [
+              {!generic ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(
                     [
-                      "simple",
-                      "Produto simples",
-                      "Uma descrição e uma quantidade.",
-                    ],
-                    [
-                      "options",
-                      "Com opções",
-                      "Materiais e formatos à escolha.",
-                    ],
-                    [
-                      "apparel",
-                      "Vestuário",
-                      "Distribuição por modelo, cor e tamanho.",
-                    ],
-                  ] as const
-                ).map(([value, title, description]) => (
-                  <button
-                    type="button"
-                    key={value}
-                    onClick={() => setKind(value)}
-                    aria-pressed={kind === value}
-                    className={`rounded-xl border p-4 text-left ${kind === value ? "border-brand bg-brand-50" : "border-[#DCE5DE]"}`}
-                  >
-                    <span className="block text-sm font-bold text-brand-800">
-                      {title}
-                    </span>
-                    <span className="mt-2 block text-xs leading-5 text-slate-500">
-                      {description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {kind !== "simple" ? (
+                      [
+                        "simple",
+                        "Produto simples",
+                        "Uma descrição e uma quantidade.",
+                      ],
+                      [
+                        "options",
+                        "Com opções",
+                        "Materiais e formatos à escolha.",
+                      ],
+                      [
+                        "apparel",
+                        "Vestuário",
+                        "Distribuição por modelo, cor e tamanho.",
+                      ],
+                    ] as const
+                  ).map(([value, title, description]) => (
+                    <button
+                      type="button"
+                      key={value}
+                      onClick={() => {
+                        setKind(value);
+                        setTemplate(
+                          value === "apparel" ? "apparel" : "standard",
+                        );
+                      }}
+                      aria-pressed={kind === value}
+                      className={`rounded-xl border p-4 text-left ${kind === value ? "border-brand bg-brand-50" : "border-[#DCE5DE]"}`}
+                    >
+                      <span className="block text-sm font-bold text-brand-800">
+                        {title}
+                      </span>
+                      <span className="mt-2 block text-xs leading-5 text-slate-500">
+                        {description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {productTemplates[template].fields.map((option) => (
+                    <ProductOptionTags
+                      key={`${template}-${option.key}`}
+                      id={`configuration-${option.key}`}
+                      label={option.label}
+                      hint="Até 20 opções. Deixe vazio se não se aplica a este produto."
+                      value={templateOptions[template]?.[option.key] || []}
+                      onChange={(values) =>
+                        setTemplateOptions((current) => ({
+                          ...current,
+                          [template]: {
+                            ...current[template],
+                            [option.key]: values,
+                          },
+                        }))
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+              {!generic && kind !== "simple" ? (
                 <ProductOptionTags
                   id="product-materials"
                   label="Materiais disponíveis"
                   value={materials}
                   onChange={setMaterials}
                 />
-              ) : (
+              ) : !generic ? (
                 <p className="rounded-xl bg-light p-4 text-sm text-slate-500">
                   O cliente partilha a quantidade e uma descrição. Ao guardar
                   como simples, as listas de materiais e tamanhos deixam de ser
                   opções de escolha.
                 </p>
-              )}
-              {kind === "options" ? (
+              ) : null}
+              {!generic && kind === "options" ? (
                 <ProductOptionTags
                   id="product-sizes"
                   label="Formatos / tamanhos disponíveis"
@@ -566,6 +707,37 @@ export function ProductForm({
                   ))}
                 </div>
               ) : null}
+              <fieldset className="rounded-xl border border-[#DCE5DE] p-4">
+                <legend className="px-2 text-sm font-semibold text-brand-800">
+                  Serviços aplicáveis (opcional)
+                </legend>
+                <p className="mb-3 text-xs leading-6 text-slate-500">
+                  Serviços e técnicas não são categorias de produtos. Estes
+                  serviços podem acompanhar a personalização; a disponibilidade
+                  final é confirmada na proposta.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {categories.map((service) => (
+                    <label
+                      key={service.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={services.includes(service.id)}
+                        onChange={(event) =>
+                          setServices((current) =>
+                            event.target.checked
+                              ? [...current, service.id]
+                              : current.filter((id) => id !== service.id),
+                          )
+                        }
+                      />
+                      {service.name}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             </div>
           ) : null}
           {step === 2 ? (
@@ -751,11 +923,13 @@ export function ProductForm({
                   ["Categoria", categoryName || "Sem categoria"],
                   [
                     "Configuração",
-                    kind === "apparel"
-                      ? "Distribuição de vestuário"
-                      : kind === "options"
-                        ? "Materiais e formatos"
-                        : "Produto simples",
+                    generic
+                      ? productTemplates[template].label
+                      : kind === "apparel"
+                        ? "Distribuição de vestuário"
+                        : kind === "options"
+                          ? "Materiais e formatos"
+                          : "Produto simples",
                   ],
                   [
                     "Preço",

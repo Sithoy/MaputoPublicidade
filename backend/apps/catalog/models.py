@@ -32,7 +32,34 @@ class ServiceCategory(models.Model):
         super().save(*args, **kwargs)
 
 
+CONFIGURATION_TEMPLATES = [('standard', 'Produto simples / genérico'), ('apparel', 'Vestuário'), ('electronics', 'Eletrónica'), ('banner', 'Banners e sinalética'), ('stationery', 'Papelaria e impressos')]
+
+
+class ProductCategory(models.Model):
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=220, unique=True)
+    description = models.TextField(blank=True)
+    configuration_template = models.CharField(max_length=20, choices=CONFIGURATION_TEMPLATES, default='standard')
+    display_order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['display_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+
 class Product(models.Model):
+    product_category = models.ForeignKey(ProductCategory, on_delete=models.PROTECT, related_name='products', null=True, blank=True)
+    available_services = models.ManyToManyField(ServiceCategory, blank=True, related_name='catalogue_products')
+    configuration_template = models.CharField(max_length=20, choices=CONFIGURATION_TEMPLATES, default='standard')
+    configuration_options = models.JSONField(default=dict, blank=True)
     order_template = models.CharField(max_length=20, default='standard', choices=[('standard', 'Standard'), ('apparel', 'Vestuário')])
     apparel_options = models.JSONField(default=dict, blank=True)
     PRICING_SIMPLE = "simple"

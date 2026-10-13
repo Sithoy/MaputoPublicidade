@@ -1,0 +1,207 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getProductCategories, saveProductCategory } from "@/lib/admin-api";
+import type { ProductCategory } from "@/lib/api";
+import {
+  productTemplates,
+  type ProductTemplate,
+} from "@/lib/product-configuration";
+
+export function ProductCategorySettings() {
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [editing, setEditing] = useState<ProductCategory | null>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [template, setTemplate] = useState<ProductTemplate>("standard");
+  const [active, setActive] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  useEffect(() => {
+    getProductCategories()
+      .then(setCategories)
+      .catch(() =>
+        setError("Não foi possível carregar as categorias de produtos."),
+      );
+  }, []);
+  function edit(category: ProductCategory | null) {
+    setEditing(category);
+    setName(category?.name || "");
+    setDescription(category?.description || "");
+    setTemplate(category?.configuration_template || "standard");
+    setActive(category?.is_active ?? true);
+    setNotice("");
+    setError("");
+  }
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await saveProductCategory(
+        {
+          name: name.trim(),
+          description,
+          configuration_template: template,
+          is_active: active,
+          ...(editing
+            ? {}
+            : {
+                slug: name
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-|-$/g, ""),
+              }),
+        },
+        editing?.slug,
+      );
+      setCategories(await getProductCategories());
+      edit(null);
+      setNotice("Categoria guardada. Produtos existentes não foram alterados.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível guardar a categoria.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-[#DCE5DE] bg-[#F4F0E8] p-6">
+        <h2 className="text-xl font-bold text-brand-800">
+          Organize o que o cliente pode encomendar.
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          A categoria sugere os campos relevantes. Cada produto define as opções
+          reais. Alterar o modelo da categoria não reconfigura produtos
+          existentes.
+        </p>
+      </div>
+      {error ? (
+        <p
+          role="alert"
+          className="rounded-xl bg-red-50 p-4 text-sm text-red-700"
+        >
+          {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p
+          role="status"
+          className="rounded-xl bg-brand-50 p-4 text-sm text-brand-800"
+        >
+          {notice}
+        </p>
+      ) : null}
+      <form
+        onSubmit={submit}
+        className="space-y-4 rounded-2xl border border-[#DCE5DE] bg-white p-6"
+      >
+        <h2 className="font-bold text-brand-800">
+          {editing
+            ? "Editar categoria de produto"
+            : "Nova categoria de produto"}
+        </h2>
+        <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold">
+            Nome
+            <input
+              required
+              maxLength={200}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-2 w-full rounded-xl border p-3"
+            />
+          </label>
+          <label className="text-sm font-semibold">
+            Modelo de configuração
+            <select
+              value={template}
+              onChange={(e) => setTemplate(e.target.value as ProductTemplate)}
+              className="mt-2 w-full rounded-xl border bg-white p-3"
+            >
+              {Object.entries(productTemplates).map(([key, item]) => (
+                <option key={key} value={key}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold sm:col-span-2">
+            Descrição
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className="mt-2 w-full rounded-xl border p-3"
+            />
+          </label>
+          <p className="text-xs leading-6 text-slate-500 sm:col-span-2">
+            {template === "apparel"
+              ? "Modelo, cor, tamanho e distribuição de quantidades."
+              : productTemplates[template].fields
+                  .map((field) => field.label)
+                  .join(" · ") ||
+                "Descrição e quantidade, sem campos específicos."}
+          </p>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={active}
+              onChange={(e) => setActive(e.target.checked)}
+            />
+            Disponível para classificar novos produtos
+          </label>
+          <div className="flex gap-3 sm:col-span-2">
+            <button
+              type="submit"
+              className="rounded-xl bg-brand-800 px-5 py-3 text-sm font-semibold text-white"
+            >
+              {busy ? "A guardar..." : "Guardar categoria"}
+            </button>
+            {editing ? (
+              <button
+                type="button"
+                onClick={() => edit(null)}
+                className="rounded-xl border px-5 py-3 text-sm"
+              >
+                Cancelar
+              </button>
+            ) : null}
+          </div>
+        </fieldset>
+      </form>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map((category) => (
+          <button
+            key={category.id}
+            type="button"
+            disabled={busy}
+            onClick={() => edit(category)}
+            className="rounded-2xl border border-[#DCE5DE] bg-white p-5 text-left hover:border-brand"
+          >
+            <span className="block font-bold text-brand-800">
+              {category.name}
+            </span>
+            <span className="mt-2 block text-sm text-slate-500">
+              {productTemplates[category.configuration_template].label}
+            </span>
+            <span className="mt-3 block text-xs font-semibold text-brand">
+              {category.is_active ? "Ativa · editar" : "Arquivada · editar"}
+            </span>
+          </button>
+        ))}
+      </div>
+      <p className="text-xs leading-6 text-slate-500">
+        Para retirar uma categoria, desative-a. As ligações e o histórico dos
+        produtos são preservados.
+      </p>
+    </div>
+  );
+}

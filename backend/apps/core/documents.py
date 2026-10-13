@@ -702,6 +702,10 @@ def build_quote_pdf(quote) -> bytes:
         else:
             items_subtotal += Decimal(str(unit)) * item.quantity
         details = escape(item.description or "Serviço")
+        configuration = (item.material_briefing or {}).get('catalogue_configuration', {})
+        for selection in configuration.get('selections', []):
+            specification = f"{selection['label']}: {selection['value']}"
+            details += f"<br/><font size='8' color='#5B6B62'>{escape(specification)}</font>"
         apparel = (item.material_briefing or {}).get('apparel')
         if apparel:
             label = 'Distribuição por confirmar' if apparel.get('pending') else 'Distribuição detalhada no mapa abaixo'

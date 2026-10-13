@@ -13,9 +13,15 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { ImageUploader } from '@/components/admin/ImageUploader';
 import { createCategory, deleteCategory, getCategories, updateCategory } from '@/lib/admin-api';
 import type { Category } from '@/lib/api';
+import { ProductCategorySettings } from '@/components/admin/ProductCategorySettings';
+
+function CategoryTabs({ selected, onSelect }: { selected: 'products' | 'services'; onSelect: (value: 'products' | 'services') => void }) {
+  return <nav aria-label="Tipo de categoria" className="flex gap-2"><button type="button" onClick={() => onSelect('products')} aria-pressed={selected === 'products'} className={`rounded-xl border px-5 py-3 text-sm font-semibold ${selected === 'products' ? 'bg-brand-800 text-white' : 'bg-white text-brand-800'}`}>Produtos do catálogo</button><button type="button" onClick={() => onSelect('services')} aria-pressed={selected === 'services'} className={`rounded-xl border px-5 py-3 text-sm font-semibold ${selected === 'services' ? 'bg-brand-800 text-white' : 'bg-white text-brand-800'}`}>Serviços da MP</button></nav>;
+}
 
 export default function AdminCategoriesPage() {
   const { loading: authLoading } = useAdminAuth();
+  const [section, setSection] = useState<'products' | 'services'>('products');
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<Category | null>(null);
@@ -83,12 +89,16 @@ export default function AdminCategoriesPage() {
     );
   }
 
+  if (section === 'products') return <div className="mx-auto max-w-7xl space-y-6"><h1 className="text-2xl font-bold text-dark">Categorias</h1><CategoryTabs selected={section} onSelect={setSection} /><ProductCategorySettings /></div>;
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-dark">Categorias</h1>
         <p className="text-sm text-gray-500">Gerir categorias de serviços</p>
       </div>
+
+      <CategoryTabs selected={section} onSelect={setSection} />
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 

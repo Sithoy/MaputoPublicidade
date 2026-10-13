@@ -11,6 +11,8 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { addCartItem } from '@/lib/client-api';
 import type { Product, ProductVariant } from '@/lib/api';
+import { productTemplate, configurationSnapshot, type CatalogueConfiguration } from '@/lib/product-configuration';
+import { ProductConfigurationFields } from './ProductConfigurationFields';
 
 export function AddToCartModal({
   product,
@@ -27,6 +29,9 @@ export function AddToCartModal({
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   const [apparel, setApparel] = useState<ApparelDistribution>({ pending: false, rows: [] });
+  const [configuration, setConfiguration] = useState<CatalogueConfiguration | undefined>();
+  const template = productTemplate(product);
+  const configured = !['standard', 'apparel'].includes(template);
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useState('');
   const [material, setMaterial] = useState('');
@@ -41,6 +46,7 @@ export function AddToCartModal({
     if (open) {
       setQuantity(product.min_quantity || 1);
       setApparel({ pending: false, rows: [] });
+      setConfiguration(undefined);
       setSize('');
       setMaterial('');
       setColors('');
@@ -90,6 +96,7 @@ export function AddToCartModal({
         notes,
         artwork_file: artworkFile,
         ...(product.order_template === 'apparel' ? { material_briefing: { work_type: 'apparel' as const, apparel } } : {}),
+        ...(configured ? { material_briefing: { catalogue_configuration: configuration || configurationSnapshot(product, {}) } } : {}),
       });
       onClose();
     } catch (err) {
@@ -132,7 +139,8 @@ export function AddToCartModal({
 
           {product.order_template === 'apparel' && product.apparel_options && <ApparelMatrix id="catalogue-apparel" options={product.apparel_options} quantity={quantity} value={apparel} onChange={setApparel} />}
 
-          <div hidden={product.order_template === 'apparel'}>
+          {configured ? <div className="space-y-4"><ProductConfigurationFields product={product} id="catalogue-configuration" value={configuration} onChange={setConfiguration} /><p className="text-xs leading-5 text-slate-500">Se precisar de outra dimensão ou especificação, explique nas observações. A equipa confirma a viabilidade na proposta.</p></div> : null}
+          <div hidden={product.order_template === 'apparel' || configured}>
             <Label htmlFor="size">Tamanho</Label>
             {product.sizes && product.sizes.length > 0 ? (
               <Select id="size" value={size} onChange={(e) => setSize(e.target.value)} className="mt-1">
@@ -146,7 +154,7 @@ export function AddToCartModal({
             )}
           </div>
 
-          <div>
+          <div hidden={configured}>
             <Label htmlFor="material">Material</Label>
             {product.materials && product.materials.length > 0 ? (
               <Select id="material" value={material} onChange={(e) => setMaterial(e.target.value)} className="mt-1">
@@ -160,7 +168,7 @@ export function AddToCartModal({
             )}
           </div>
 
-          <div hidden={product.order_template === 'apparel'}>
+          <div hidden={product.order_template === 'apparel' || configured}>
             <Label htmlFor="colors">Cores</Label>
             <Input id="colors" value={colors} onChange={(e) => setColors(e.target.value)} className="mt-1" />
           </div>

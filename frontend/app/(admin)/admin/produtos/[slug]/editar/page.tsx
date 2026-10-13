@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { ProductForm } from '@/components/admin/ProductForm';
-import { getCategories, getProduct, saveProductDefinition } from '@/lib/admin-api';
-import type { Category, Product } from '@/lib/api';
+import { getCategories, getProduct, getProductCategories, saveProductDefinition } from '@/lib/admin-api';
+import type { Category, Product, ProductCategory } from '@/lib/api';
 
 export default function EditProductPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -13,15 +13,17 @@ export default function EditProductPage() {
   const { loading: authLoading } = useAdminAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (authLoading || !slug) return;
-    Promise.all([getProduct(slug), getCategories()])
-      .then(([prod, cats]) => {
+    Promise.all([getProduct(slug), getCategories(), getProductCategories()])
+      .then(([prod, cats, productCats]) => {
         setProduct(prod);
         setCategories(cats);
+        setProductCategories(productCats);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar dados'));
   }, [authLoading, slug]);
@@ -59,6 +61,7 @@ export default function EditProductPage() {
       <ProductForm
         product={product}
         categories={categories}
+        productCategories={productCategories}
         onSubmit={handleSubmit}
         loading={loading}
         error={error}

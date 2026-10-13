@@ -113,7 +113,7 @@ export default function AdminProductsPage() {
       <DataTable
         columns={[
           { key: 'name', header: 'Nome' },
-          { key: 'category', header: 'Categoria' },
+          { key: 'category', header: 'Categoria de produto', render: item => item.product_category_name || 'Por classificar' },
           {
             key: 'base_price',
             header: 'Preço',

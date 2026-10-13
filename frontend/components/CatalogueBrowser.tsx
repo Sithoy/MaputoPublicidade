@@ -6,17 +6,18 @@ import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ProductCard } from './ProductCard';
 import type { Product } from '@/lib/api';
+import { productCategoryName } from '@/lib/product-configuration';
 
 export function CatalogueBrowser({ products, failed = false, category = 'Todos', query = '' }: { products: Product[]; failed?: boolean; category?: string; query?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const [search, setSearch] = useState(query);
-  const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category).filter((value): value is string => Boolean(value)))).sort((a, b) => a.localeCompare(b, 'pt'))];
+  const categories = ['Todos', ...Array.from(new Set(products.map(productCategoryName))).sort((a, b) => a.localeCompare(b, 'pt'))];
   if (!categories.includes(category)) categories.push(category);
   const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt');
   const term = normalize(search.trim());
-  const filtered = products.filter(p => (category === 'Todos' || p.category === category) && (!term || normalize(`${p.name} ${p.description} ${p.category || ''}`).includes(term)));
+  const filtered = products.filter(p => (category === 'Todos' || productCategoryName(p) === category) && (!term || normalize(`${p.name} ${p.description} ${productCategoryName(p)}`).includes(term)));
 
   function categoryHref(value: string) {
     const next = new URLSearchParams(params.toString());

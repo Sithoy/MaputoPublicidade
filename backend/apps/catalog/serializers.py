@@ -5,7 +5,14 @@ from apps.accounts.roles import StaffCapability, has_staff_capability
 from apps.core.fields import PersistedImageSerializerMixin, PersistentImageField
 
 from .apparel import ApparelOptionsSerializer
-from .models import Package, Product, ProductVariant, ServiceCategory
+from .models import Package, Product, ProductCategory, ProductVariant, ServiceCategory
+from .product_configuration import validate_options
+
+
+class ProductCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductCategory
+        fields = ['id', 'name', 'slug', 'description', 'configuration_template', 'display_order', 'is_active']
 
 
 class ServiceCategorySerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):
@@ -49,6 +56,10 @@ class ProductVariantSerializer(PersistedImageSerializerMixin, serializers.ModelS
 
 
 class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):
+    product_category_name = serializers.CharField(source='product_category.name', read_only=True, allow_null=True)
+    product_category_id = serializers.PrimaryKeyRelatedField(queryset=ProductCategory.objects.all(), source='product_category', write_only=True, required=False, allow_null=True)
+    available_service_ids = serializers.JSONField(source='available_services', write_only=True, required=False)
+    available_service_names = serializers.SerializerMethodField()
     category = serializers.CharField(source="category.name", read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=ServiceCategory.objects.all(), source="category", write_only=True, required=False, allow_null=True
@@ -73,6 +84,12 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
             "slug",
             "category",
             "category_id",
+            "product_category_id",
+            "product_category_name",
+            "available_service_ids",
+            "available_service_names",
+            "configuration_template",
+            "configuration_options",
             "description",
             "image",
             "variants",
@@ -115,6 +132,18 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
         return ProductVariantSerializer(sorted_variants, many=True, context=self.context).data
 
     def validate(self, values):
+        if 'order_template' in values and 'configuration_template' not in values and values['order_template'] == 'apparel':
+            values['configuration_template'] = 'apparel'
+        category = values.get('product_category')
+        if category and not category.is_active and (not self.instance or self.instance.product_category_id != category.pk):
+            raise serializers.ValidationError({'product_category_id': 'Esta categoria está arquivada.'})
+        if category and not self.instance and 'configuration_template' not in values:
+            values['configuration_template'] = category.configuration_template
+        template = values.get('configuration_template', getattr(self.instance, 'configuration_template', 'standard'))
+        options = values.get('configuration_options', getattr(self.instance, 'configuration_options', {}))
+        values['configuration_options'] = validate_options(template, options)
+        if 'configuration_template' in values:
+            values['order_template'] = 'apparel' if template == 'apparel' else 'standard'
         if values.pop('clear_image', False) and 'image' not in values:
             values['image'] = None
         if 'variant_config' in values:
@@ -157,7 +186,20 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
     def to_representation(self, instance):
         result = super().to_representation(instance)
         result['category_id'] = instance.category_id
+        result['product_category_id'] = instance.product_category_id
+        result['available_service_ids'] = [service.id for service in instance.available_services.all()]
         return result
+
+    def validate_available_service_ids(self, value):
+        if not isinstance(value, list) or len(value) > 30 or any(type(v) is not int for v in value) or len(set(value)) != len(value):
+            raise serializers.ValidationError('Indique uma lista de serviços válidos, sem duplicados.')
+        services = list(ServiceCategory.objects.filter(pk__in=value))
+        if len(services) != len(value):
+            raise serializers.ValidationError('Um dos serviços já não existe.')
+        return services
+
+    def get_available_service_names(self, obj):
+        return [service.name for service in obj.available_services.all()]
 
     def _save_variants(self, product, plan):
         if plan is None:

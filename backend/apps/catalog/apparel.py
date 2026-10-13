@@ -1,6 +1,8 @@
 """Bounded apparel options and quantity distributions; no client-supplied pricing."""
 from rest_framework import serializers
 
+from .product_configuration import validate_catalogue_configuration
+
 
 class StrictSerializer(serializers.Serializer):
     def to_internal_value(self, data):
@@ -47,6 +49,7 @@ class ApparelDistributionSerializer(StrictSerializer):
 
 
 def validate_distribution(values, instance=None, catalogue=False):
+    values = validate_catalogue_configuration(values, instance, catalogue)
     briefing = values.get('material_briefing', getattr(instance, 'material_briefing', {})) or {}
     distribution = briefing.get('apparel')
     product = values.get('product', getattr(instance, 'product', None))
