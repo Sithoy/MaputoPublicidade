@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Send } from 'lucide-react';
+import { MaterialBriefingSummary } from './MaterialBriefingSummary';
 import { SafeImage } from '@/components/SafeImage';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -123,7 +124,7 @@ export function CartCheckout() {
                     <div>
                       <p className="font-semibold text-dark">{item.description}</p>
                       <p className="text-sm text-gray-500">{item.product_name}</p>
-                      <p className="text-xs text-gray-500">Quantidade: {item.quantity}</p>
+                      <p className="text-xs text-gray-500">Quantidade: {item.quantity}</p><MaterialBriefingSummary value={item.material_briefing} />
                     </div>
                   </CardContent>
                 </Card>

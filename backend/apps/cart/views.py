@@ -74,6 +74,7 @@ class CartConvertToQuoteView(APIView):
                 colors=cart_item.colors,
                 needs_design=cart_item.needs_design,
                 notes=cart_item.notes,
+                material_briefing=cart_item.material_briefing,
                 position=cart_item.position,
             )
             if cart_item.artwork_file:

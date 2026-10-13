@@ -198,6 +198,7 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
+    material_briefing = models.JSONField(default=dict, blank=True)
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,

@@ -3,6 +3,7 @@ from rest_framework import serializers
 from apps.accounts.roles import StaffCapability, has_staff_capability
 from apps.core.fields import PersistedImageSerializerMixin, PersistentImageField
 
+from .apparel import ApparelOptionsSerializer
 from .models import Package, Product, ProductVariant, ServiceCategory
 
 
@@ -75,6 +76,8 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
             "starting_price",
             "has_variants",
             "materials",
+            "order_template",
+            "apparel_options",
             "sizes",
             "min_quantity",
             "lead_time",
@@ -105,6 +108,13 @@ class ProductSerializer(PersistedImageSerializerMixin, serializers.ModelSerializ
             filtered = [v for v in all_variants if v.is_active]
         sorted_variants = sorted(filtered, key=lambda v: (v.position, v.name))
         return ProductVariantSerializer(sorted_variants, many=True, context=self.context).data
+
+    def validate(self, values):
+        if values.get('order_template', getattr(self.instance, 'order_template', 'standard')) == 'apparel':
+            options = ApparelOptionsSerializer(data=values.get('apparel_options', getattr(self.instance, 'apparel_options', {})))
+            options.is_valid(raise_exception=True)
+            values['apparel_options'] = options.validated_data
+        return values
 
 
 class PackageSerializer(PersistedImageSerializerMixin, serializers.ModelSerializer):

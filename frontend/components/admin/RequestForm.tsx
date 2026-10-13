@@ -188,6 +188,7 @@ export default function RequestForm({ reference, onSaved, onClose }: { reference
           quantity: Number(line.quantity),
           unit_price: Number(line.unit_price),
           notes: line.notes?.trim(),
+          ...(line.material_briefing ? { material_briefing: line.material_briefing } : {}),
         })),
       };
       if (mode !== 'proposal') {

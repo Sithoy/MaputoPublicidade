@@ -84,6 +84,7 @@ def create_order_from_quote(
             colors=quote_item.colors,
             needs_design=quote_item.needs_design,
             notes=quote_item.notes,
+            material_briefing=quote_item.material_briefing,
             unit_price=quote_item.unit_price,
             position=idx,
         )
@@ -137,6 +138,8 @@ class QuoteRequestViewSet(
         return QuoteRequestListSerializer
 
     def get_permissions(self):
+        if self.action == 'apparel_distribution':
+            return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
         if self.action == "destroy":
             return [HasStaffCapability(StaffCapability.REVIEW_PROPOSALS)]
         if self.action == "proposal_workflow":
@@ -552,6 +555,9 @@ class QuoteRequestViewSet(
     def perform_update(self, serializer):
         quote = QuoteRequest.objects.select_for_update().get(pk=serializer.instance.pk)
         values = serializer.validated_data
+        if values.get('status') == 'in_production':
+            from apps.catalog.apparel import require_apparel_ready
+            require_apparel_ready(quote)
         if "status" in values and values["status"] in {"quoted", "approved", "in_production", "ready", "delivered"}:
             require_sent(quote)
         if any(field in values and values[field] != getattr(quote, field) for field in DOCUMENT_FIELDS):
@@ -592,6 +598,27 @@ class QuoteRequestViewSet(
         )
         return response
 
+    @action(detail=True, methods=['patch'], url_path='apparel-distribution')
+    def apparel_distribution(self, request, reference=None):
+        from apps.catalog.apparel import ApparelDistributionSerializer, validate_distribution
+        quote = self.get_object()
+        order = getattr(quote, 'order', None)
+        if order and order.status in ['in_production', 'ready', 'delivered', 'cancelled']:
+            raise ValidationError('A distribuição não pode ser alterada depois do início da produção.')
+        item_id = serializers.IntegerField(min_value=1).run_validation(request.data.get('item_id'))
+        item = quote.items.filter(pk=item_id).first()
+        if not item or not item.material_briefing.get('apparel'):
+            raise ValidationError('Artigo de vestuário indisponível neste pedido.')
+        data = ApparelDistributionSerializer(data=request.data.get('apparel'))
+        data.is_valid(raise_exception=True)
+        validate_distribution({'quantity': item.quantity, 'material_briefing': {'apparel': data.validated_data}})
+        item.material_briefing = {**item.material_briefing, 'apparel': data.validated_data}
+        item.save(update_fields=['material_briefing', 'updated_at'])
+        if order:
+            order.items.filter(position=item.position, quantity=item.quantity).update(material_briefing=item.material_briefing)
+        record_activity(action='reception_updated', quote=quote, actor=request.user, comment=f'Distribuição de vestuário confirmada/atualizada: {item.description}. Quantidade e condições comerciais mantidas.', is_internal=True)
+        return Response({'detail': 'Distribuição guardada. Quantidades e preços não foram alterados.', 'material_briefing': item.material_briefing})
+
     @action(detail=True, methods=["post"], url_path="set-status")
     @transaction.atomic
     def set_status(self, request, reference=None):
@@ -602,6 +629,9 @@ class QuoteRequestViewSet(
 
         old_status = quote.status
         new_status = serializer.validated_data["status"]
+        if new_status == 'in_production':
+            from apps.catalog.apparel import require_apparel_ready
+            require_apparel_ready(quote)
         if new_status in {"quoted", "approved", "in_production", "ready", "delivered"}:
             require_sent(quote)
         if not quote.can_transition_to(new_status):

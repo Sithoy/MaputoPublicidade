@@ -33,6 +33,8 @@ class ServiceCategory(models.Model):
 
 
 class Product(models.Model):
+    order_template = models.CharField(max_length=20, default='standard', choices=[('standard', 'Standard'), ('apparel', 'Vestuário')])
+    apparel_options = models.JSONField(default=dict, blank=True)
     PRICING_SIMPLE = "simple"
     PRICING_COMPLEX = "complex"
     PRICING_CHOICES = [

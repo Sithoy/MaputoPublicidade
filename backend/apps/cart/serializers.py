@@ -1,7 +1,9 @@
 from rest_framework import serializers
 
+from apps.catalog.apparel import validate_distribution
 from apps.catalog.models import Product, ProductVariant
 from apps.core.fields import RelativeFileField
+from apps.quotes.material_briefing import MaterialBriefingSerializer
 
 from .models import Cart, CartItem
 
@@ -36,6 +38,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             "needs_design",
             "artwork_file",
             "notes",
+            "material_briefing",
             "position",
             "created_at",
         ]
@@ -46,6 +49,15 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 
 class CartItemCreateUpdateSerializer(serializers.ModelSerializer):
+    material_briefing = serializers.JSONField(required=False)
+
+    def validate_material_briefing(self, value):
+        result = MaterialBriefingSerializer(data=value)
+        result.is_valid(raise_exception=True)
+        return result.validated_data
+
+    def validate(self, values):
+        return validate_distribution(values, self.instance, catalogue=True)
     product_slug = serializers.SlugRelatedField(
         queryset=Product.objects.filter(is_active=True),
         source="product",
@@ -73,6 +85,7 @@ class CartItemCreateUpdateSerializer(serializers.ModelSerializer):
             "needs_design",
             "artwork_file",
             "notes",
+            "material_briefing",
             "position",
         ]
 

@@ -144,6 +144,8 @@ class OrderViewSet(
         old_status = order.status
         new_status = serializer.validated_data["status"]
         if new_status == Order.STATUS_IN_PRODUCTION and order.quote_id:
+            from apps.catalog.apparel import require_apparel_ready
+            require_apparel_ready(order.quote)
             latest = order.quote.proof_versions.first()
             if latest and latest.mime_type and (not latest.published_at or latest.client_decision != 'approved'):
                 return Response({'detail': 'A versão atual da arte deve ser publicada e aprovada pelo cliente antes da produção.'}, status=400)

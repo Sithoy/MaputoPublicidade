@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { ApparelProductOptions } from './ApparelProductOptions';
 import { ImageUploader } from '@/components/admin/ImageUploader';
 import { createVariant, deleteVariant, updateVariant } from '@/lib/admin-api';
 import type { Category, Product, ProductVariant } from '@/lib/api';
@@ -65,6 +66,7 @@ export function ProductForm({
   error: string;
 }) {
   const router = useRouter();
+  const [orderTemplate, setOrderTemplate] = useState(product?.order_template || 'standard');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [variantError, setVariantError] = useState('');
   const [isSavingVariants, setIsSavingVariants] = useState(false);
@@ -146,6 +148,11 @@ export function ProductForm({
       .filter(Boolean);
     formData.set('materials', JSON.stringify(materials));
     formData.set('sizes', JSON.stringify(sizes));
+    formData.set('order_template', orderTemplate);
+    if (orderTemplate === 'apparel') {
+      const options = Object.fromEntries(['models', 'colors', 'sizes', 'techniques', 'placements'].map((key) => [key, String(formData.get(`apparel_${key}`) || '').split(',').map((value) => value.trim()).filter(Boolean)]));
+      formData.set('apparel_options', JSON.stringify(options));
+    }
 
     const isFeatured = form.querySelector<HTMLInputElement>("input[name='is_featured']")?.checked ?? false;
     const isActive = form.querySelector<HTMLInputElement>("input[name='is_active']")?.checked ?? true;
@@ -324,6 +331,7 @@ export function ProductForm({
         </CardContent>
       </Card>
 
+      <Card><CardContent className="space-y-4 p-6"><label className="block text-sm font-semibold">Como configurar o pedido<select value={orderTemplate} onChange={(event) => setOrderTemplate(event.target.value as 'standard' | 'apparel')} className="mt-2 w-full rounded-lg border p-3"><option value="standard">Pedido standard</option><option value="apparel">Vestuário · distribuição por modelo, cor e tamanho</option></select></label>{orderTemplate === 'apparel' && <ApparelProductOptions initial={product?.apparel_options} />}</CardContent></Card>
       <Card>
         <CardContent className="p-6">
           <div className="mb-4 flex items-center justify-between">

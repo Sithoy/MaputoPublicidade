@@ -17,6 +17,9 @@ class BrandRequestThrottle(UserRateThrottle):
 
 
 class BrandItemSerializer(serializers.Serializer):
+    def validate(self, values):
+        from apps.catalog.apparel import validate_distribution
+        return validate_distribution(values)
     material_briefing = MaterialBriefingSerializer(required=False)
     description = serializers.CharField(max_length=255)
     quantity = serializers.IntegerField(min_value=1, max_value=1000000)

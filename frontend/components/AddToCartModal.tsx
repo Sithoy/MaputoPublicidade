@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ApparelMatrix } from './ApparelMatrix';
+import type { ApparelDistribution } from '@/lib/apparel';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -21,6 +23,7 @@ export function AddToCartModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const [apparel, setApparel] = useState<ApparelDistribution>({ pending: false, rows: [] });
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useState('');
   const [material, setMaterial] = useState('');
@@ -34,6 +37,7 @@ export function AddToCartModal({
   useEffect(() => {
     if (open) {
       setQuantity(product.min_quantity || 1);
+      setApparel({ pending: false, rows: [] });
       setSize('');
       setMaterial('');
       setColors('');
@@ -63,6 +67,7 @@ export function AddToCartModal({
         needs_design: needsDesign,
         notes,
         artwork_file: artworkFile,
+        ...(product.order_template === 'apparel' ? { material_briefing: { work_type: 'apparel' as const, apparel } } : {}),
       });
       onClose();
     } catch (err) {
@@ -90,6 +95,7 @@ export function AddToCartModal({
         {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {product.order_template === 'apparel' && product.apparel_options && <ApparelMatrix id="catalogue-apparel" options={product.apparel_options} quantity={quantity} value={apparel} onChange={setApparel} />}
           <div>
             <Label htmlFor="qty">Quantidade</Label>
             <Input
@@ -102,7 +108,7 @@ export function AddToCartModal({
             />
           </div>
 
-          <div>
+          <div hidden={product.order_template === 'apparel'}>
             <Label htmlFor="size">Tamanho</Label>
             {product.sizes && product.sizes.length > 0 ? (
               <Select id="size" value={size} onChange={(e) => setSize(e.target.value)} className="mt-1">
@@ -130,7 +136,7 @@ export function AddToCartModal({
             )}
           </div>
 
-          <div>
+          <div hidden={product.order_template === 'apparel'}>
             <Label htmlFor="colors">Cores</Label>
             <Input id="colors" value={colors} onChange={(e) => setColors(e.target.value)} className="mt-1" />
           </div>

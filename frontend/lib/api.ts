@@ -246,6 +246,8 @@ export type ProductVariant = {
 };
 
 export type Product = {
+  order_template?: 'standard' | 'apparel';
+  apparel_options?: import('./apparel').ApparelOptions;
   id: number;
   slug: string;
   name: string;
@@ -620,6 +622,7 @@ export type Order = {
 };
 
 export type CartItem = {
+  material_briefing?: import('./material-briefing').MaterialBriefing;
   id: number;
   product: number;
   product_slug?: string;

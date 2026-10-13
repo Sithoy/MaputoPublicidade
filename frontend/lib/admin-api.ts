@@ -170,6 +170,7 @@ export async function getQuote(reference: string): Promise<AdminQuote> {
 }
 
 export type DocumentLineInput = {
+  material_briefing?: import('./material-briefing').MaterialBriefing;
   product_id?: number;
   description: string;
   quantity: number;

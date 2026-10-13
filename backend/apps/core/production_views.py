@@ -68,7 +68,7 @@ def job_data(quote):
         "production_notes": quote.production_notes,
         "items": list(
             quote.items.values(
-                "id", "description", "quantity", "size", "material", "colors", "needs_design"
+                "id", "description", "quantity", "size", "material", "colors", "needs_design", "material_briefing"
             )
         ),
         "versions": [version_data(version, True) for version in versions(quote)],

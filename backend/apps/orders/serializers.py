@@ -39,6 +39,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "needs_design",
             "artwork_file",
             "notes",
+            "material_briefing",
             "unit_price",
             "position",
             "created_at",
@@ -58,7 +59,7 @@ class OperationalOrderMixin:
             data = {key: value for key, value in data.items() if key in allowed}
             for item in data.get("items", []):
                 for key in list(item):
-                    if key not in {"id", "description", "quantity", "size", "material", "colors", "needs_design", "position"}:
+                    if key not in {"id", "description", "quantity", "size", "material", "colors", "needs_design", "position", "material_briefing"}:
                         item.pop(key)
         return data
 
@@ -348,6 +349,9 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_status(self, value):
+        if value == Order.STATUS_IN_PRODUCTION and self.instance and self.instance.quote_id:
+            from apps.catalog.apparel import require_apparel_ready
+            require_apparel_ready(self.instance.quote)
         if self.instance and not self.instance.can_transition_to(value):
             raise serializers.ValidationError(
                 f"Transição inválida a partir de '{self.instance.get_status_display()}'."

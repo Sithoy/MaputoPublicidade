@@ -25,6 +25,7 @@ class Cart(models.Model):
 
 
 class CartItem(models.Model):
+    material_briefing = models.JSONField(default=dict, blank=True)
     cart = models.ForeignKey(
         Cart,
         on_delete=models.CASCADE,

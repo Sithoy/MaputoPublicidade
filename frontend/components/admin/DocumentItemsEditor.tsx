@@ -1,5 +1,6 @@
 'use client';
 
+import { ApparelMatrix } from '@/components/ApparelMatrix';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -49,6 +50,7 @@ export function DocumentItemsEditor({
     updateLine(line.key, {
       product_id: product?.id,
       description: product?.name ?? line.description,
+      material_briefing: product?.order_template === 'apparel' ? { work_type: 'apparel', apparel: { pending: true, rows: [] } } : undefined,
       unit_price: product?.base_price?.toString() ?? line.unit_price,
     });
   }
@@ -83,7 +85,7 @@ export function DocumentItemsEditor({
             key={line.key}
             className="grid gap-3 rounded-2xl border border-[#e1e8e3] bg-[#f8faf8] p-4 lg:grid-cols-12"
           >
-            {line.material_briefing ? <div className="rounded-xl bg-white p-3 lg:col-span-12"><p className="text-xs font-semibold text-brand-800">Contexto recebido no briefing</p><MaterialBriefingSummary value={line.material_briefing} /></div> : null}
+            {(line.material_briefing?.apparel || products?.find((product) => product.id === line.product_id)?.order_template === 'apparel') && <div className="lg:col-span-12"><ApparelMatrix id={`document-${line.key}`} quantity={Number(line.quantity)} value={line.material_briefing?.apparel || { pending: true, rows: [] }} onChange={(apparel) => updateLine(line.key, { material_briefing: { ...line.material_briefing, work_type: 'apparel', apparel } })} /></div>}{line.material_briefing ? <div className="rounded-xl bg-white p-3 lg:col-span-12"><p className="text-xs font-semibold text-brand-800">Contexto recebido no briefing</p><MaterialBriefingSummary value={line.material_briefing} /></div> : null}
             {products ? (
               <div className="lg:col-span-3">
                 <Label htmlFor={`product-${line.key}`}>Produto</Label>

@@ -365,6 +365,12 @@ class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSeria
 
 
 class QuoteItemCreateSerializer(serializers.ModelSerializer):
+    from .material_briefing import MaterialBriefingSerializer
+    material_briefing = MaterialBriefingSerializer(required=False)
+
+    def validate(self, values):
+        from apps.catalog.apparel import validate_distribution
+        return validate_distribution(values, catalogue=True)
     product_slug = serializers.SlugRelatedField(
         queryset=Product.objects.filter(is_active=True),
         source="product",
@@ -384,6 +390,7 @@ class QuoteItemCreateSerializer(serializers.ModelSerializer):
         model = QuoteItem
         fields = [
             "product_slug",
+            "material_briefing",
             "product_variant_id",
             "description",
             "quantity",
@@ -435,6 +442,7 @@ class QuoteRequestCreateSerializer(serializers.ModelSerializer):
                 needs_design=item_data.get("needs_design", False),
                 artwork_file=item_data.get("artwork_file"),
                 notes=item_data.get("notes", ""),
+                material_briefing=item_data.get('material_briefing', {}),
                 position=item_data.get("position", idx),
             )
 
@@ -459,6 +467,12 @@ class QuoteRequestCreateSerializer(serializers.ModelSerializer):
 
 
 class ManualQuoteItemSerializer(serializers.Serializer):
+    from .material_briefing import MaterialBriefingSerializer
+    material_briefing = MaterialBriefingSerializer(required=False)
+
+    def validate(self, values):
+        from apps.catalog.apparel import validate_distribution
+        return validate_distribution(values)
     item_id = serializers.IntegerField(required=False, min_value=1)
     product_id = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.filter(is_active=True),
@@ -590,6 +604,8 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
         for position, data in enumerate(items_data):
             item_id = data.pop("item_id", None)
             item = existing[item_id] if item_id else QuoteItem(quote=instance)
+            from apps.catalog.apparel import validate_distribution
+            validate_distribution(data, item)
             if "product" in data and item.product_id != getattr(data["product"], "id", None):
                 item.product_variant = None
             for field, value in data.items():
@@ -642,12 +658,19 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
                 quantity=item["quantity"],
                 unit_price=item["unit_price"],
                 notes=item.get("notes", ""),
+                material_briefing=item.get('material_briefing', {}),
                 position=position,
             )
         return quote
 
 
 class ReceptionIntakeItemSerializer(serializers.Serializer):
+    from .material_briefing import MaterialBriefingSerializer
+    material_briefing = MaterialBriefingSerializer(required=False)
+
+    def validate(self, values):
+        from apps.catalog.apparel import validate_distribution
+        return validate_distribution(values)
     product_id = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.filter(is_active=True),
         source="product",
@@ -771,6 +794,7 @@ class ReceptionIntakeSerializer(serializers.Serializer):
                 quantity=item["quantity"],
                 unit_price=item.get("unit_price"),
                 notes=item.get("notes", ""),
+                material_briefing=item.get('material_briefing', {}),
                 position=position,
             )
         return quote

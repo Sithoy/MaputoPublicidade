@@ -2,10 +2,13 @@
 
 from rest_framework import serializers
 
+from apps.catalog.apparel import ApparelDistributionSerializer
+
 
 class MaterialBriefingSerializer(serializers.Serializer):
+    apparel = ApparelDistributionSerializer(required=False)
     work_type = serializers.ChoiceField(
-        choices=["other", "paper", "promotional", "vehicle", "space", "signage"], required=False
+        choices=["other", "paper", "promotional", "apparel", "vehicle", "space", "signage"], required=False
     )
     needs_dimensions = serializers.BooleanField(required=False)
     dimensions = serializers.CharField(max_length=2000, required=False, allow_blank=True)

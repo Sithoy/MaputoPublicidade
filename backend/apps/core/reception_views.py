@@ -120,6 +120,9 @@ class ReceptionSerializer(serializers.ModelSerializer):
 
 
 class ReceptionItemSerializer(serializers.Serializer):
+    def validate(self, values):
+        from apps.catalog.apparel import validate_distribution
+        return validate_distribution(values)
     material_briefing = MaterialBriefingSerializer(required=False)
     id = serializers.IntegerField(min_value=1, required=False)
     description = serializers.CharField(max_length=255)
@@ -417,6 +420,8 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
             for position, values in enumerate(items):
                 item_id = values.pop("id", None)
                 item = existing[item_id] if item_id else QuoteItem(quote=quote)
+                from apps.catalog.apparel import validate_distribution
+                validate_distribution(values, item)
                 for key, value in values.items():
                     setattr(item, "notes" if key == "specifications" else key, value)
                 item.position = position

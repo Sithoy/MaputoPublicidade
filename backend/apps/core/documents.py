@@ -702,6 +702,13 @@ def build_quote_pdf(quote) -> bytes:
         else:
             items_subtotal += Decimal(str(unit)) * item.quantity
         details = escape(item.description or "Serviço")
+        apparel = (item.material_briefing or {}).get('apparel')
+        if apparel:
+            label = 'Distribuição por confirmar' if apparel.get('pending') else 'Distribuição detalhada no mapa abaixo'
+            details += f"<br/><font size='8' color='#5B6B62'>{label}</font>"
+            for key in ['technique', 'placement', 'notes']:
+                if apparel.get(key):
+                    details += f"<br/><font size='8' color='#5B6B62'>{escape(apparel[key])}</font>"
         specs = " · ".join(p for p in [item.size, item.material, item.colors] if p)
         if specs:
             details = f"{details}<br/><font size='8' color='#5B6B62'>{escape(specs)}</font>"
@@ -717,6 +724,24 @@ def build_quote_pdf(quote) -> bytes:
             ]
         )
     story.append(_items_table(styles, rows))
+    for item in quote.items.all():
+        apparel = (item.material_briefing or {}).get('apparel')
+        if not apparel or not apparel.get('rows'):
+            continue
+        story.append(Spacer(1, 3 * mm))
+        story.append(Paragraph(f"Mapa de vestuário - {escape(item.description)}", ParagraphStyle('apparel_map_heading', parent=styles['body'], keepWithNext=True)))
+        sizes = list(dict.fromkeys(row['size'] for row in apparel['rows']))
+        groups = {}
+        for row in apparel['rows']:
+            groups.setdefault((row['model'], row['color']), {})[row['size']] = row['quantity']
+        compact = ParagraphStyle('apparel_map_cell', parent=item_style, fontSize=7, leading=9)
+        header_style = ParagraphStyle('apparel_map_header', parent=compact, textColor=colors.white, fontName='Helvetica-Bold')
+        distribution_rows = [[Paragraph(escape(label), header_style) for label in ['Modelo', 'Cor', *sizes, 'Total']]]
+        for (model, color), counts in groups.items():
+            distribution_rows.append([Paragraph(escape(model), compact), Paragraph(escape(color), compact), *[str(counts.get(size, 0)) for size in sizes], str(sum(counts.values()))])
+        distribution_table = Table(distribution_rows, colWidths=[35 * mm, 25 * mm, *([118 * mm / (len(sizes) + 1)] * (len(sizes) + 1))], repeatRows=1)
+        distribution_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), BRAND_DARK), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white), ('FONTSIZE', (0, 0), (-1, -1), 8), ('VALIGN', (0, 0), (-1, -1), 'TOP'), ('TOPPADDING', (0, 0), (-1, -1), 5), ('BOTTOMPADDING', (0, 0), (-1, -1), 5), ('LINEBELOW', (0, 0), (-1, -1), 0.3, GREY_LINE), ('ALIGN', (-1, 0), (-1, -1), 'RIGHT')]))
+        story.append(distribution_table)
     story.append(Spacer(1, 4 * mm))
 
     total = (

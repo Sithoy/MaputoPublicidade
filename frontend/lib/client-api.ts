@@ -76,6 +76,7 @@ export async function getCart(): Promise<Cart> {
 }
 
 export type CartItemData = {
+  material_briefing?: import('./material-briefing').MaterialBriefing;
   product_slug: string;
   product_variant_id?: number | null;
   description?: string;
@@ -100,6 +101,7 @@ export async function addCartItem(data: CartItemData): Promise<CartItem> {
   if (data.needs_design != null) formData.append('needs_design', String(data.needs_design));
   if (data.artwork_file) formData.append('artwork_file', data.artwork_file);
   if (data.notes) formData.append('notes', data.notes);
+  if (data.material_briefing) formData.append('material_briefing', JSON.stringify(data.material_briefing));
 
   const item = await fetchWithAuth('/api/cart/items/', {
     method: 'POST',
@@ -114,6 +116,7 @@ export async function updateCartItem(id: number, data: Partial<CartItemData>): P
   if (data.product_variant_id !== undefined) formData.append('product_variant_id', String(data.product_variant_id));
   if (data.description !== undefined) formData.append('description', data.description);
   if (data.quantity !== undefined) formData.append('quantity', String(data.quantity));
+  if (data.material_briefing !== undefined) formData.append('material_briefing', JSON.stringify(data.material_briefing));
   if (data.size !== undefined) formData.append('size', data.size);
   if (data.material !== undefined) formData.append('material', data.material);
   if (data.colors !== undefined) formData.append('colors', data.colors);
