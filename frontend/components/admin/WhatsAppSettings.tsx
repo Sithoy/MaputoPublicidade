@@ -36,7 +36,9 @@ const labels: Record<string, string> = { ...Object.fromEntries([...fields, ...se
 const inputClass = 'mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand';
 const emptySecrets = { access_token: '', app_secret: '', verify_token: '' };
 
-export function WhatsAppSettings() {
+export function WhatsAppSettings({ embedded = false, onDirtyChange, onBusyChange }: {
+  embedded?: boolean; onDirtyChange?: (value: boolean) => void; onBusyChange?: (value: boolean) => void;
+} = {}) {
   const { loading, can } = useAdminAuth();
   const allowed = can('integrations.manage');
   const [config, setConfig] = useState<Configuration | null>(null);
@@ -47,6 +49,8 @@ export function WhatsAppSettings() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const dirty = JSON.stringify(form) !== JSON.stringify(savedForm) || Object.values(secrets).some(Boolean);
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   const connectionDirty = JSON.stringify({ ...form, enabled: false }) !== JSON.stringify({ ...savedForm, enabled: false }) || Object.values(secrets).some(Boolean);
   const ready = config && !config.missing_fields.length && config.tested_at && config.webhook_verified_at;
 
@@ -86,8 +90,8 @@ export function WhatsAppSettings() {
   if (loading) return <p>A carregar…</p>;
   if (!allowed) return <p role="alert">A sua função não permite gerir integrações.</p>;
 
-  return <div className="mx-auto max-w-5xl space-y-6">
-    <header className="rounded-3xl bg-brand-900 p-7 text-white"><p className="text-xs font-semibold uppercase tracking-widest text-brand-200">Definições · Integrações</p><h1 className="mt-3 text-3xl font-semibold">WhatsApp da MP</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-white/80">Ligue o atendimento WhatsApp a Mensagens e apoio. Guardar os dados não migra o número nem ativa Coexistence: esse processo deve ser concluído na Meta / fornecedor elegível.</p></header>
+  return <div className={embedded ? "space-y-6" : "mx-auto max-w-5xl space-y-6"}>
+    {embedded ? <p className="text-sm leading-6 text-slate-500">Ligue o atendimento WhatsApp a Mensagens e apoio. Guardar os dados não ativa o número: conclua primeiro o onboarding na Meta.</p> : <header className="rounded-3xl bg-brand-900 p-7 text-white"><p className="text-xs font-semibold uppercase tracking-widest text-brand-200">Definições · Integrações</p><h2 className="mt-3 text-3xl font-semibold">WhatsApp da MP</h2><p className="mt-3 max-w-3xl text-sm leading-6 text-white/80">Ligue o atendimento WhatsApp a Mensagens e apoio. Guardar os dados não migra o número nem ativa Coexistence: esse processo deve ser concluído na Meta / fornecedor elegível.</p></header>}
     {error ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
     {notice ? <p role="status" className="rounded-xl bg-brand-50 p-4 text-sm text-brand-800">{notice}</p> : null}
     {!form || !config ? <p>A aguardar configuração…</p> : <form onSubmit={save} className="space-y-6">

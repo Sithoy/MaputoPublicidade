@@ -7,7 +7,9 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 type Config = { mailbox: string; display_name: string; smtp_host: string; imap_host: string; password_configured: boolean; tested_at: string | null };
 const base = '/api/integrations/email/';
 
-export function EmailSettings() {
+export function EmailSettings({ embedded = false, onDirtyChange, onBusyChange }: {
+  embedded?: boolean; onDirtyChange?: (value: boolean) => void; onBusyChange?: (value: boolean) => void;
+} = {}) {
   const { loading, can } = useAdminAuth();
   const allowed = can('integrations.manage');
   const [config, setConfig] = useState<Config | null>(null);
@@ -17,6 +19,8 @@ export function EmailSettings() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const dirty = Boolean(password) || JSON.stringify(form) !== JSON.stringify(config);
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => {
     if (loading || !allowed) return;
     let active = true;
@@ -42,7 +46,7 @@ export function EmailSettings() {
     finally { setBusy(false); }
   }
   if (loading || !allowed) return null;
-  return <section aria-label="Email Atendimento" className="rounded-2xl border bg-white p-6"><h1 className="text-xl font-semibold text-brand-900">Email · Atendimento MP</h1><p className="mt-2 text-sm text-slate-500">Ligação à caixa dedicada Zoho. A credencial não é devolvida pela API nem aparece nos logs.</p>
+  return <section aria-label="Email Atendimento" className={embedded ? "" : "rounded-2xl border bg-white p-6"}>{embedded ? null : <h2 className="text-xl font-semibold text-brand-900">Email · Atendimento MP</h2>}<p className="mt-2 text-sm text-slate-500">Ligação à caixa dedicada Zoho. A credencial não é devolvida pela API nem aparece nos logs.</p>
     {error ? <p role="alert" className="mt-4 text-sm text-red-700">{error}</p> : null}{notice ? <p role="status" className="mt-4 text-sm text-brand-800">{notice}</p> : null}
     {form ? <form onSubmit={(event) => { event.preventDefault(); void perform(); }} className="mt-5 space-y-4"><fieldset disabled={busy} className="grid gap-4 md:grid-cols-2">
       <label className="text-xs">Caixa dedicada<input readOnly value={form.mailbox} className="mt-2 block w-full rounded-xl border bg-slate-50 p-3 text-sm" /></label>
