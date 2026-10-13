@@ -13,7 +13,7 @@ type Section = 'overview' | 'company' | 'email' | 'whatsapp' | 'access';
 const sections = [
   { id: 'overview', label: 'Visão geral', icon: LayoutGrid, group: 'Geral', description: 'Configuração da plataforma, organizada por área.' },
   { id: 'company', label: 'Empresa', icon: Building2, group: 'Geral', description: 'Identificação e contactos usados pelo website.' },
-  { id: 'email', label: 'Email', icon: Mail, group: 'Comunicação', description: 'Caixa Atendimento, credencial e verificação SMTP / IMAP.' },
+  { id: 'email', label: 'Email', icon: Mail, group: 'Comunicação', description: 'Caixa Atendimento, autorização OAuth e API Zoho.' },
   { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, group: 'Comunicação', description: 'Número da MP, ligação Meta e receção de mensagens.' },
   { id: 'access', label: 'Equipa e acessos', icon: Users, group: 'Administração', description: 'Utilizadores, funções e responsabilidades.' },
 ] as const;
@@ -35,12 +35,12 @@ export function SettingsWorkspace() {
     let active = true;
     setStatus({ email: 'A verificar…', whatsapp: 'A verificar…' });
     Promise.allSettled([
-      fetchWithAuth('/api/integrations/email/'), fetchWithAuth('/api/integrations/whatsapp/'),
+      fetchWithAuth('/api/integrations/email/oauth/'), fetchWithAuth('/api/integrations/whatsapp/'),
     ]).then(([email, whatsapp]) => {
       if (!active) return;
-      const e = email.status === 'fulfilled' ? email.value as { tested_at: string | null; password_configured: boolean } : null;
+      const e = email.status === 'fulfilled' ? email.value as { connected: boolean; secret_configured: boolean } : null;
       const w = whatsapp.status === 'fulfilled' ? whatsapp.value as { enabled: boolean; tested_at: string | null } : null;
-      setStatus({ email: !e ? 'Estado indisponível' : e.tested_at ? 'Autenticação verificada' : e.password_configured ? 'Por testar' : 'Por configurar', whatsapp: !w ? 'Estado indisponível' : w.enabled ? 'Ativo' : w.tested_at ? 'Ativação pendente' : 'Por configurar' });
+      setStatus({ email: !e ? 'Estado indisponível' : e.connected ? 'API ligada' : e.secret_configured ? 'Por autorizar' : 'Por configurar', whatsapp: !w ? 'Estado indisponível' : w.enabled ? 'Ativo' : w.tested_at ? 'Ativação pendente' : 'Por configurar' });
     });
     return () => { active = false; };
   }, [loading, allowed, section]);

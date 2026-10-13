@@ -6,7 +6,7 @@ import { SettingsWorkspace } from './SettingsWorkspace';
 const auth = vi.hoisted(() => ({ loading: false, allowed: true, users: true }));
 vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ loading: auth.loading, can: (key: string) => key === 'users.manage' ? auth.users : auth.allowed }) }));
 vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
-const email = { mailbox: 'atendimento@maputopublicidade.com', display_name: 'Atendimento MP', smtp_host: 'smtppro.zoho.com', imap_host: 'imappro.zoho.com', password_configured: false, tested_at: null };
+const email = { mailbox: 'atendimento@maputopublicidade.com', client_id: '1000.example', secret_configured: false, connected: false, tested_at: null, callback_url: 'https://example.test/callback/' };
 const whatsapp = { enabled: false, tested_at: null, missing_fields: ['app_id'], credential_status: { access_token: false, app_secret: false, verify_token: false }, webhook_url: 'https://example.test/webhook/', webhook_verified_at: null, last_received_at: null };
 beforeEach(() => {
   vi.clearAllMocks(); auth.loading = false; auth.allowed = true; auth.users = true;
@@ -21,7 +21,7 @@ describe('Settings workspace', () => {
     expect(screen.getByRole('heading', { name: 'Definições', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Áreas de Definições' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('Por configurar')).toHaveLength(2));
-    expect(screen.queryByLabelText('Credencial da caixa / palavra-passe de aplicação')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Client Secret')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Empresa' }));
     expect(screen.getByRole('region', { name: 'Dados da empresa' })).toBeInTheDocument();
     expect(screen.getByText(/A edição destes dados continua na configuração técnica/)).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe('Settings workspace', () => {
   it('preserves email drafts when switching is declined and discards only after confirmation', async () => {
     render(<SettingsWorkspace />);
     fireEvent.click(screen.getByRole('button', { name: 'Email' }));
-    const field = await screen.findByLabelText('Credencial da caixa / palavra-passe de aplicação');
+    const field = await screen.findByLabelText('Client Secret');
     fireEvent.change(field, { target: { value: 'private-draft' } });
     await screen.findByText('Alterações por guardar');
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
@@ -40,7 +40,7 @@ describe('Settings workspace', () => {
     confirm.mockReturnValue(true);
     fireEvent.click(screen.getByRole('button', { name: 'WhatsApp' }));
     expect(await screen.findByLabelText('Nome da empresa')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Credencial da caixa / palavra-passe de aplicação')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Client Secret')).not.toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
   it('supports direct email links and does not duplicate user management', async () => {

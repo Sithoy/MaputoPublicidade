@@ -13,6 +13,7 @@ from .whatsapp_views import (
     WhatsAppVerifyTokenView,
     WhatsAppWebhookView,
 )
+from .zoho_oauth import ZohoOAuthCallback, ZohoOAuthSettings, ZohoOAuthStart, ZohoOAuthTest
 
 router = DefaultRouter()
 router.register("notifications", PortalNotificationViewSet, basename="notification")
@@ -22,6 +23,10 @@ router.register(
 router.register("reception", ReceptionViewSet, basename="reception")
 router.register("production", ProductionViewSet, basename="production")
 urlpatterns = [
+    path("integrations/email/oauth/", ZohoOAuthSettings.as_view(), name="zoho-oauth-settings"),
+    path("integrations/email/oauth/start/", ZohoOAuthStart.as_view(), name="zoho-oauth-start"),
+    path("integrations/email/oauth/callback/", ZohoOAuthCallback.as_view(), name="zoho-oauth-callback"),
+    path("integrations/email/oauth/test/", ZohoOAuthTest.as_view(), name="zoho-oauth-test"),
     path("integrations/email/", EmailSettingsView.as_view(), name="email-settings"),
     path("integrations/email/test/", EmailTestView.as_view(), name="email-test"),
     path("tracking/lookup/", TrackingLookup.as_view(), name="tracking-lookup"),

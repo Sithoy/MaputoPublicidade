@@ -351,9 +351,13 @@ if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
 
+    from apps.core.email_telemetry import filter_email_event
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration()],
         traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
         send_default_pii=True,
+        before_send=filter_email_event,
+        before_send_transaction=filter_email_event,
     )

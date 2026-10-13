@@ -10,6 +10,13 @@ class EmailConnection(models.Model):
     smtp_host = models.CharField(max_length=100, default="smtppro.zoho.com")
     imap_host = models.CharField(max_length=100, default="imappro.zoho.com")
     credentials = models.TextField(blank=True)
+    oauth_client_id = models.CharField(max_length=200, blank=True)
+    oauth_secret = models.TextField(blank=True)
+    oauth_refresh = models.TextField(blank=True)
+    oauth_account_id = models.CharField(max_length=100, blank=True)
+    oauth_state_hash = models.CharField(max_length=64, blank=True)
+    oauth_state_expires = models.DateTimeField(null=True, blank=True)
+    oauth_actor = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     tested_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
