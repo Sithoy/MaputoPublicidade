@@ -1,114 +1,50 @@
 import Link from 'next/link';
-import { MessageCircle, RefreshCw, Send } from 'lucide-react';
-import { ProductCard } from '@/components/ProductCard';
+import { ArrowRight, Check, MessageCircle } from 'lucide-react';
+import { CatalogueBrowser } from '@/components/CatalogueBrowser';
 import { getList, type Product } from '@/lib/api';
-import { mainServices } from '@/lib/service-catalog';
-
-const categories = ['Todos', ...mainServices.map((service) => service.title)];
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-const WHATSAPP_NUMBER = '25882555736';
-const WHATSAPP_MESSAGE = 'Olá! Vi o catálogo da Maputo Publicidade e gostaria de pedir ajuda para escolher um produto.';
+import { companyProfile, whatsappHref } from '@/lib/company';
 
 export const metadata = {
   title: 'Catálogo | Maputo Publicidade',
-  description: 'Explore o catálogo de produtos personalizáveis da Maputo Publicidade.',
-  openGraph: {
-    title: 'Catálogo | Maputo Publicidade',
-    description: 'Explore o catálogo de produtos personalizáveis da Maputo Publicidade.',
-    images: [`${siteUrl}/og-image.png`],
-  },
+  description: 'Encontre os materiais certos para dar presença à sua marca. Explore produtos e prepare um pedido personalizado.',
+  openGraph: { images: [`${companyProfile.siteUrl}/og-image.png`] },
 };
-
 export const revalidate = 60;
 
-export default async function CatalogPage({ searchParams }: { searchParams: { categoria?: string } }) {
-  const activeCategory = searchParams.categoria || 'Todos';
+export default async function CatalogPage({ searchParams }: { searchParams: { categoria?: string; q?: string } }) {
   let products: Product[] = [];
-  let productsLoadFailed = false;
-
-  try {
-    products = await getList<Product>('/api/products/', { next: { revalidate: 60 } });
-  } catch {
-    products = [];
-    productsLoadFailed = true;
-  }
-
-  const filtered = activeCategory === 'Todos'
-    ? products
-    : products.filter((p) => p.category === activeCategory);
-
+  let failed = false;
+  try { products = await getList<Product>('/api/products/', { next: { revalidate: 60 } }); }
+  catch { failed = true; }
   return (
-    <div className="mx-auto max-w-7xl px-4 py-16 lg:px-6 lg:py-24">
-      <div className="mb-10 text-center">
-        <h1 className="text-3xl font-bold text-dark md:text-4xl">Catálogo de Produtos</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-          Escolha o produto ideal para a sua empresa e peça um orçamento personalizado.
-        </p>
-      </div>
-
-      <div className="mb-8 flex flex-wrap justify-center gap-2">
-        {categories.map((cat) => (
-          <Link
-            key={cat}
-            href={cat === 'Todos' ? '/catalogo' : `/catalogo?categoria=${encodeURIComponent(cat)}`}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              activeCategory === cat
-                ? 'bg-brand text-white'
-                : 'bg-gray-100 text-dark hover:bg-gray-200'
-            }`}
-          >
-            {cat}
-          </Link>
-        ))}
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="mx-auto max-w-3xl rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center shadow-sm sm:p-10">
-          <h2 className="text-xl font-semibold text-dark">
-            {productsLoadFailed ? 'Catálogo temporariamente indisponível' : 'Nenhum produto encontrado nesta categoria'}
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-gray-600">
-            {productsLoadFailed
-              ? 'Não foi possível carregar os produtos agora. Pode tentar novamente ou enviar-nos o briefing e ajudamos a encontrar a solução certa.'
-              : 'Ainda não temos produtos publicados para este filtro. Pode ver todas as categorias ou pedir uma recomendação personalizada.'}
-          </p>
-
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            {activeCategory !== 'Todos' ? (
-              <Link
-                href="/catalogo"
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-dark transition hover:border-brand hover:text-brand"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Ver todos os produtos
-              </Link>
-            ) : null}
-            <Link
-              href="/orcamento"
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600"
-            >
-              <Send className="h-4 w-4" />
-              Pedir orçamento
-            </Link>
-            <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-brand px-5 py-3 text-sm font-semibold text-brand transition hover:bg-brand hover:text-white"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Falar no WhatsApp
-            </a>
+    <div className="bg-light">
+      <section className="relative overflow-hidden border-b border-[#E3E8E4] bg-[#F4F0E8]">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-32 -top-48 h-[650px] w-[650px] rounded-full border border-[#D6A842]/20" />
+        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.4fr_0.6fr] lg:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand">Catálogo · Maputo Publicidade</p>
+            <h1 className="mt-4 max-w-3xl text-balance text-4xl font-extrabold leading-[1.1] tracking-[-0.04em] text-brand-800 sm:text-5xl lg:text-6xl">A sua marca merece<br className="hidden sm:block" /> estar presente.</h1>
+            <p className="mt-5 max-w-xl text-base leading-7 text-[#66736D] sm:text-lg">Da equipa que a representa aos espaços onde recebe os seus clientes. Encontre o material certo e dê-lhe a identidade da sua empresa.</p>
+          </div>
+          <div className="border-l-2 border-accent pl-6">
+            <p className="text-sm font-bold text-brand-800">O produto é só o ponto de partida.</p>
+            <p className="mt-2 text-sm leading-6 text-[#66736D]">Escolha, indique quantidades e partilhe a sua ideia. A nossa equipa confirma os detalhes e prepara a proposta.</p>
+            <Link href="/orcamento" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-brand-800 hover:underline">Fale sobre o seu projeto <ArrowRight className="h-4 w-4" /></Link>
           </div>
         </div>
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {filtered.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+      </section>
+      <CatalogueBrowser key={searchParams.q || ''} products={products} failed={failed} category={searchParams.categoria || 'Todos'} query={searchParams.q || ''} />
+      <section className="border-t border-[#E3E8E4] bg-[#EDF2EC]">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">Uma ideia, muitas possibilidades</p>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-brand-800 sm:text-3xl">Não encontra exatamente o que procura?</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#66736D]">Partilhe uma referência, uma fotografia ou uma descrição. Ajudamos a encontrar uma solução para a sua marca.</p>
+            <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-xs font-semibold text-brand-800">{['Personalização à sua medida', 'Proposta antes da produção', 'Acompanhamento pela MP'].map(text => <span key={text} className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-brand" />{text}</span>)}</div>
+          </div>
+          <a href={whatsappHref('Olá! Gostaria de ajuda para escolher materiais para a minha marca.')} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-3 rounded-xl bg-brand-800 px-6 py-4 text-sm font-bold text-white transition hover:bg-brand-700"><MessageCircle className="h-4 w-4" />Vamos encontrar a solução</a>
         </div>
-      )}
+      </section>
     </div>
   );
 }

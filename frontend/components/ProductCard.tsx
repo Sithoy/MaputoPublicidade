@@ -1,61 +1,31 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { ShoppingCart } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { SafeImage } from '@/components/SafeImage';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { AddToCartModal } from '@/components/AddToCartModal';
 import { getProductFallback, getProductImageSrc } from '@/lib/image-fallbacks';
 import type { Product } from '@/lib/api';
 
 export function ProductCard({ product }: { product: Product }) {
-  const [cartOpen, setCartOpen] = useState(false);
-  const firstVariant = product.variants?.find((v) => v.is_active !== false);
-  const displayImage = getProductImageSrc(product, firstVariant);
-  const fallbackImage = getProductFallback(product);
-  const displayPrice = product.starting_price || product.base_price;
-
+  const firstVariant = product.variants?.find(v => v.is_active !== false);
+  const price = product.starting_price || product.base_price;
+  const currency = new Intl.NumberFormat('pt-MZ', { maximumFractionDigits: 2 });
   return (
-    <>
-      <Card className="overflow-hidden transition-shadow hover:shadow-md">
-        <Link href={`/catalogo/${product.slug}`}>
-          <div className="relative aspect-[4/3] bg-gray-50">
-            <SafeImage
-              src={displayImage}
-              fallbackSrc={fallbackImage}
-              alt={product.name}
-              fill
-              className="object-contain p-6"
-            />
-          </div>
-        </Link>
-        <CardContent>
-          <Badge className="mb-2">{product.category}</Badge>
-          <Link href={`/catalogo/${product.slug}`}>
-            <h2 className="mb-1 text-lg font-semibold text-dark hover:text-brand">{product.name}</h2>
-          </Link>
-          <p className="mb-2 line-clamp-2 text-sm text-gray-600">{product.description}</p>
-          {displayPrice ? (
-            <p className="mb-4 text-sm font-semibold text-dark">
-              {product.has_variants ? 'Desde ' : ''}
-              {displayPrice.toLocaleString()} MZN
-            </p>
-          ) : null}
-          <div className="flex gap-2">
-            <Link href={`/catalogo/${product.slug}`} className="flex-1">
-              <Button variant="outline" className="w-full">Ver detalhes</Button>
-            </Link>
-            <Button variant="outline" onClick={() => setCartOpen(true)} className="px-3">
-              <ShoppingCart className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <AddToCartModal product={product} variant={firstVariant} open={cartOpen} onClose={() => setCartOpen(false)} />
-    </>
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#E3E8E4] bg-white transition duration-200 hover:border-[#B3D8C3] hover:shadow-[0_16px_40px_-24px_rgba(6,63,43,0.3)]">
+      <Link href={`/catalogo/${product.slug}`} aria-label={`Ver ${product.name}`} className="relative block aspect-[1.15] overflow-hidden bg-[#F3F5F0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
+        <SafeImage src={getProductImageSrc(product, firstVariant)} fallbackSrc={getProductFallback(product)} alt={product.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw" className="object-contain p-6 transition-transform duration-300 motion-safe:group-hover:scale-105" />
+        {product.order_template === 'apparel' ? <span className="absolute left-3 top-3 rounded-full border border-white/80 bg-white/95 px-3 py-1.5 text-[10px] font-bold text-brand-800">Por modelo, cor e tamanho</span> : null}
+      </Link>
+      <div className="flex flex-1 flex-col p-5">
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#66736D]">{product.category || 'Personalizado para a sua marca'}</p>
+        <h3 className="mt-2 text-lg font-bold leading-snug tracking-tight text-brand-800"><Link href={`/catalogo/${product.slug}`} className="hover:underline">{product.name}</Link></h3>
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#66736D]">{product.description}</p>
+        <div className="mt-auto pt-5">
+          <p className="text-sm font-bold text-dark">{price ? `${product.has_variants ? 'Desde ' : ''}${currency.format(price)} MZN` : 'Sob consulta'}</p>
+          <p className="mt-1 text-xs text-[#66736D]">{product.min_quantity ? `Pedido mínimo: ${product.min_quantity} ${product.min_quantity === 1 ? 'unidade' : 'unidades'}` : 'Proposta personalizada'}</p>
+          <Link href={`/catalogo/${product.slug}`} className="mt-4 flex items-center justify-between border-t border-[#E3E8E4] pt-4 text-xs font-bold text-brand-800 hover:text-brand">Conheça e personalize <ArrowUpRight className="h-4 w-4" /></Link>
+        </div>
+      </div>
+    </article>
   );
 }

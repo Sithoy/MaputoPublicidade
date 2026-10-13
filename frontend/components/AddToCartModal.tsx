@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApparelMatrix } from './ApparelMatrix';
 import type { ApparelDistribution } from '@/lib/apparel';
 import { X } from 'lucide-react';
@@ -23,6 +23,9 @@ export function AddToCartModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   const [apparel, setApparel] = useState<ApparelDistribution>({ pending: false, rows: [] });
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useState('');
@@ -47,6 +50,25 @@ export function AddToCartModal({
       setError('');
     }
   }, [open, product.min_quantity]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') { event.preventDefault(); onCloseRef.current(); }
+      if (event.key !== 'Tab') return;
+      const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex="0"]') || []).filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first?.focus(); }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', handleKey); previousFocus?.focus(); };
+  }, [open]);
 
   if (!open) return null;
 
@@ -78,24 +100,24 @@ export function AddToCartModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-900/60 p-3 backdrop-blur-sm sm:p-6">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="product-order-title" tabIndex={-1} className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-[#DCE5DE] bg-light p-6 shadow-2xl outline-none sm:p-8 ${product.order_template === 'apparel' ? 'max-w-3xl' : 'max-w-xl'}`}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-dark">Adicionar ao carrinho</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h2 id="product-order-title" className="text-2xl font-bold tracking-tight text-brand-800">Dê-lhe a sua identidade.</h2>
+          <button type="button" aria-label="Fechar personalização" onClick={onClose} className="rounded-full bg-white p-2 text-[#66736D] hover:text-brand-800">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <p className="mb-4 text-sm text-gray-600">
+        <p className="mb-2 text-sm font-semibold text-brand-800">
           {product.name}
           {variant ? ` — ${variant.name}` : ''}
         </p>
+        <p className="mb-6 text-sm leading-6 text-[#66736D]">Indique o que precisa. A equipa confirma os detalhes na proposta antes de iniciar a produção.</p>
 
         {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {product.order_template === 'apparel' && product.apparel_options && <ApparelMatrix id="catalogue-apparel" options={product.apparel_options} quantity={quantity} value={apparel} onChange={setApparel} />}
           <div>
             <Label htmlFor="qty">Quantidade</Label>
             <Input
@@ -107,6 +129,8 @@ export function AddToCartModal({
               className="mt-1"
             />
           </div>
+
+          {product.order_template === 'apparel' && product.apparel_options && <ApparelMatrix id="catalogue-apparel" options={product.apparel_options} quantity={quantity} value={apparel} onChange={setApparel} />}
 
           <div hidden={product.order_template === 'apparel'}>
             <Label htmlFor="size">Tamanho</Label>
@@ -169,7 +193,7 @@ export function AddToCartModal({
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'A adicionar...' : 'Adicionar ao carrinho'}
+              {loading ? 'A adicionar...' : 'Guardar no carrinho'}
             </Button>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar

@@ -81,17 +81,17 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
       />
-      <div className="mx-auto max-w-5xl px-4 py-16 lg:px-6 lg:py-24">
+      <div className="bg-light"><div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
         <Link
           href="/catalogo"
-          className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
+          className="mb-8 inline-flex items-center gap-2 text-xs font-semibold text-[#66736D] hover:text-brand-800"
         >
           <ArrowLeft className="h-4 w-4" />
           Voltar ao catálogo
         </Link>
 
         <ProductVariantSelector product={product} />
-      </div>
+      </div></div>
     </>
   );
 }
