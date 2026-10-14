@@ -14,16 +14,16 @@ export function WhyTrustSection() {
   return (
     <section className="bg-[#F4F0E8] py-16 sm:py-20 lg:py-28">
       <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
-        <div className="relative min-h-[440px] overflow-hidden rounded-[2rem] bg-brand-50 shadow-[0_26px_70px_-42px_rgba(23,33,29,0.45)] sm:min-h-[560px]">
+        <div className="relative aspect-[3/2] overflow-hidden rounded-[2rem] bg-brand-50 shadow-[0_26px_70px_-42px_rgba(23,33,29,0.45)]">
           <Image
-            src="/images/embroidery-uniform.jpg"
-            alt="Profissional a preparar um uniforme com atenção ao acabamento"
+            src="/images/embroidery-mp.webp"
+            alt="Imagem ilustrativa de um boné claro com a marca PMaputo bordada em verde"
             fill
             sizes="(min-width: 1024px) 44vw, 100vw"
             className="object-cover object-center"
           />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-brand-900/75 to-transparent p-7 pt-28 text-white sm:p-9 sm:pt-36">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/65">Trabalho real, cuidado visível</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/65">Bordado MP · Imagem ilustrativa</p>
             <p className="mt-2 max-w-md text-xl font-semibold leading-7">A qualidade final começa muito antes da entrega.</p>
           </div>
         </div>
