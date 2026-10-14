@@ -30,6 +30,7 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import type { BrandAsset as ManagedAsset, Order, Quote } from '@/lib/api';
+import { BrandLibraryFileLink, BrandLibraryThumbnail, isBrandImage } from '@/components/BrandLibraryFile';
 
 const kindOptions = [
   { value: 'logo', label: 'Logótipo' },
@@ -39,10 +40,6 @@ const kindOptions = [
   { value: 'document', label: 'Documento' },
   { value: 'other', label: 'Outro' },
 ];
-
-function isImage(file: string) {
-  return /\.(png|jpe?g|svg|webp|gif)$/i.test(file);
-}
 
 type BrandAsset = {
   url: string;
@@ -54,7 +51,8 @@ type BrandAsset = {
 
 function fileNameFromUrl(url: string) {
   const cleanUrl = url.split('?')[0];
-  return decodeURIComponent(cleanUrl.split('/').pop() || 'Ficheiro da marca');
+  const name = cleanUrl.split('/').pop() || 'Ficheiro da marca';
+  try { return decodeURIComponent(name); } catch { return name; }
 }
 
 function buildBrandAssets(quotes: Quote[], orders: Order[]) {
@@ -271,10 +269,10 @@ export default function BrandLibraryPage() {
                 </div>
                 <h3 className="mt-5 truncate text-sm font-semibold text-dark" title={asset.name}>{asset.name}</h3>
                 <p className="mt-1 font-mono text-[11px] font-semibold text-[#829087]">{asset.reference}</p>
-                <a href={asset.url} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#d7e1da] text-sm font-semibold text-brand-700 transition hover:bg-brand-50">
+                <BrandLibraryFileLink url={asset.url} filename={asset.name} className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#d7e1da] text-sm font-semibold text-brand-700 transition hover:bg-brand-50">
                   <Download className="h-4 w-4" />
-                  Abrir ficheiro
-                </a>
+                  Descarregar ficheiro
+                </BrandLibraryFileLink>
               </article>
             ))}
           </div>
@@ -318,6 +316,7 @@ export default function BrandLibraryPage() {
                   <div>
                     <Label htmlFor="asset-file">Ficheiro *</Label>
                     <Input id="asset-file" type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="mt-1" required />
+                    <p className="mt-1 text-xs text-[#64736b]">Até 10 MB por ficheiro.</p>
                   </div>
                   <div>
                     <Label htmlFor="asset-colors">Cores da marca (opcional)</Label>
@@ -345,11 +344,8 @@ export default function BrandLibraryPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {managedAssets.map((asset) => (
               <article key={asset.id} className="overflow-hidden rounded-2xl border border-[#dfe7e1] bg-white shadow-[0_14px_38px_-34px_rgba(6,63,43,0.5)]">
-                {isImage(asset.file) ? (
-                  <div className="flex h-32 items-center justify-center bg-[#f4f7f4] p-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={asset.file} alt={asset.name} className="max-h-full max-w-full object-contain" />
-                  </div>
+                {isBrandImage(asset.file, asset.file_mime_type, asset.file_name) ? (
+                  <BrandLibraryThumbnail url={asset.file} name={asset.name} />
                 ) : (
                   <div className="flex h-32 items-center justify-center bg-[#f4f7f4] text-[#829087]">
                     {asset.kind === 'document' ? <FileText className="h-10 w-10" /> : <Palette className="h-10 w-10" />}
@@ -362,15 +358,14 @@ export default function BrandLibraryPage() {
                       <p className="mt-0.5 text-xs text-[#829087]">{asset.kind_display || asset.kind}</p>
                     </div>
                     <div className="flex shrink-0 gap-1">
-                      <a
-                        href={asset.file}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <BrandLibraryFileLink
+                        url={asset.file}
+                        filename={asset.file_name || asset.name}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#64736b] transition hover:bg-brand-50 hover:text-brand-700"
-                        aria-label={`Descarregar ${asset.name}`}
+                        label={`Descarregar ${asset.name}`}
                       >
                         <Download className="h-4 w-4" />
-                      </a>
+                      </BrandLibraryFileLink>
                       <button
                         type="button"
                         onClick={() => void handleDelete(asset)}

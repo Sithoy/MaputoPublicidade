@@ -27,9 +27,10 @@ describe("Responsive trust photography", () => {
     );
   });
 
-  it("keeps the caption below the mobile photograph and clearly identifies the mockup", () => {
+  it("keeps the caption below the mobile photograph and descriptive illustrative alt text", () => {
     render(<WhyTrustSection />);
-    const caption = screen.getByText("Imagem ilustrativa");
+    const caption = screen.getByText("A qualidade final começa muito antes da entrega.");
+    expect(screen.getByRole('img').getAttribute('alt')).toContain('Imagem ilustrativa');
     expect(caption.parentElement).toHaveClass("lg:absolute");
     expect(caption.parentElement).not.toHaveClass("absolute");
     expect(screen.queryByText(/Trabalho real/)).not.toBeInTheDocument();

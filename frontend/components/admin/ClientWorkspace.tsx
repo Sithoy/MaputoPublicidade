@@ -20,6 +20,7 @@ import {
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { Card, CardContent } from '@/components/ui/Card';
 import type { BrandAsset, Invoice, Order, Quote, User } from '@/lib/api';
+import { BrandLibraryFileLink } from '@/components/BrandLibraryFile';
 import { cn, formatMZN } from '@/lib/utils';
 
 export type ClientWorkspaceData = {
@@ -335,12 +336,11 @@ export function ClientWorkspace({
           {latestAssets.length ? (
             <div className="grid gap-3 p-4 sm:grid-cols-2">
               {latestAssets.map((asset) => (
-                <a
+                <BrandLibraryFileLink
                   key={asset.id}
-                  href={asset.file}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group rounded-xl border border-[#e4eae6] bg-[#fafbfa] p-4 transition hover:border-brand-200 hover:bg-brand-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  url={asset.file}
+                  filename={asset.file_name || asset.name}
+                  className="group block w-full rounded-xl border border-[#e4eae6] bg-[#fafbfa] p-4 text-left transition hover:border-brand-200 hover:bg-brand-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <FileArchive className="h-5 w-5 text-brand-700" aria-hidden="true" />
@@ -348,7 +348,7 @@ export function ClientWorkspace({
                   </div>
                   <p className="mt-4 truncate text-sm font-semibold text-dark">{asset.name}</p>
                   <p className="mt-1 text-xs text-[#829087]">{asset.kind_display || asset.kind}</p>
-                </a>
+                </BrandLibraryFileLink>
               ))}
             </div>
           ) : (

@@ -1,4 +1,9 @@
+import mimetypes
+from io import BytesIO
+
+from django.http import FileResponse, Http404
 from rest_framework import mixins, viewsets
+from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 
@@ -20,7 +25,7 @@ class BrandAssetViewSet(
     serializer_class = BrandAssetSerializer
     parser_classes = [JSONParser, FormParser, MultiPartParser]
     permission_classes = [IsAuthenticated, IsOwnerOrStaff]
-    queryset = BrandAsset.objects.select_related("user", "uploaded_by")
+    queryset = BrandAsset.objects.select_related("user", "uploaded_by").defer("private_content")
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -43,3 +48,31 @@ class BrandAssetViewSet(
 
                 owner = User.objects.get(id=owner_id, is_staff=False)
         serializer.save(user=owner, uploaded_by=user)
+
+    @action(detail=True, methods=["get"], url_path="file")
+    def file(self, request, pk=None):
+        asset = self.get_object()
+        filename = asset.file_name or asset.file.name.rsplit("/", 1)[-1]
+        mime_type = (
+            asset.file_mime_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        )
+        if asset.private_content is not None:
+            source = BytesIO(bytes(asset.private_content))
+        else:
+            try:
+                if not asset.file or not asset.file.storage.exists(asset.file.name):
+                    raise Http404("Ficheiro indisponível. Volte a carregar o material.")
+                source = asset.file.open("rb")
+            except (FileNotFoundError, OSError, ValueError):
+                raise Http404("Ficheiro indisponível. Volte a carregar o material.") from None
+        response = FileResponse(
+            source,
+            as_attachment=not mime_type.startswith("image/"),
+            filename=filename,
+            content_type=mime_type,
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Security-Policy"] = "sandbox"
+        response["Referrer-Policy"] = "no-referrer"
+        return response

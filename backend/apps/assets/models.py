@@ -28,10 +28,12 @@ class BrandAsset(models.Model):
         verbose_name="cliente",
     )
     name = models.CharField("nome", max_length=255)
-    kind = models.CharField(
-        "tipo", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER
-    )
+    kind = models.CharField("tipo", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
     file = models.FileField("ficheiro", upload_to="uploads/brand_assets/")
+    private_content = models.BinaryField(null=True, editable=False)
+    file_name = models.CharField(max_length=255, blank=True)
+    file_mime_type = models.CharField(max_length=100, blank=True)
+    file_size = models.PositiveIntegerField(default=0)
     description = models.TextField("descrição", blank=True)
     brand_colors = models.CharField(
         "cores da marca",

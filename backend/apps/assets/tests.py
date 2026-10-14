@@ -46,3 +46,78 @@ class TestBrandAssetApi:
 
         response = APIClient().get(reverse("brand-asset-list"))
         assert response.status_code == 401
+
+    def test_private_upload_survives_missing_local_file(self, authenticated_client, client_user):
+        content = b"\x89PNG\r\n\x1a\nbrand-logo"
+        response = authenticated_client.post(
+            reverse("brand-asset-list"),
+            {
+                "name": "Logo",
+                "kind": "logo",
+                "file": SimpleUploadedFile("logo.png", content, content_type="image/png"),
+            },
+            format="multipart",
+        )
+        assert response.status_code == 201
+        data = response.json()
+        asset = BrandAsset.objects.get(pk=data["id"])
+        assert bytes(asset.private_content) == content
+        assert not asset.file.storage.exists(asset.file.name)
+        assert "private_content" not in data
+        assert data["file_name"] == "logo.png"
+        result = authenticated_client.get(data["file"])
+        assert result.status_code == 200
+        assert b"".join(result.streaming_content) == content
+        assert result["Content-Type"] == "image/png"
+        assert result["Cache-Control"] == "private, no-store"
+        assert result["X-Content-Type-Options"] == "nosniff"
+
+    def test_private_file_owner_checks(self, authenticated_client, staff_client, staff_user):
+        from rest_framework.test import APIClient
+
+        asset = BrandAsset.objects.create(
+            user=staff_user,
+            name="Private",
+            file="private/brand_assets/example",
+            private_content=b"private",
+            file_name="example.pdf",
+            file_mime_type="application/pdf",
+        )
+        url = reverse("brand-asset-file", kwargs={"pk": asset.pk})
+        assert authenticated_client.get(url).status_code == 404
+        assert APIClient().get(url).status_code == 401
+        response = staff_client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Disposition"].startswith("attachment;")
+        response.close()
+
+    def test_legacy_missing_file_is_clear_404(self, authenticated_client, client_user):
+        asset = BrandAsset.objects.create(
+            user=client_user, name="Lost", file="uploads/brand_assets/not-present.png"
+        )
+        response = authenticated_client.get(reverse("brand-asset-file", kwargs={"pk": asset.pk}))
+        assert response.status_code == 404
+
+    def test_legacy_file_still_downloads(
+        self, authenticated_client, client_user, tmp_path, settings
+    ):
+        settings.MEDIA_ROOT = tmp_path
+        asset = BrandAsset.objects.create(
+            user=client_user,
+            name="Legacy",
+            file=SimpleUploadedFile("legacy.png", b"legacy-bytes", content_type="image/png"),
+        )
+        response = authenticated_client.get(reverse("brand-asset-file", kwargs={"pk": asset.pk}))
+        assert response.status_code == 200
+        assert b"".join(response.streaming_content) == b"legacy-bytes"
+
+    def test_upload_limit(self, authenticated_client):
+        response = authenticated_client.post(
+            reverse("brand-asset-list"),
+            {
+                "name": "Too big",
+                "file": SimpleUploadedFile("big.png", b"x" * (10 * 1024 * 1024 + 1)),
+            },
+            format="multipart",
+        )
+        assert response.status_code == 400

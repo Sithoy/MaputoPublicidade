@@ -60,7 +60,6 @@ export function WhyTrustSection() {
             <p className="mt-2 max-w-md text-xl font-semibold leading-7">
               A qualidade final começa muito antes da entrega.
             </p>
-            <p className="mt-3 text-xs text-white/70">Imagem ilustrativa</p>
           </div>
         </div>
 

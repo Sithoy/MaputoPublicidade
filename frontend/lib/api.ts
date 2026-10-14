@@ -462,6 +462,9 @@ export type BrandAsset = {
   kind: 'logo' | 'artwork' | 'template' | 'guide' | 'document' | 'other';
   kind_display?: string;
   file: string;
+  file_name?: string;
+  file_mime_type?: string;
+  file_size?: number;
   description?: string;
   brand_colors?: string;
   uploaded_by_name?: string | null;
