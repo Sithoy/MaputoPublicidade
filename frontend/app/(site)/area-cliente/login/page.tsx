@@ -98,7 +98,7 @@ function ClientLoginForm() {
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-brand-800 shadow-sm">
             <ShieldCheck className="h-4 w-4" />
-            BrandDesk by Maputo Publicidade
+            BrandDesk by ETIOS
           </div>
 
           <h1 className="mt-6 max-w-xl text-balance text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-dark sm:text-5xl lg:text-[3.55rem]">

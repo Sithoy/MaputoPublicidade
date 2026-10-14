@@ -1,0 +1,36 @@
+/* Shared client workspace and demo skin. Never affects the public site/admin. */
+.branddesk-shell {
+  color: #1c3830;
+  background: radial-gradient(ellipse at 90% 0%, #e9e4d5 0%, transparent 45%), #f5f4ef;
+}
+.branddesk-sidebar {
+  background: linear-gradient(160deg, #183f35, #102e27 75%);
+  border-right: 1px solid #c8a75c33;
+  color: #f7f4ea;
+}
+.branddesk-sidebar > div { border-color: #ffffff12; }
+.branddesk-sidebar nav > p { color: #c5bd9f; }
+.branddesk-sidebar nav a:not(.branddesk-new),
+.branddesk-sidebar nav button:not(.branddesk-new) { color: #d3dfd6; }
+.branddesk-sidebar nav a:not(.branddesk-new):hover,
+.branddesk-sidebar nav button:not(.branddesk-new):hover { background: #ffffff0a; color: #fff; }
+.branddesk-sidebar nav [aria-current='page'] {
+  background: linear-gradient(90deg, #c8a75c22, #ffffff08);
+  color: #f1d994 !important;
+  box-shadow: inset 3px 0 #c8a75c;
+}
+.branddesk-sidebar nav [aria-current='page'] svg { color: #e2c57b; }
+.branddesk-sidebar nav svg { color: #aac2b7; }
+.branddesk-sidebar .branddesk-new { background: #dcc386; color: #193c31; box-shadow: 0 8px 22px #0002; }
+.branddesk-sidebar .branddesk-new:hover { background: #ead6a3; }
+.branddesk-company { background: #ffffff08; border: 1px solid #ffffff12; }
+.branddesk-company p:first-child { color: #f7f4ea; }
+.branddesk-company p + p { color: #b6cbc0; }
+.branddesk-support { background: #ffffff06; border: 1px solid #c8a75c26; }
+.branddesk-topbar { border-bottom: 1px solid #dedfd4; background: #faf9f3eF; }
+.branddesk-hero { background: linear-gradient(120deg, #153e32, #235947); border: 1px solid #b89b5940; }
+.branddesk-card { border-top: 2px solid #c8a75c60; background: #fffefb; box-shadow: 0 6px 24px -16px #173f3538; }
+.branddesk-shell :is(a, button, select, input, textarea):focus-visible { outline: 2px solid #a88536; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .branddesk-shell *, .branddesk-shell *::before, .branddesk-shell *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}

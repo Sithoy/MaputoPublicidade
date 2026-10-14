@@ -1,9 +1,8 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -19,38 +18,53 @@ import {
   Plus,
   ReceiptText,
   X,
-} from 'lucide-react';
-import { useClientAuth } from '@/hooks/useClientAuth';
-import { removeToken } from '@/lib/auth';
-import { cn } from '@/lib/utils';
-import { PortalNotifications } from '@/components/PortalNotifications';
+} from "lucide-react";
+import { useClientAuth } from "@/hooks/useClientAuth";
+import { removeToken } from "@/lib/auth";
+import { cn } from "@/lib/utils";
+import { PortalNotifications } from "@/components/PortalNotifications";
+import { BrandDeskIdentity } from "@/components/BrandDeskIdentity";
+import {
+  brandDeskNavigation,
+  isBrandDeskRouteActive,
+} from "@/lib/branddesk-navigation";
+import {
+  BrandDeskActivityContext,
+  useBrandDeskActivity,
+} from "@/hooks/useBrandDeskActivity";
 
-const portalNav = [
-  { href: '/area-cliente/apoio', label: 'Falar com a MP', icon: Headphones },
-  { href: '/area-cliente', label: 'Visão geral', icon: LayoutDashboard },
-  { href: '/area-cliente/encomendas', label: 'Projetos', icon: FolderKanban },
-  { href: '/area-cliente/historico', label: 'Histórico', icon: History },
-  { href: '/area-cliente/aprovacoes', label: 'Aprovações', icon: BadgeCheck },
-  { href: '/area-cliente/orcamentos', label: 'Propostas', icon: FileText },
-  { href: '/area-cliente/faturas', label: 'Faturas', icon: ReceiptText },
-  { href: '/area-cliente/marca', label: 'Biblioteca da marca', icon: LibraryBig },
-  { href: '/area-cliente/perfil', label: 'Perfil da empresa', icon: Building2 },
+const icons = [
+  LayoutDashboard,
+  FileText,
+  FolderKanban,
+  BadgeCheck,
+  Headphones,
+  ReceiptText,
+  LibraryBig,
+  History,
+  Building2,
 ];
+const portalNav = brandDeskNavigation.map((item, index) => ({
+  ...item,
+  icon: icons[index],
+}));
 
 function getPageTitle(pathname: string) {
-  if (pathname === '/area-cliente/apoio') return 'Falar com a MP';
-  if (pathname.startsWith('/area-cliente/faturas/')) return 'Detalhe da fatura';
-  if (pathname === '/area-cliente/faturas') return 'Faturas';
-  if (pathname === '/area-cliente/novo-pedido') return 'Novo pedido';
-  if (pathname.startsWith('/area-cliente/encomendas/')) return 'Acompanhamento do pedido';
-  if (pathname === '/area-cliente/encomendas') return 'Projetos';
-  if (pathname === '/area-cliente/historico') return 'Histórico de trabalhos';
-  if (pathname === '/area-cliente/aprovacoes') return 'Aprovações';
-  if (pathname.startsWith('/area-cliente/orcamentos/')) return 'Detalhe da proposta';
-  if (pathname === '/area-cliente/orcamentos') return 'Propostas';
-  if (pathname === '/area-cliente/marca') return 'Biblioteca da marca';
-  if (pathname === '/area-cliente/perfil') return 'Perfil da empresa';
-  return 'Visão geral';
+  if (pathname === "/area-cliente/apoio") return "Mensagens";
+  if (pathname.startsWith("/area-cliente/faturas/")) return "Detalhe da fatura";
+  if (pathname === "/area-cliente/faturas") return "Faturas e pagamentos";
+  if (pathname === "/area-cliente/novo-pedido") return "Novo pedido";
+  if (pathname.startsWith("/area-cliente/encomendas/"))
+    return "Acompanhamento do pedido";
+  if (pathname === "/area-cliente/encomendas") return "Projetos e entregas";
+  if (pathname === "/area-cliente/historico") return "Histórico de trabalhos";
+  if (pathname === "/area-cliente/aprovacoes") return "Aprovações";
+  if (pathname.startsWith("/area-cliente/orcamentos/"))
+    return "Detalhe da proposta";
+  if (pathname === "/area-cliente/orcamentos") return "Pedidos e propostas";
+  if (pathname === "/area-cliente/marca") return "Biblioteca da marca";
+  if (pathname === "/area-cliente/perfil") return "Perfil da empresa";
+  return "Visão geral";
 }
 
 type PortalSidebarProps = {
@@ -60,6 +74,7 @@ type PortalSidebarProps = {
   pathname: string;
   onLogout: () => void;
   onNavigate?: () => void;
+  counts: { approvals: number | null; messages: number | null };
 };
 
 function PortalSidebar({
@@ -69,61 +84,52 @@ function PortalSidebar({
   pathname,
   onLogout,
   onNavigate,
+  counts,
 }: PortalSidebarProps) {
   return (
-    <aside className="flex h-full w-[280px] flex-col border-r border-[#dfe7e1] bg-white">
+    <aside className="branddesk-sidebar flex h-full w-full max-w-[292px] flex-col lg:w-[292px]">
       <div className="flex h-[76px] items-center border-b border-[#e6ece7] px-5">
-        <Link href="/" onClick={onNavigate} className="flex min-w-0 items-center gap-3">
-          <Image
-            src="/logo-tight.png"
-            alt="Maputo Publicidade"
-            width={118}
-            height={44}
-            className="h-9 w-auto object-contain"
-            priority
-          />
-          <span className="h-8 w-px bg-[#dfe7e1]" aria-hidden="true" />
-          <span className="min-w-0 leading-none">
-            <span className="block text-[15px] font-extrabold tracking-[-0.035em] text-brand-900">
-              BrandDesk
-            </span>
-            <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.17em] text-[#849188]">
-              by Maputo Publicidade
-            </span>
-          </span>
+        <Link
+          href="/area-cliente"
+          onClick={onNavigate}
+          className="flex min-w-0 items-center gap-3"
+        >
+          <BrandDeskIdentity dark />
         </Link>
       </div>
 
       <div className="border-b border-[#edf1ee] p-4">
-        <div className="flex items-center gap-3 rounded-2xl bg-[#f3f7f3] p-3">
+        <div className="branddesk-company flex items-center gap-3 rounded-2xl p-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-800 text-sm font-semibold text-white shadow-sm">
             {initial}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-dark">{displayName}</p>
+            <p className="truncate text-sm font-semibold text-dark">
+              {displayName}
+            </p>
             <p className="truncate text-xs text-[#718078]">{email}</p>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navegação do portal">
+      <nav
+        className="flex-1 space-y-1 overflow-y-auto px-3 py-5"
+        aria-label="Navegação do portal"
+      >
         <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a9890]">
           Espaço da sua marca
         </p>
         <Link
           href="/area-cliente/novo-pedido"
           onClick={onNavigate}
-          className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-brand-800 px-3 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_-20px_rgba(6,63,43,0.9)] transition hover:bg-brand-700"
+          className="branddesk-new mb-4 flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition"
         >
           <Plus className="h-4 w-4" />
           Novo pedido
         </Link>
         {portalNav.map((item) => {
           const Icon = item.icon;
-          const active =
-            item.href === '/area-cliente'
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = isBrandDeskRouteActive(pathname, item.href);
 
           return (
             <Link
@@ -131,24 +137,42 @@ function PortalSidebar({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
                 active
-                  ? 'bg-brand-50 text-brand-800'
-                  : 'text-[#5d6d65] hover:bg-[#f5f7f4] hover:text-dark'
+                  ? "bg-brand-50 text-brand-800"
+                  : "text-[#5d6d65] hover:bg-[#f5f7f4] hover:text-dark",
               )}
-              aria-current={active ? 'page' : undefined}
+              aria-current={active ? "page" : undefined}
             >
-              <Icon className={cn('h-[18px] w-[18px]', active ? 'text-brand-700' : 'text-[#829087]')} />
-              {item.label}
+              <Icon
+                className={cn(
+                  "h-[18px] w-[18px]",
+                  active ? "text-brand-700" : "text-[#829087]",
+                )}
+              />
+              <span className="flex-1">{item.label}</span>
+              {(
+                item.href === "/area-cliente/aprovacoes"
+                  ? counts.approvals
+                  : item.href === "/area-cliente/apoio"
+                    ? counts.messages
+                    : null
+              ) ? (
+                <span className="rounded-full bg-[#dcc386] px-2 py-0.5 text-[10px] font-bold text-[#193c31]">
+                  {item.href === "/area-cliente/aprovacoes"
+                    ? counts.approvals
+                    : counts.messages}
+                </span>
+              ) : null}
             </Link>
           );
         })}
       </nav>
 
       <div className="border-t border-[#e6ece7] p-4">
-        <div className="rounded-2xl bg-brand-900 p-4 text-white">
+        <div className="branddesk-support rounded-2xl p-4 text-white">
           <Headphones className="h-5 w-5 text-brand-200" />
-          <p className="mt-3 text-sm font-semibold">Equipa BrandDesk</p>
+          <p className="mt-3 text-sm font-semibold">Acompanhamento pela MP</p>
           <p className="mt-1 text-xs leading-5 text-white/65">
             Fale diretamente com quem acompanha os seus projetos.
           </p>
@@ -165,7 +189,7 @@ function PortalSidebar({
         <button
           type="button"
           onClick={onLogout}
-          className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#68776f] transition hover:bg-red-50 hover:text-red-700"
+          className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#b6cbc0] transition hover:bg-white/10 hover:text-white"
         >
           <LogOut className="h-[18px] w-[18px]" />
           Terminar sessão
@@ -203,24 +227,34 @@ function PortalLoading() {
   );
 }
 
-export default function ClientAreaLayout({ children }: { children: React.ReactNode }) {
+export default function ClientAreaLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isPublicAuthRoute =
-    pathname === '/area-cliente/login' || pathname === '/area-cliente/registo';
+    pathname === "/area-cliente/login" || pathname === "/area-cliente/registo";
   const { user, loading } = useClientAuth({ enabled: !isPublicAuthRoute });
+  const counts = useBrandDeskActivity(
+    isPublicAuthRoute ? undefined : user?.id,
+    pathname,
+  );
 
   function handleLogout() {
     removeToken();
     setMobileOpen(false);
-    router.push('/area-cliente/login');
+    router.push("/area-cliente/login");
   }
 
   if (isPublicAuthRoute) return <>{children}</>;
   if (loading) return <PortalLoading />;
 
-  const contactName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Cliente MP';
+  const contactName =
+    [user?.first_name, user?.last_name].filter(Boolean).join(" ") ||
+    "Cliente MP";
   const displayName = user?.profile?.company?.trim() || contactName;
   const initial = displayName.charAt(0).toUpperCase();
   const pageTitle = getPageTitle(pathname);
@@ -231,88 +265,119 @@ export default function ClientAreaLayout({ children }: { children: React.ReactNo
     initial,
     pathname,
     onLogout: handleLogout,
+    counts,
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f3f6f2] text-dark">
-      <div className="sticky top-0 hidden h-screen shrink-0 lg:block">
-        <PortalSidebar {...sidebarProps} />
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-[#dfe7e1] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#dfe7e1] text-[#56665d] transition hover:bg-[#f3f6f3] lg:hidden"
-              aria-label="Abrir menu do portal"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-brand-700">
-                BrandDesk
-              </p>
-              <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-dark">{pageTitle}</h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Link href={(() => {
-              const parts = pathname.split('/');
-              const parameter = parts[2] === 'orcamentos' ? 'pedido' : parts[2] === 'encomendas' ? 'projeto' : '';
-              return parameter && parts[3] ? `/area-cliente/apoio?${parameter}=${encodeURIComponent(decodeURIComponent(parts[3]))}` : '/area-cliente/apoio';
-            })()} className="inline-flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800" aria-label="Falar com a MP">
-              <Headphones className="h-4 w-4" /><span className="hidden sm:inline">Falar com a MP</span>
-            </Link>
-            {user ? <PortalNotifications userId={user.id} /> : null}
-            <Link
-              href="/"
-              className="hidden items-center gap-1.5 text-sm font-semibold text-[#5d6d65] transition hover:text-brand-700 sm:inline-flex"
-            >
-              Voltar ao site
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-            <span className="hidden h-7 w-px bg-[#dfe7e1] sm:block" aria-hidden="true" />
-            <div className="flex items-center gap-2.5">
-              <div className="hidden min-w-0 text-right md:block">
-                <p className="max-w-40 truncate text-sm font-semibold text-dark">{displayName}</p>
-                <p className="max-w-40 truncate text-xs text-[#829087]">{user?.email}</p>
-              </div>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-800 text-sm font-semibold text-white">
-                {initial}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-[1480px]">{children}</div>
-        </main>
-      </div>
-
-      {mobileOpen ? (
-        <div
-          className="fixed inset-0 z-50 bg-[#09130f]/55 backdrop-blur-sm lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        >
-          <div
-            className="relative h-full w-[min(88vw,320px)] shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <PortalSidebar {...sidebarProps} onNavigate={() => setMobileOpen(false)} />
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              className="absolute right-3 top-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#f2f5f2] text-[#56665d]"
-              aria-label="Fechar menu do portal"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+    <BrandDeskActivityContext.Provider value={counts}>
+      <div className="branddesk-shell flex min-h-screen text-dark">
+        <div className="sticky top-0 hidden h-screen shrink-0 lg:block">
+          <PortalSidebar {...sidebarProps} />
         </div>
-      ) : null}
-    </div>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="branddesk-topbar sticky top-0 z-30 flex h-[76px] items-center justify-between px-4 backdrop-blur sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#dfe7e1] text-[#56665d] transition hover:bg-[#f3f6f3] lg:hidden"
+                aria-label="Abrir menu do portal"
+                aria-expanded={mobileOpen}
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-brand-700">
+                  BrandDesk{" "}
+                  <span className="normal-case tracking-normal text-[#876a31]">
+                    by ETIOS
+                  </span>
+                </p>
+                <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-dark">
+                  {pageTitle}
+                </h1>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Link
+                href={(() => {
+                  const parts = pathname.split("/");
+                  const parameter =
+                    parts[2] === "orcamentos"
+                      ? "pedido"
+                      : parts[2] === "encomendas"
+                        ? "projeto"
+                        : "";
+                  return parameter && parts[3]
+                    ? `/area-cliente/apoio?${parameter}=${encodeURIComponent(decodeURIComponent(parts[3]))}`
+                    : "/area-cliente/apoio";
+                })()}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800"
+                aria-label="Falar com a MP"
+              >
+                <Headphones className="h-4 w-4" />
+                <span className="hidden sm:inline">Falar com a MP</span>
+              </Link>
+              {user ? <PortalNotifications userId={user.id} /> : null}
+              <Link
+                href="/"
+                className="hidden items-center gap-1.5 text-sm font-semibold text-[#5d6d65] transition hover:text-brand-700 sm:inline-flex"
+              >
+                Voltar ao site
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+              <span
+                className="hidden h-7 w-px bg-[#dfe7e1] sm:block"
+                aria-hidden="true"
+              />
+              <div className="flex items-center gap-2.5">
+                <div className="hidden min-w-0 text-right md:block">
+                  <p className="max-w-40 truncate text-sm font-semibold text-dark">
+                    {displayName}
+                  </p>
+                  <p className="max-w-40 truncate text-xs text-[#829087]">
+                    {user?.email}
+                  </p>
+                </div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-800 text-sm font-semibold text-white">
+                  {initial}
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto max-w-[1480px]">{children}</div>
+          </main>
+        </div>
+
+        {mobileOpen ? (
+          <div
+            className="fixed inset-0 z-50 bg-[#09130f]/55 backdrop-blur-sm lg:hidden"
+            onClick={() => setMobileOpen(false)}
+          >
+            <div
+              className="relative h-full w-[min(88vw,320px)] shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <PortalSidebar
+                {...sidebarProps}
+                onNavigate={() => setMobileOpen(false)}
+              />
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="absolute right-3 top-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#f2f5f2] text-[#56665d]"
+                aria-label="Fechar menu do portal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </BrandDeskActivityContext.Provider>
   );
 }

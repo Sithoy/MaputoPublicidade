@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import type { LucideIcon } from 'lucide-react';
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import {
   AlertCircle,
   ArrowRight,
@@ -16,24 +16,26 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
-} from 'lucide-react';
-import { getClientOrders, getClientQuotes } from '@/lib/client-api';
-import type { Order, Quote } from '@/lib/api';
-import { cn, formatMZN } from '@/lib/utils';
-import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
-import { getClientNextAction, getOrderProgress } from '@/lib/workflow';
-import { clientOrderStatusLabels } from '@/lib/status';
-import { getOrderLabel } from '@/lib/order-display';
+} from "lucide-react";
+import { getClientOrders, getClientQuotes } from "@/lib/client-api";
+import type { Order, Quote } from "@/lib/api";
+import { cn, formatMZN } from "@/lib/utils";
+import { WorkflowJourney } from "@/components/workflow/WorkflowJourney";
+import { getClientNextAction, getOrderProgress } from "@/lib/workflow";
+import { clientOrderStatusLabels } from "@/lib/status";
+import { getOrderLabel } from "@/lib/order-display";
+import { countPendingDecisions } from "@/lib/branddesk-navigation";
+import { BrandDeskActivityContext } from "@/hooks/useBrandDeskActivity";
 
 const statusStyles: Record<string, string> = {
-  received: 'bg-sky-50 text-sky-700 ring-sky-200',
-  reviewing: 'bg-amber-50 text-amber-700 ring-amber-200',
-  quoted: 'bg-amber-50 text-amber-700 ring-amber-200',
-  approved: 'bg-brand-50 text-brand-700 ring-brand-200',
-  in_production: 'bg-violet-50 text-violet-700 ring-violet-200',
-  ready: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  delivered: 'bg-[#eff3f0] text-[#58685f] ring-[#dbe3dd]',
-  cancelled: 'bg-red-50 text-red-700 ring-red-200',
+  received: "bg-sky-50 text-sky-700 ring-sky-200",
+  reviewing: "bg-amber-50 text-amber-700 ring-amber-200",
+  quoted: "bg-amber-50 text-amber-700 ring-amber-200",
+  approved: "bg-brand-50 text-brand-700 ring-brand-200",
+  in_production: "bg-violet-50 text-violet-700 ring-violet-200",
+  ready: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  delivered: "bg-[#eff3f0] text-[#58685f] ring-[#dbe3dd]",
+  cancelled: "bg-red-50 text-red-700 ring-red-200",
 };
 
 function StatCard({
@@ -47,23 +49,30 @@ function StatCard({
   label: string;
   value: string | number;
   note: string;
-  tone: 'green' | 'amber' | 'blue';
+  tone: "green" | "amber" | "blue";
 }) {
   const tones = {
-    green: 'bg-brand-50 text-brand-700',
-    amber: 'bg-amber-50 text-amber-700',
-    blue: 'bg-sky-50 text-sky-700',
+    green: "bg-brand-50 text-brand-700",
+    amber: "bg-amber-50 text-amber-700",
+    blue: "bg-sky-50 text-sky-700",
   };
 
   return (
-    <div className="rounded-2xl border border-[#dfe7e1] bg-white p-5 shadow-[0_14px_38px_-34px_rgba(6,63,43,0.5)]">
+    <div className="branddesk-card rounded-2xl border border-[#dfe7e1] p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-[#6a7971]">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-dark">{value}</p>
+          <p className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-dark">
+            {value}
+          </p>
           <p className="mt-1 text-xs text-[#829087]">{note}</p>
         </div>
-        <span className={cn('inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', tones[tone])}>
+        <span
+          className={cn(
+            "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+            tones[tone],
+          )}
+        >
           <Icon className="h-5 w-5" />
         </span>
       </div>
@@ -73,7 +82,10 @@ function StatCard({
 
 function DashboardSkeleton() {
   return (
-    <div className="animate-pulse space-y-5" aria-label="A carregar resumo dos pedidos">
+    <div
+      className="animate-pulse space-y-5"
+      aria-label="A carregar resumo dos pedidos"
+    >
       <div className="h-48 rounded-3xl bg-[#e2e9e3]" />
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="h-28 rounded-2xl bg-[#e2e9e3]" />
@@ -86,21 +98,29 @@ function DashboardSkeleton() {
 }
 
 export default function ClientDashboardPage() {
+  const { messages } = useContext(BrandDeskActivityContext);
   const [orders, setOrders] = useState<Order[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [selectedOrderReference, setSelectedOrderReference] = useState('');
+  const [error, setError] = useState("");
+  const [selectedOrderReference, setSelectedOrderReference] = useState("");
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const [ordersData, quotesData] = await Promise.all([getClientOrders(), getClientQuotes()]);
+      const [ordersData, quotesData] = await Promise.all([
+        getClientOrders(),
+        getClientQuotes(),
+      ]);
       setOrders(ordersData);
       setQuotes(quotesData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível carregar os pedidos.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível carregar os pedidos.",
+      );
     } finally {
       setLoading(false);
     }
@@ -111,28 +131,21 @@ export default function ClientDashboardPage() {
   }, [loadOrders]);
 
   const activeOrders = useMemo(
-    () => orders.filter((order) => order.status !== 'delivered' && order.status !== 'cancelled'),
-    [orders]
-  );
-
-  const pendingApprovals = useMemo(
     () =>
-      quotes.filter(
-        (quote) =>
-          quote.status === 'quoted' ||
-          (quote.artwork?.status === 'pending' && quote.status !== 'cancelled')
+      orders.filter(
+        (order) => order.status !== "delivered" && order.status !== "cancelled",
       ),
-    [quotes]
+    [orders],
   );
 
   const paymentsDue = useMemo(
     () =>
       orders.reduce(
         (sum, order) =>
-          order.payment_status !== 'paid' ? sum + (order.amount_due || 0) : sum,
-        0
+          order.payment_status !== "paid" ? sum + (order.amount_due || 0) : sum,
+        0,
       ),
-    [orders]
+    [orders],
   );
 
   const recentOrders = useMemo(() => orders.slice(0, 4), [orders]);
@@ -149,18 +162,43 @@ export default function ClientDashboardPage() {
         description: action.description,
       }));
     const quoteItems = quotes
-      .filter((quote) => quote.status === 'quoted' && !quote.price_approved_at)
+      .filter((quote) => quote.status === "quoted" && !quote.price_approved_at)
       .map((quote) => ({
         key: `quote-${quote.id}`,
         reference: quote.reference,
         href: `/area-cliente/orcamentos/${quote.reference}`,
-        label: 'Aprovar a proposta',
+        label: "Aprovar a proposta",
         description: quote.final_price
           ? `Proposta de ${formatMZN(quote.final_price)} aguarda a sua decisão.`
-          : 'A proposta aguarda a sua decisão.',
+          : "A proposta aguarda a sua decisão.",
       }));
-    return [...quoteItems, ...orderItems];
-  }, [activeOrders, quotes]);
+    const artworkItems = quotes
+      .filter(
+        (quote) =>
+          quote.status !== "cancelled" && quote.artwork?.status === "pending",
+      )
+      .map((quote) => ({
+        key: `artwork-${quote.id}`,
+        reference: quote.reference,
+        href: `/area-cliente/orcamentos/${quote.reference}`,
+        label: "Rever a prova de arte",
+        description:
+          "Confirme os detalhes da arte para a produção poder avançar.",
+      }));
+    const messageItems =
+      messages && messages > 0
+        ? [
+            {
+              key: "unread-messages",
+              reference: "MP · Mensagens",
+              href: "/area-cliente/apoio",
+              label: "Ler as mensagens da MP",
+              description: `${messages} ${messages === 1 ? "mensagem não lida" : "mensagens não lidas"} sobre o acompanhamento do seu trabalho.`,
+            },
+          ]
+        : [];
+    return [...artworkItems, ...quoteItems, ...messageItems, ...orderItems];
+  }, [activeOrders, quotes, messages]);
 
   const defaultFocusOrder =
     activeOrders.find((order) => getClientNextAction(order).actionRequired) ||
@@ -178,8 +216,12 @@ export default function ClientDashboardPage() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-700">
           <AlertCircle className="h-6 w-6" />
         </div>
-        <h1 className="mt-4 text-xl font-semibold text-dark">Não foi possível abrir o seu resumo</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68776f]">{error}</p>
+        <h1 className="mt-4 text-xl font-semibold text-dark">
+          Não foi possível abrir o seu resumo
+        </h1>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68776f]">
+          {error}
+        </p>
         <button
           type="button"
           onClick={() => void loadOrders()}
@@ -196,23 +238,24 @@ export default function ClientDashboardPage() {
 
   return (
     <div className="space-y-5">
-      <section className="relative overflow-hidden rounded-3xl bg-brand-900 px-6 py-8 text-white shadow-[0_24px_60px_-38px_rgba(3,42,29,0.9)] sm:px-8 sm:py-9">
+      <section className="branddesk-hero relative overflow-hidden rounded-3xl px-6 py-8 text-white shadow-[0_24px_60px_-38px_rgba(3,42,29,0.9)] sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full border-[38px] border-white/[0.035]" />
         <div className="pointer-events-none absolute bottom-0 right-24 h-28 w-28 rounded-full bg-brand-500/20 blur-2xl" />
         <div className="relative max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-100 ring-1 ring-white/10">
             <Sparkles className="h-3.5 w-3.5" />
-            BrandDesk by Maputo Publicidade
+            BrandDesk by ETIOS · Acompanhamento pela MP
           </div>
           <h1 className="mt-5 text-balance text-3xl font-semibold leading-tight tracking-[-0.03em] sm:text-4xl">
             {needsAttention
-              ? `${attentionItems.length} ${attentionItems.length === 1 ? 'decisão precisa' : 'decisões precisam'} da sua atenção.`
+              ? `${attentionItems.length} ${attentionItems.length === 1 ? "ação precisa" : "ações precisam"} da sua atenção.`
               : activeOrders.length > 0
-                ? 'O seu trabalho está em movimento.'
-                : 'Tudo começa com um pedido bem definido.'}
+                ? "O seu trabalho está em movimento."
+                : "Tudo começa com um pedido bem definido."}
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-white/68 sm:text-base">
-            Pedidos, decisões e materiais da sua marca, com um próximo passo claro para todos.
+            Pedidos, decisões e materiais da sua marca, com um próximo passo
+            claro para todos.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -233,26 +276,41 @@ export default function ClientDashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3" aria-label="Resumo da conta">
+      <section
+        className="grid gap-4 sm:grid-cols-3"
+        aria-label="Resumo da conta"
+      >
         <StatCard
           icon={Package}
           label="Projetos ativos"
           value={activeOrders.length}
-          note={activeOrders.length === 1 ? 'projeto em acompanhamento' : 'projetos em acompanhamento'}
+          note={
+            activeOrders.length === 1
+              ? "projeto em acompanhamento"
+              : "projetos em acompanhamento"
+          }
           tone="green"
         />
         <StatCard
           icon={ClipboardCheck}
           label="Aprovações pendentes"
-          value={pendingApprovals.length}
-          note={pendingApprovals.length > 0 ? 'precisam da sua atenção' : 'nenhuma acção necessária'}
+          value={countPendingDecisions(quotes)}
+          note={
+            countPendingDecisions(quotes) > 0
+              ? "precisam da sua atenção"
+              : "nenhuma acção necessária"
+          }
           tone="amber"
         />
         <StatCard
           icon={Banknote}
           label="Pagamentos pendentes"
-          value={paymentsDue > 0 ? formatMZN(paymentsDue) : 'Em dia'}
-          note={paymentsDue > 0 ? 'saldo total por regularizar' : 'sem valores pendentes'}
+          value={paymentsDue > 0 ? formatMZN(paymentsDue) : "Em dia"}
+          note={
+            paymentsDue > 0
+              ? "saldo total por regularizar"
+              : "sem valores pendentes"
+          }
           tone="blue"
         />
       </section>
@@ -276,7 +334,9 @@ export default function ClientDashboardPage() {
                     <select
                       id="tracked-project"
                       value={focusOrder.reference}
-                      onChange={(event) => setSelectedOrderReference(event.target.value)}
+                      onChange={(event) =>
+                        setSelectedOrderReference(event.target.value)
+                      }
                       className="h-11 w-full appearance-none truncate rounded-xl border border-[#d7e2da] bg-[#f8faf8] py-2 pl-3 pr-10 text-sm font-semibold text-brand-900 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-50"
                     >
                       {activeOrders.map((order) => (
@@ -301,7 +361,7 @@ export default function ClientDashboardPage() {
             <p className="mt-1 max-w-2xl text-sm leading-6 text-[#718078]">
               {focusOrder
                 ? getClientNextAction(focusOrder).description
-                : 'Quando iniciar um pedido, poderá acompanhar aqui cada momento importante do processo.'}
+                : "Quando iniciar um pedido, poderá acompanhar aqui cada momento importante do processo."}
             </p>
           </div>
           {focusOrder ? (
@@ -321,13 +381,21 @@ export default function ClientDashboardPage() {
         <div className="rounded-3xl border border-[#dfe7e1] bg-[#f4f0e8] p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8d7040]">Próximos passos</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8d7040]">
+                Próximos passos
+              </p>
               <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-dark">
-                {needsAttention ? 'Precisa da sua atenção' : 'Tudo em dia por agora'}
+                {needsAttention
+                  ? "Precisa da sua atenção"
+                  : "Tudo em dia por agora"}
               </h2>
             </div>
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#9b7535] shadow-sm">
-              {needsAttention ? <Clock3 className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+              {needsAttention ? (
+                <Clock3 className="h-5 w-5" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5" />
+              )}
             </span>
           </div>
 
@@ -339,9 +407,15 @@ export default function ClientDashboardPage() {
                 className="group flex items-center justify-between gap-4 rounded-2xl border border-[#e3dac8] bg-white/75 p-4 transition hover:bg-white"
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-[11px] font-semibold text-[#9a763b]">{item.reference}</p>
-                  <p className="mt-1 text-sm font-semibold text-dark">{item.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-[#7b7061]">{item.description}</p>
+                  <p className="font-mono text-[11px] font-semibold text-[#9a763b]">
+                    {item.reference}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-dark">
+                    {item.label}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-[#7b7061]">
+                    {item.description}
+                  </p>
                 </div>
                 <ArrowRight className="h-4 w-4 shrink-0 text-[#a17b3b] transition group-hover:translate-x-0.5" />
               </Link>
@@ -352,7 +426,8 @@ export default function ClientDashboardPage() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
                   <p className="text-sm leading-6 text-[#706858]">
-                    Não precisa de fazer nada agora. Quando houver uma proposta, prova digital ou entrega para confirmar, aparecerá aqui.
+                    Não precisa de fazer nada agora. Quando houver uma proposta,
+                    prova digital ou entrega para confirmar, aparecerá aqui.
                   </p>
                 </div>
               </div>
@@ -363,8 +438,12 @@ export default function ClientDashboardPage() {
         <div className="rounded-3xl border border-[#dfe7e1] bg-white p-5 shadow-[0_18px_48px_-40px_rgba(6,63,43,0.5)] sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">Actividade</p>
-              <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">Projetos recentes</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">
+                Actividade
+              </p>
+              <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">
+                Projetos recentes
+              </h2>
             </div>
             {recentOrders.length > 0 ? (
               <Link
@@ -382,9 +461,12 @@ export default function ClientDashboardPage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
                 <FileText className="h-6 w-6" />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-dark">O seu primeiro projeto começa aqui</h3>
+              <h3 className="mt-4 text-base font-semibold text-dark">
+                O seu primeiro projeto começa aqui
+              </h3>
               <p className="mt-1 max-w-sm text-sm leading-6 text-[#718078]">
-                Diga-nos o objetivo e organizamos consigo os materiais, prazos e aprovações.
+                Diga-nos o objetivo e organizamos consigo os materiais, prazos e
+                aprovações.
               </p>
               <Link
                 href="/area-cliente/novo-pedido"
@@ -404,26 +486,38 @@ export default function ClientDashboardPage() {
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-brand-700">{order.reference}</span>
+                      <span className="font-mono text-xs font-semibold text-brand-700">
+                        {order.reference}
+                      </span>
                       <span
                         className={cn(
-                          'inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset',
-                          statusStyles[order.status] || 'bg-gray-50 text-gray-700 ring-gray-200'
+                          "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset",
+                          statusStyles[order.status] ||
+                            "bg-gray-50 text-gray-700 ring-gray-200",
                         )}
                       >
-                        {order.status_display || clientOrderStatusLabels[order.status] || order.status}
+                        {order.status_display ||
+                          clientOrderStatusLabels[order.status] ||
+                          order.status}
                       </span>
                     </div>
-                    <p className="mt-1.5 truncate text-sm font-semibold text-dark">{getOrderLabel(order)}</p>
+                    <p className="mt-1.5 truncate text-sm font-semibold text-dark">
+                      {getOrderLabel(order)}
+                    </p>
                     <p className="mt-1 text-xs text-[#7b8981]">
-                      {order.item_count ?? order.items?.length ?? 0} item(s) ·{' '}
-                      {new Date(order.created_at).toLocaleDateString('pt-MZ')}
+                      {order.item_count ?? order.items?.length ?? 0} item(s) ·{" "}
+                      {new Date(order.created_at).toLocaleDateString("pt-MZ")}
                     </p>
                     <div className="mt-3 flex items-center gap-3">
-                      <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[#e7ece8]" aria-hidden="true">
+                      <div
+                        className="h-1.5 w-28 overflow-hidden rounded-full bg-[#e7ece8]"
+                        aria-hidden="true"
+                      >
                         <div
                           className="h-full rounded-full bg-brand-600"
-                          style={{ width: `${getOrderProgress(order.status)}%` }}
+                          style={{
+                            width: `${getOrderProgress(order.status)}%`,
+                          }}
                         />
                       </div>
                       <span className="text-[11px] font-medium text-[#718078]">
@@ -433,7 +527,9 @@ export default function ClientDashboardPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     {order.amount_due ? (
-                      <span className="text-sm font-semibold text-dark">{formatMZN(order.amount_due)}</span>
+                      <span className="text-sm font-semibold text-dark">
+                        {formatMZN(order.amount_due)}
+                      </span>
                     ) : null}
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#f3f6f3] text-[#64736b] transition group-hover:bg-brand-50 group-hover:text-brand-700">
                       <ArrowRight className="h-4 w-4" />

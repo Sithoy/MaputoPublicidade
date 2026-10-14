@@ -102,7 +102,7 @@ export default function ClientRegistrationPage() {
         <section className="max-w-xl lg:sticky lg:top-32">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-brand-800 shadow-sm">
             <ShieldCheck className="h-4 w-4" />
-            BrandDesk
+            BrandDesk by ETIOS
           </div>
           <h1 className="mt-6 text-balance text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-dark sm:text-5xl">
             A sua marca começa aqui.

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import ClientAreaLayout from './ClientAreaLayout';
 
 export const metadata: Metadata = {
-  title: 'BrandDesk',
+  title: 'BrandDesk by ETIOS',
   description: 'Organize pedidos, aprovações, materiais de marca e entregas num só lugar.',
   robots: { index: false, follow: false },
 };
