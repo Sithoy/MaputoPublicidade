@@ -1,269 +1,358 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
-import { SafeImage } from '@/components/SafeImage';
-import { cn } from '@/lib/utils';
-import { getPortfolioImageSrc } from '@/lib/image-fallbacks';
-import { normalizePaginatedResponse } from '@/lib/api';
-import type { PortfolioItem } from '@/lib/api';
-import { getPublicContentApiUrl } from '@/lib/public-content-api';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ArrowRight, ArrowUpRight, Search } from "lucide-react";
+import type { PortfolioItem } from "@/lib/api";
+import { normalizePaginatedResponse } from "@/lib/api";
+import { getPublicContentApiUrl } from "@/lib/public-content-api";
+import { portfolioCategory } from "@/lib/portfolio-presentation";
+import { PortfolioPhoto } from "./PortfolioPhoto";
+import { PortfolioProjectDialog } from "./PortfolioProjectDialog";
 
-type PortfolioGalleryProps = {
+function normalizeSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+export function PortfolioGallery({
+  limit,
+  variant = "section",
+}: {
   limit?: number;
-  variant?: 'section' | 'page';
-};
-
-const portfolioSignals = [
-  'Projectos reais',
-  'Produção em Maputo',
-  'Da ideia à entrega',
-];
-
-const loadingCards = Array.from({ length: 6 }, (_, index) => index);
-
-export function PortfolioGallery({ limit, variant = 'section' }: PortfolioGalleryProps) {
+  variant?: "section" | "page";
+}) {
   const [items, setItems] = useState<PortfolioItem[]>([]);
-  const [active, setActive] = useState('Todos');
+  const [active, setActive] = useState("Todos");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const isPage = variant === 'page';
-
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const [selected, setSelected] = useState<PortfolioItem | null>(null);
+  const isPage = variant === "page";
   useEffect(() => {
     const controller = new AbortController();
-
-    fetch(getPublicContentApiUrl('/api/portfolio/'), {
-      signal: controller.signal,
-      credentials: 'omit',
-      headers: { Accept: 'application/json' },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Não foi possível carregar o portfólio.');
-        return res.json();
-      })
-      .then((data) => {
-        setItems(normalizePaginatedResponse<PortfolioItem>(data));
-        setLoading(false);
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        setLoading(false);
-      });
-
+    async function load() {
+      setLoading(true);
+      setError("");
+      try {
+        const collected: PortfolioItem[] = [];
+        const visited = new Set<string>();
+        let path: string | null = "/api/portfolio/";
+        for (let page = 0; path && page < 50; page++) {
+          if (visited.has(path))
+            throw new Error("A paginação do portfólio não foi concluída.");
+          visited.add(path);
+          const response: Response = await fetch(
+            getPublicContentApiUrl(path as `/${string}`),
+            {
+              signal: controller.signal,
+              credentials: "omit",
+              headers: { Accept: "application/json" },
+            },
+          );
+          if (!response.ok)
+            throw new Error("Não foi possível carregar o portfólio.");
+          const data: PortfolioItem[] | { results?: PortfolioItem[]; next?: string | null } = await response.json();
+          if (!Array.isArray(data) && !Array.isArray(data?.results))
+            throw new Error("Não foi possível carregar o portfólio.");
+          collected.push(...normalizePaginatedResponse<PortfolioItem>(data));
+          if (!Array.isArray(data) && data.next) {
+            // Follow only the portfolio cursor through the same public API, never a third-party next URL.
+            const next: URL = new URL(
+              data.next,
+              "https://maputopublicidade.com/api/portfolio/",
+            );
+            if (next.pathname !== "/api/portfolio/")
+              throw new Error("Paginação do portfólio inválida.");
+            path = `/api/portfolio/${next.search}`;
+          } else path = null;
+        }
+        if (path)
+          throw new Error("Não foi possível carregar todos os projetos.");
+        if (!controller.signal.aborted) {
+          setItems(
+            Array.from(
+              new Map(
+                collected
+                  .filter((item) => item.is_active !== false)
+                  .map((item) => [item.id, item]),
+              ).values(),
+            ),
+          );
+          setActive("Todos");
+        }
+      } catch (cause) {
+        if (!controller.signal.aborted)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Não foi possível carregar o portfólio.",
+          );
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void load();
     return () => controller.abort();
-  }, []);
-
+  }, [retry]);
   const categories = [
-    'Todos',
-    ...Array.from(
-      new Set(items.map((item) => item.category_name).filter((name): name is string => !!name))
-    ),
+    "Todos",
+    ...Array.from(new Set(items.map(portfolioCategory))),
   ];
-
-  const filtered =
-    active === 'Todos'
-      ? items
-      : items.filter((item) => item.category_name === active);
-  const visibleItems = typeof limit === 'number' ? filtered.slice(0, limit) : filtered;
-  const hasMoreItems = typeof limit === 'number' && filtered.length > limit;
-
+  const query = normalizeSearch(search.trim());
+  const filtered = items.filter(
+    (item) =>
+      (active === "Todos" || portfolioCategory(item) === active) &&
+      (!query ||
+        normalizeSearch(
+          `${item.title} ${item.client_name || ""} ${item.description || ""}`,
+        ).includes(query)),
+  );
+  const visible =
+    typeof limit === "number" ? filtered.slice(0, limit) : filtered;
   return (
     <section
-      className={cn(
-        isPage ? 'bg-[#F7F8F4] pb-16 lg:pb-24' : 'bg-[#FAFBF8] py-16 sm:py-20 lg:py-28'
-      )}
+      className={
+        isPage
+          ? "bg-[#FEFDF9] pb-16 lg:pb-24"
+          : "bg-[#F5F1E8] py-16 sm:py-20 lg:py-28"
+      }
     >
       {isPage ? (
-        <div className="relative overflow-hidden border-b border-[#DFE6E0] bg-[#F2F5F0]">
-          <div className="pointer-events-none absolute -right-20 -top-36 h-80 w-80 rounded-full bg-brand/10 blur-3xl" />
-          <div className="relative mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-14 lg:py-20">
-            <div className="max-w-3xl">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-700">Portfólio</p>
-              <h1 className="mt-4 text-balance text-4xl font-extrabold tracking-[-0.045em] text-dark sm:text-5xl lg:text-6xl">
-                Trabalhos reais. Marcas mais presentes.
+        <div className="border-b border-[#E8E3D8] bg-[#F5F1E8]">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.15fr_0.85fr] lg:items-end lg:gap-20 lg:py-24">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8A713B]">
+                Portfólio / Maputo Publicidade
+              </p>
+              <h1 className="mt-5 max-w-2xl text-balance text-4xl font-semibold leading-[1.1] tracking-[-0.04em] text-brand-800 sm:text-5xl lg:text-6xl">
+                Ideias que ganham forma.
+                <br />
+                Marcas que ganham presença.
               </h1>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-[#5F6D65] sm:text-lg sm:leading-8">
-                Cada projecto nasce de uma necessidade concreta e termina com uma marca mais clara,
-                mais visível e mais confiante no terreno.
+            </div>
+            <div>
+              <p className="max-w-lg text-base leading-7 text-[#66736D] sm:text-lg">
+                Explore aplicações, materiais e acabamentos. Abra um projeto
+                para conhecer os detalhes e encontrar inspiração para a sua
+                empresa.
               </p>
               <a
                 href="#projectos"
-                className="group mt-7 inline-flex items-center gap-2 text-sm font-bold text-brand-800 transition hover:text-brand"
+                className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-800 underline decoration-[#C5AD76] underline-offset-8"
               >
-                Explorar projectos
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                Explore os projetos{" "}
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </a>
             </div>
-
-            <aside className="rounded-3xl bg-brand-900 p-6 text-white shadow-[0_28px_70px_-40px_rgba(3,50,35,0.75)] sm:p-8">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-300">Prova no terreno</p>
-              <p className="mt-4 text-2xl font-bold leading-tight">
-                A confiança cresce quando a execução acompanha a promessa.
-              </p>
-              <ul className="mt-7 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                {portfolioSignals.map((signal) => (
-                  <li key={signal} className="flex items-center gap-3 text-sm font-semibold text-white/85">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-300" />
-                    {signal}
-                  </li>
-                ))}
-              </ul>
-            </aside>
           </div>
         </div>
       ) : null}
-
       <div
-        id={isPage ? 'projectos' : undefined}
-        className={cn('mx-auto max-w-7xl px-4 sm:px-6', isPage && 'scroll-mt-24 pt-12 lg:pt-16')}
+        id={isPage ? "projectos" : undefined}
+        className={`mx-auto max-w-7xl px-4 sm:px-6 ${isPage ? "scroll-mt-24 pt-10 sm:pt-14" : ""}`}
       >
-        {isPage ? (
-          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        {!isPage ? (
+          <div className="mb-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-700">Projectos seleccionados</p>
-              <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.035em] text-dark sm:text-4xl">
-                Veja o trabalho em contexto.
-              </h2>
-            </div>
-            {!loading ? (
-              <p className="text-sm font-semibold text-[#7A8780]">
-                {visibleItems.length} {visibleItems.length === 1 ? 'trabalho publicado' : 'trabalhos publicados'}
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8A713B]">
+                Portfólio selecionado
               </p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="mb-10 max-w-4xl">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand">Trabalhos reais</p>
-            <h2 className="mt-4 text-balance text-3xl font-extrabold tracking-[-0.035em] text-dark sm:text-4xl lg:text-5xl">
-              Trabalhos que ganham vida nas empresas, ruas e eventos de Maputo.
-            </h2>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-[#66736D] sm:text-lg">
-              Projectos produzidos para responder a necessidades reais de comunicação, operação e presença de marca.
-            </p>
-          </div>
-        )}
-
-        {!loading && categories.length > 1 ? (
-          <div className="mb-9 flex flex-wrap gap-2" aria-label="Filtrar portfólio por categoria">
-            {categories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setActive(category)}
-                aria-pressed={active === category}
-                className={cn(
-                  'rounded-full border px-4 py-2 text-sm font-semibold transition-colors',
-                  active === category
-                    ? 'border-brand bg-brand text-white'
-                    : 'border-[#DCE4DE] bg-white text-[#52635B] hover:border-brand/30 hover:text-brand-800'
-                )}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        {loading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="A carregar trabalhos">
-            {loadingCards.map((card) => (
-              <div key={card} className="animate-pulse overflow-hidden rounded-2xl border border-[#E3E8E4] bg-white">
-                <div className="aspect-[5/4] bg-[#E4EAE5]" />
-                <div className="space-y-3 p-5 sm:p-6">
-                  <div className="h-5 w-28 rounded-full bg-[#E8EDE9]" />
-                  <div className="h-5 w-3/4 rounded bg-[#E1E7E2]" />
-                  <div className="h-4 w-full rounded bg-[#EDF0ED]" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : visibleItems.length === 0 ? (
-          <div className="rounded-2xl border border-[#E3E8E4] bg-white px-6 py-12 text-center text-sm text-[#66736D]">
-            Ainda não existem trabalhos publicados nesta categoria.
-          </div>
-        ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleItems.map((item) => {
-              const completionYear = item.completion_date?.slice(0, 4);
-
-              return (
-                <article
-                  key={item.id}
-                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#DCE4DE] bg-white transition duration-300 hover:-translate-y-1 hover:border-brand/25 hover:shadow-[0_24px_55px_-36px_rgba(6,63,43,0.5)]"
-                >
-                  <div className="relative aspect-[5/4] overflow-hidden bg-brand-50">
-                    <SafeImage
-                      src={getPortfolioImageSrc(item)}
-                      fallbackSrc="/images/brand/portfolio-gifts.jpg"
-                      alt={item.title}
-                      fill
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                      className="object-cover transition-transform duration-500 group-hover:scale-[1.025]"
-                      quality={90}
-                    />
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/25 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                  </div>
-                  <div className="flex flex-1 flex-col p-5 sm:p-6">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-800">
-                        {item.category_name || 'Projecto de marca'}
-                      </span>
-                      {completionYear ? (
-                        <span className="text-xs font-bold tabular-nums text-[#98A39D]">{completionYear}</span>
-                      ) : null}
-                    </div>
-                    <h3 className="mt-4 text-lg font-bold leading-6 text-dark">{item.title}</h3>
-                    {item.description ? (
-                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#66736D]">{item.description}</p>
-                    ) : null}
-                    {item.client_name ? (
-                      <div className="mt-auto border-t border-[#EDF0ED] pt-4">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#98A39D]">Cliente</p>
-                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.1em] text-[#6C7871]">
-                          {item.client_name}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-
-        {hasMoreItems ? (
-          <div className="mt-10">
+              <h2 className="mt-4 max-w-2xl text-balance text-3xl font-semibold tracking-[-0.035em] text-brand-800 sm:text-4xl lg:text-5xl">
+                Veja a sua próxima ideia ganhar forma.
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-7 text-[#66736D]">
+                Descubra aplicações de marca e abra cada projeto para ver os
+                detalhes.
+              </p>
+            </div>
             <Link
               href="/portfolio"
-              className="group inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-bold text-white shadow-[0_10px_24px_-12px_rgba(8,114,71,0.75)] transition hover:-translate-y-0.5 hover:bg-brand-600"
+              className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-800 underline decoration-[#C5AD76] underline-offset-8"
             >
-              Ver mais trabalhos
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              Explore o portfólio{" "}
+              <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </Link>
           </div>
         ) : null}
-
-        {isPage && !loading ? (
-          <div className="mt-14 overflow-hidden rounded-3xl bg-brand-900 px-6 py-8 text-white sm:px-8 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:px-10 lg:py-10">
-            <div className="max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-300">O próximo projecto</p>
-              <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-                A próxima marca a ganhar presença pode ser a sua.
+        {!loading && !error ? (
+          <div className="mb-9 flex flex-col gap-5 border-b border-[#E8E3D8] pb-5">
+            <div
+              className="flex flex-wrap gap-2"
+              aria-label="Filtrar portfólio por área"
+            >
+              {categories.map((category) => (
+                <button
+                  type="button"
+                  key={category}
+                  aria-pressed={active === category}
+                  onClick={() => setActive(category)}
+                  className={`min-h-11 rounded-full border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${active === category ? "border-brand-800 bg-brand-800 text-white" : "border-[#DEDACF] bg-transparent text-[#52635B] hover:bg-white"}`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+            {isPage ? (
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <label className="flex w-full items-center gap-2 rounded-xl border border-[#DEDACF] bg-white px-3 sm:max-w-sm">
+                  <Search
+                    aria-hidden="true"
+                    className="h-4 w-4 text-[#7A8780]"
+                  />
+                  <span className="sr-only">Pesquisar projetos</span>
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    type="search"
+                    placeholder="Projeto ou cliente"
+                    className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none focus:ring-2 focus:ring-inset focus:ring-brand/20"
+                  />
+                </label>
+                <p aria-live="polite" className="text-xs text-[#7A6A48]">
+                  {filtered.length}{" "}
+                  {filtered.length === 1 ? "projeto" : "projetos"}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {loading ? (
+          <div
+            aria-label="A carregar portfólio"
+            aria-busy="true"
+            className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {[0, 1, 2, 3, 4, 5].map((index) => (
+              <div
+                key={index}
+                className="aspect-[4/3] rounded-[1.5rem] bg-[#E8E3D8] motion-safe:animate-pulse"
+              />
+            ))}
+          </div>
+        ) : error ? (
+          <div
+            role="alert"
+            className="rounded-2xl border border-[#E8E3D8] bg-white p-8 text-center"
+          >
+            <p className="text-sm text-[#66736D]">{error}</p>
+            <button
+              type="button"
+              onClick={() => setRetry((value) => value + 1)}
+              className="mt-4 min-h-11 rounded-xl border border-brand-800 px-4 py-2 text-sm font-semibold text-brand-800"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : !visible.length ? (
+          <div className="rounded-2xl border border-[#E8E3D8] bg-white p-10 text-center">
+            <p className="text-sm text-[#66736D]">
+              {items.length
+                ? "Nenhum projeto corresponde à sua pesquisa."
+                : "Ainda não existem projetos publicados."}
+            </p>
+            {items.length ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setActive("Todos");
+                }}
+                className="mt-4 min-h-11 text-sm font-semibold text-brand-800 underline"
+              >
+                Limpar filtros
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-12">
+            {visible.map((item) => (
+              <article key={item.id} className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setSelected(item)}
+                  aria-label={`Abrir projeto: ${item.title}`}
+                  aria-haspopup="dialog"
+                  className="group flex h-full w-full flex-col rounded-[1.5rem] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-brand"
+                >
+                  <div className="w-full">
+                    <PortfolioPhoto item={item} />
+                  </div>
+                  <div className="w-full px-1 pt-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[#7A6A48]">
+                        {portfolioCategory(item)}
+                      </p>
+                      <ArrowUpRight
+                        aria-hidden="true"
+                        className="h-4 w-4 shrink-0 text-brand-800"
+                      />
+                    </div>
+                    <h3 className="mt-3 text-xl font-semibold leading-7 tracking-[-0.025em] text-brand-800">
+                      {item.title}
+                    </h3>
+                    {item.client_name ? (
+                      <p className="mt-2 text-sm text-[#66736D]">
+                        {item.client_name}
+                      </p>
+                    ) : null}
+                    {item.description ? (
+                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#66736D]">
+                        {item.description}
+                      </p>
+                    ) : null}
+                    <span className="mt-4 block text-xs font-semibold text-brand-800">
+                      Ver projeto
+                    </span>
+                  </div>
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+        {typeof limit === "number" && filtered.length > limit ? (
+          <Link
+            href="/portfolio"
+            className="mt-9 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-800 underline underline-offset-8"
+          >
+            Ver todos os projetos{" "}
+            <ArrowRight aria-hidden="true" className="h-4 w-4" />
+          </Link>
+        ) : null}
+        {isPage ? (
+          <div className="mt-16 flex flex-col gap-5 rounded-2xl border border-[#E3D6B7] bg-[#F5F1E8] p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A713B]">
+                O próximo projeto
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-brand-800">
+                Vamos criar algo para a sua marca?
               </h2>
-              <p className="mt-3 text-sm leading-6 text-white/70 sm:text-base">
-                Conte-nos o que precisa de comunicar e ajudamos a encontrar a melhor forma de o tornar visível.
+              <p className="mt-3 max-w-xl text-sm leading-6 text-[#66736D]">
+                Partilhe a sua ideia. Ajudamos a escolher os materiais e a dar
+                forma à solução.
               </p>
             </div>
             <Link
               href="/orcamento"
-              className="group mt-6 inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand-900 transition hover:bg-brand-50 lg:mt-0"
+              className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl bg-brand-800 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-700"
             >
-              Conversar sobre um projecto
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              Fale sobre o seu projeto{" "}
+              <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </Link>
           </div>
         ) : null}
       </div>
+      {selected ? (
+        <PortfolioProjectDialog
+          key={selected.id}
+          item={selected}
+          onClose={() => setSelected(null)}
+        />
+      ) : null}
     </section>
   );
 }
