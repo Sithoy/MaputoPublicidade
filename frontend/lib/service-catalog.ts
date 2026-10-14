@@ -12,6 +12,8 @@ export type MainService = {
   productsIntro: string;
   points: string[];
   image: string;
+  imageAlt: string;
+  outcome: string;
   benefits: Array<{
     title: string;
     text: string;
@@ -50,13 +52,15 @@ export const mainServices: MainService[] = [
     eyebrow: 'Uniformes que representam a sua marca',
     summary: 'Uniformes, polos, camisetas, bonés, coletes e sacolas com acabamento profissional.',
     showcaseText:
-      'Esta área é para empresas que querem equipas reconhecíveis, campanhas mais organizadas e peças têxteis que continuem a representar a marca depois do primeiro uso. A imagem reúne os principais formatos de uniforme e merchandising que normalmente combinamos num mesmo projeto.',
+      'Uma equipa bem apresentada transmite confiança antes da primeira conversa. Este detalhe ilustrativo de um polo bordado representa o cuidado com o tecido, o posicionamento da marca e o acabamento de cada peça.',
     description:
       'Produzimos peças têxteis personalizadas para equipas, campanhas e merchandising, combinando serigrafia, bordado e seleção adequada de materiais para garantir presença visual e durabilidade.',
     productsIntro:
       'Produtos ligados à personalização têxtil para equipas, eventos e ações promocionais.',
     points: ['Polos', 'Bonés', 'Uniformes'],
-    image: '/images/supplied/serigrafia-bordado.jpg',
+    image: '/images/services/uniformes-premium.webp',
+    imageAlt: 'Detalhe ilustrativo de um polo verde com bordado dourado e acabamento cuidado.',
+    outcome: 'Dê à sua equipa uma imagem reconhecível, com peças confortáveis e personalização cuidada.',
     benefits: [
       { title: 'Acabamento resistente', text: 'Aplicações pensadas para uso frequente e lavagem regular.' },
       { title: 'Identidade consistente', text: 'Cores, posicionamento e materiais alinhados com a marca.' },
@@ -72,13 +76,15 @@ export const mainServices: MainService[] = [
     eyebrow: 'Impressão que comunica com qualidade',
     summary: 'Folhetos, cartazes, catálogos, brochuras, envelopes, livros e cartões de visita.',
     showcaseText:
-      'A gráfica é o ponto onde a apresentação da marca ganha forma física: propostas, catálogos, cartões, brochuras e peças comerciais com leitura clara e acabamento cuidado. A imagem mostra como diferentes materiais podem trabalhar juntos para transmitir uma comunicação mais profissional.',
+      'A apresentação da sua empresa também se sente no papel. Esta composição ilustrativa de uma brochura e cartões de visita destaca a impressão, a textura e o acabamento que tornam cada contacto mais profissional.',
     description:
       'Criamos e produzimos materiais gráficos para apresentar empresas, campanhas e produtos com acabamento limpo, leitura clara e consistência visual em todos os formatos.',
     productsIntro:
       'Produtos gráficos para comunicação institucional, comercial e promocional.',
     points: ['Catálogos', 'Cartões', 'Folhetos'],
-    image: '/images/supplied/grafica.jpg',
+    image: '/images/services/grafica-premium.webp',
+    imageAlt: 'Composição ilustrativa de uma brochura e cartões de visita em verde e tons neutros.',
+    outcome: 'Apresente a sua empresa com materiais impressos que dão clareza e credibilidade à sua mensagem.',
     benefits: [
       { title: 'Boa apresentação', text: 'Materiais com impacto visual e acabamento profissional.' },
       { title: 'Formatos variados', text: 'Produção adaptada a campanhas, escritórios, lojas e eventos.' },
@@ -94,13 +100,15 @@ export const mainServices: MainService[] = [
     eyebrow: 'Marca visível em todos os pontos de contacto',
     summary: 'Rollups, teardrops, gazebos, placas, autocolantes, viaturas, lojas e eventos.',
     showcaseText:
-      'Aqui a marca sai do papel e passa a ocupar espaços, ruas, viaturas, eventos e pontos de venda. A imagem resume esse ecossistema visual: peças grandes, sinalização e aplicações que tornam a empresa mais visível onde o cliente realmente passa.',
+      'Faça a sua marca acompanhar o percurso dos seus clientes. Esta viatura com aplicação gráfica ilustrativa mostra uma das formas de criar presença; adaptamos também a identidade a espaços, eventos e pontos de venda.',
     description:
       'Desenvolvemos peças de grande formato e aplicações de marca para espaços, viaturas, eventos e pontos de venda, com produção pensada para visibilidade, resistência e coerência visual.',
     productsIntro:
       'Produtos para promover a marca em espaços comerciais, viaturas, eventos e campanhas.',
     points: ['Rollups', 'Viaturas', 'Placas'],
-    image: '/images/supplied/impressao-digital-branding.jpg',
+    image: '/images/services/branding-premium.webp',
+    imageAlt: 'Viatura branca com aplicação gráfica ilustrativa em verde, num ambiente exterior limpo.',
+    outcome: 'Torne a sua empresa visível nos espaços, nas viaturas e nos momentos em que o cliente a encontra.',
     benefits: [
       { title: 'Presença forte', text: 'Peças que tornam a marca reconhecível à distância.' },
       { title: 'Aplicação versátil', text: 'Soluções para interior, exterior, eventos e circulação urbana.' },
@@ -116,13 +124,15 @@ export const mainServices: MainService[] = [
     eyebrow: 'Brindes personalizados para valorizar a marca',
     summary: 'Impressão direta em diversos materiais e brindes corporativos personalizados.',
     showcaseText:
-      'Brindes funcionam melhor quando parecem úteis, bem acabados e feitos para a pessoa certa. A imagem apresenta uma família de objetos personalizados que podem apoiar lançamentos, ações comerciais, eventos e relacionamento com clientes.',
+      'Uma oferta útil pode prolongar a relação com a sua marca. Este conjunto ilustrativo de uma garrafa e um caderno representa uma escolha cuidada de objetos, materiais e personalização para clientes e equipas.',
     description:
       'Personalizamos brindes e objetos promocionais com impressão UV direta, criando peças úteis, memoráveis e alinhadas com campanhas, eventos e relacionamento com clientes.',
     productsIntro:
       'Produtos promocionais e brindes para campanhas, eventos e oferta corporativa.',
     points: ['UV', 'Brindes', 'Premium'],
-    image: '/images/supplied/impressao-uv-brindes.jpg',
+    image: '/images/services/brindes-premium.webp',
+    imageAlt: 'Conjunto ilustrativo de uma garrafa verde e um caderno neutro com detalhe dourado.',
+    outcome: 'Crie uma lembrança útil e bem pensada, que mantém a sua marca perto de clientes e parceiros.',
     benefits: [
       { title: 'Aplicação em materiais diversos', text: 'Impressão em objetos rígidos, brindes e superfícies especiais.' },
       { title: 'Boa lembrança de marca', text: 'Produtos úteis que mantêm a empresa presente no dia a dia.' },
@@ -138,13 +148,15 @@ export const mainServices: MainService[] = [
     eyebrow: 'Precisão que transforma ideias em peças únicas',
     summary: 'Cortes precisos em acrílico, MDF, madeira, couro, papel e plástico para peças únicas.',
     showcaseText:
-      'Corte a laser é ideal quando o detalhe faz diferença: letras, padrões, brindes, placas, peças decorativas e protótipos com formas difíceis de produzir por métodos comuns. A imagem mostra essa combinação de precisão técnica, materiais variados e acabamento visual.',
+      'Quando o detalhe faz a diferença, a precisão dá forma à ideia. Este painel de madeira recortado é uma aplicação ilustrativa; desenvolvemos também letras, placas, peças decorativas e protótipos a partir do seu desenho.',
     description:
       'Executamos corte e gravação a laser para peças decorativas, sinalização, brindes, protótipos e acabamentos especiais, com atenção à precisão, material e detalhe do desenho.',
     productsIntro:
       'Produtos e aplicações com corte ou gravação a laser para decoração, sinalização e brindes.',
     points: ['Acrílico', 'MDF', 'Precisão'],
-    image: '/images/supplied/cortes-a-laser.jpg',
+    image: '/images/services/laser-premium.webp',
+    imageAlt: 'Painel decorativo ilustrativo em madeira com recorte geométrico preciso.',
+    outcome: 'Transforme uma ideia numa peça distinta, com cortes precisos e atenção ao desenho e ao material.',
     benefits: [
       { title: 'Alta precisão', text: 'Cortes detalhados para peças pequenas, letras, padrões e formas complexas.' },
       { title: 'Materiais variados', text: 'Acrílico, MDF, madeira, couro, papel, cartão e plásticos compatíveis.' },
@@ -160,13 +172,15 @@ export const mainServices: MainService[] = [
     eyebrow: 'Ambientes com profundidade, marca e presença',
     summary: 'Painéis decorativos, letras caixa, sinalização 3D e acabamentos para interiores e fachadas.',
     showcaseText:
-      'Painéis 3D criam presença permanente para a marca dentro de receções, lojas, escritórios e fachadas. A imagem destaca aplicações com volume, iluminação e materiais de acabamento que transformam uma parede simples num ponto de identidade.',
+      'Um espaço pode representar a sua empresa com presença e personalidade. Esta aplicação tridimensional ilustrativa destaca o volume e os materiais que usamos para pensar receções, lojas, escritórios e fachadas.',
     description:
       'Criamos painéis, letras caixa e elementos tridimensionais para receções, lojas, escritórios e fachadas, combinando materiais, iluminação e instalação para reforçar a identidade do espaço.',
     productsIntro:
       'Produtos para sinalização, decoração e presença de marca em interiores e exteriores.',
     points: ['3D', 'Letras caixa', 'Interiores'],
-    image: '/images/supplied/paineis-3d.jpg',
+    image: '/images/services/paineis-premium.webp',
+    imageAlt: 'Aplicação tridimensional ilustrativa em verde e dourado sobre uma parede clara.',
+    outcome: 'Faça do seu espaço um ponto de identidade, com volume, materiais e sinalização à medida.',
     benefits: [
       { title: 'Impacto visual', text: 'Elementos com volume e acabamento que destacam a marca no espaço.' },
       { title: 'Interior e exterior', text: 'Soluções adaptadas a receções, fachadas, paredes e ambientes comerciais.' },

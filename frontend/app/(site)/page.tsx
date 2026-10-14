@@ -1,7 +1,7 @@
 import { HeroSection } from '@/components/HeroSection';
 import { TrustMetricsSection } from '@/components/TrustMetricsSection';
 import { BrandPlatformSection } from '@/components/BrandPlatformSection';
-import { BrandTouchpointsSection } from '@/components/BrandTouchpointsSection';
+import { ServicesSection } from '@/components/ServicesSection';
 import { HowItWorks } from '@/components/HowItWorks';
 import { PortfolioGallery } from '@/components/PortfolioGallery';
 import { WhyTrustSection } from '@/components/WhyTrustSection';
@@ -61,7 +61,7 @@ export default function HomePage() {
       <TrustMetricsSection />
       <PartnersSection />
       <BrandPlatformSection />
-      <BrandTouchpointsSection />
+      <ServicesSection />
       <PortfolioGallery limit={6} />
       <HowItWorks />
       <WhyTrustSection />

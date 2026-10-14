@@ -1,73 +1,39 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { mainServices } from '@/lib/service-catalog';
-import { serviceIconMap } from '@/lib/service-icons';
+import { ServiceGallery } from '@/components/ServiceGallery';
 
 export const metadata = {
   title: 'Serviços | Maputo Publicidade',
-  description: 'Conheça os serviços de publicidade, gráfica e impressão digital da Maputo Publicidade.',
+  description: 'Uniformes, impressão, branding, brindes e sinalização: soluções para uma presença de marca consistente em Maputo.',
 };
 
 export default function ServicesPage() {
   return (
-    <div className="bg-white">
-      <section className="mx-auto max-w-7xl px-4 py-16 lg:px-6 lg:py-24">
-        <div className="mb-12 max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
-            Serviços
-          </p>
-          <h1 className="mt-3 text-4xl font-bold leading-tight text-dark md:text-5xl">
-            Produção publicitária completa para marcas que precisam aparecer bem.
-          </h1>
-          <p className="mt-5 text-base leading-relaxed text-gray-600">
-            Cada área tem uma página própria com descrição, processo e produtos associados,
-            para chegar mais depressa ao serviço certo.
-          </p>
+    <div className="bg-[#FEFDF9]">
+      <section className="border-b border-[#E8E3D8] bg-[#F5F1E8]">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.15fr_0.85fr] lg:items-end lg:gap-20 lg:py-24">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8A713B]">Serviços / Maputo Publicidade</p>
+            <h1 className="mt-5 max-w-2xl text-balance text-4xl font-semibold leading-[1.1] tracking-[-0.04em] text-brand-800 sm:text-5xl lg:text-6xl">A sua marca.<br />Bem representada.</h1>
+          </div>
+          <div className="max-w-lg">
+            <p className="text-base leading-7 text-[#66736D] sm:text-lg">Das peças que a sua equipa veste aos espaços onde recebe os seus clientes, ajudamos a dar forma a uma presença profissional, consistente e memorável.</p>
+            <Link href="/orcamento" className="mt-6 inline-flex min-h-12 items-center gap-3 rounded-xl bg-brand-800 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand">Fale sobre o seu projeto <ArrowRight aria-hidden="true" className="h-4 w-4" /></Link>
+          </div>
         </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {mainServices.map((service) => {
-            const ServiceIcon = serviceIconMap[service.iconName];
-
-            return (
-              <Card key={service.slug} className="group flex flex-col transition-shadow hover:shadow-lg">
-                <div className="relative aspect-[4/3] overflow-hidden bg-dark">
-                  <Image
-                    src={service.image}
-                    alt={service.title}
-                    fill
-                    sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-                    className="object-cover transition duration-500 group-hover:scale-[1.03]"
-                    quality={90}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
-                  <div className="absolute bottom-4 left-4 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-brand text-white shadow-lg shadow-brand/25">
-                    <ServiceIcon className="h-5 w-5" />
-                  </div>
-                </div>
-                <CardContent className="flex flex-1 flex-col">
-                  <h2 className="text-xl font-semibold text-dark">{service.title}</h2>
-                  <p className="mt-2 flex-1 text-sm leading-relaxed text-gray-600">{service.summary}</p>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {service.points.map((point) => (
-                      <span key={point} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
-                        {point}
-                      </span>
-                    ))}
-                  </div>
-                  <Link href={`/servicos/${service.slug}`} className="mt-5">
-                    <Button variant="outline" className="w-full gap-2">
-                      Conhecer serviço
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            );
-          })}
+      </section>
+      <section aria-labelledby="service-solutions-heading" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
+        <div className="mb-9 flex flex-wrap items-center justify-between gap-3 border-b border-[#E8E3D8] pb-5">
+          <h2 id="service-solutions-heading" className="text-lg font-semibold text-brand-800">Encontre a solução para o seu objetivo.</h2>
+          <p className="text-xs font-medium text-[#7A6A48]">06 áreas · um parceiro de execução</p>
+        </div>
+        <ServiceGallery />
+        <div className="mt-14 flex flex-col gap-5 rounded-2xl border border-[#E3D6B7] bg-[#F5F1E8] p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-brand-800">Não precisa de saber o nome técnico.</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[#66736D]">Conte-nos o que quer alcançar. Ajudamos a escolher os materiais, a personalização e o acabamento.</p>
+          </div>
+          <Link href="/orcamento" className="inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-semibold text-brand-800 underline decoration-[#C5AD76] underline-offset-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand">Vamos encontrar a solução <ArrowRight aria-hidden="true" className="h-4 w-4" /></Link>
         </div>
       </section>
     </div>

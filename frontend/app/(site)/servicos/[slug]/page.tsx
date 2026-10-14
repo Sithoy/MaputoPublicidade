@@ -203,17 +203,18 @@ export default async function ServiceDetailPage({ params }: { params: { slug: st
             </div>
           </div>
 
-          <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-dark shadow-2xl shadow-gray-900/15 ring-1 ring-black/5 sm:aspect-[16/9]">
+          <div className="relative aspect-[3/2] overflow-hidden rounded-[1.5rem] bg-[#F1EBE1] ring-1 ring-black/5">
             <Image
               src={service.image}
-              alt={service.title}
+              alt={service.imageAlt}
               fill
               priority
-              sizes="100vw"
+              sizes="(min-width: 1280px) 1232px, 100vw"
               className="object-contain"
-              quality={96}
+              quality={85}
             />
           </div>
+          <p className="mt-3 text-xs text-[#7A8780]">Imagem ilustrativa de uma aplicação ou acabamento. O seu projeto terá identidade própria.</p>
 
           <div className="mt-6 rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-6 lg:p-7">
             <p className="text-base leading-relaxed text-gray-700 md:text-lg">{service.showcaseText}</p>
