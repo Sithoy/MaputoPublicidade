@@ -1,0 +1,8 @@
+{
+  "tool": "Built-in image_gen",
+  "date": "2026-10-14",
+  "target": "frontend/public/images/embroidery-mp-portrait.webp",
+  "reference": "frontend/public/images/embroidery-mp.webp",
+  "prompt": "Use case: product-mockup. Asset: portrait 4:5 image, ideally 1024x1280 pixels, for the left column of Maputo Publicidade website trust section. Image 1 is composition/photography/embroidered-brand reference. Create a new portrait recomposition of the SAME premium ivory cap under an embroidery machine. Keep exactly the reference's emerald green intertwined P/M symbol and Maputo wordmark embroidered once, no subtitle, no other typography. Full cap and logo entirely inside middle 60% of frame width, generous margins so no letter can be clipped in a 4:5 portrait frame. Logo centered horizontally around 45% of image height, complete and clearly readable, natural fine satin stitches and realistic cap curvature. Machine enters only from top-right, sharp active needle at edge of logo, machine body softened out of focus. Upper background clean deep green; bottom quarter is quiet ivory cap brim / muted workshop work surface with no important text or logo, reserved for a website caption overlay (DO NOT render caption). Preserve premium warm ivory/green palette, realistic fabric grain, soft diffuse light, photographic depth and clean embroidery machinery context. No hands, no collage, no watermark, no duplicated symbols, no company subtitle. The result must be VERTICAL PORTRAIT 4:5, not landscape and not a cropped landscape that loses letters.",
+  "source": "C:\\Users\\Osvaldo Sitoe\\.codex\\generated_images\\019ffa1e-0a88-7223-a156-1480fe8b7f7b\\exec-46fc255a-170a-4a71-9479-5973f5ab6155.png"
+}
