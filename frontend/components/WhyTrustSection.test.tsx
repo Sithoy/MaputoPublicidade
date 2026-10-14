@@ -7,18 +7,18 @@ import { WhyTrustSection } from "./WhyTrustSection";
 describe("Responsive trust photography", () => {
   it("offers an optimized desktop portrait and a mobile landscape without duplicating the image", () => {
     render(<WhyTrustSection />);
-    const image = screen.getByRole("img", { name: /PMaputo/ });
+    const image = screen.getByRole("img", { name: /rever materiais de marca/ });
     expect(screen.getAllByRole("img")).toHaveLength(1);
-    expect(image.getAttribute("src")).toContain("embroidery-mp.webp");
+    expect(image.getAttribute("src")).toContain("trust-project-review-landscape.webp");
     const source = image.closest("picture")?.querySelector("source");
     expect(source).toHaveAttribute("media", "(min-width: 1024px)");
     expect(source?.getAttribute("srcset")).toContain(
-      "embroidery-mp-portrait.webp",
+      "trust-project-review-portrait.webp",
     );
     expect(source?.getAttribute("srcset")).toContain("/_next/image?");
     expect(
       existsSync(
-        resolve(process.cwd(), "public/images/embroidery-mp-portrait.webp"),
+        resolve(process.cwd(), "public/images/trust-project-review-portrait.webp"),
       ),
     ).toBe(true);
     expect(image.closest("picture")?.parentElement).toHaveClass(
@@ -29,7 +29,7 @@ describe("Responsive trust photography", () => {
 
   it("keeps the caption below the mobile photograph and clearly identifies the mockup", () => {
     render(<WhyTrustSection />);
-    const caption = screen.getByText("Bordado MP · Imagem ilustrativa");
+    const caption = screen.getByText("Imagem ilustrativa");
     expect(caption.parentElement).toHaveClass("lg:absolute");
     expect(caption.parentElement).not.toHaveClass("absolute");
     expect(screen.queryByText(/Trabalho real/)).not.toBeInTheDocument();

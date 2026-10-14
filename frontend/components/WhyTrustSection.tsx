@@ -30,8 +30,8 @@ const reasons = [
 
 export function WhyTrustSection() {
   const { props: portrait } = getImageProps({
-    src: "/images/embroidery-mp-portrait.webp",
-    alt: "Imagem ilustrativa de um boné claro com a marca PMaputo bordada em verde",
+    src: "/images/trust-project-review-portrait.webp",
+    alt: "Imagem ilustrativa de profissionais a rever materiais de marca com uma cliente",
     width: 1122,
     height: 1402,
     sizes: "(min-width: 1280px) 520px, 44vw",
@@ -48,8 +48,8 @@ export function WhyTrustSection() {
                 sizes={portrait.sizes}
               />
               <Image
-                src="/images/embroidery-mp.webp"
-                alt="Imagem ilustrativa de um boné claro com a marca PMaputo bordada em verde"
+                src="/images/trust-project-review-landscape.webp"
+                alt="Imagem ilustrativa de profissionais a rever materiais de marca com uma cliente"
                 fill
                 sizes="100vw"
                 className="object-cover object-center"
@@ -60,6 +60,7 @@ export function WhyTrustSection() {
             <p className="mt-2 max-w-md text-xl font-semibold leading-7">
               A qualidade final começa muito antes da entrega.
             </p>
+            <p className="mt-3 text-xs text-white/70">Imagem ilustrativa</p>
           </div>
         </div>
 

@@ -1,0 +1,17 @@
+{
+  "tool": "Built-in image_gen",
+  "date": "2026-10-14",
+  "note": "Fictional AI-generated illustrative people; not a photograph of actual MP staff or clients.",
+  "assets": [
+    {
+      "target": "frontend/public/images/trust-project-review-portrait.webp",
+      "source": "C:\\Users\\Osvaldo Sitoe\\.codex\\generated_images\\019ffa1e-0a88-7223-a156-1480fe8b7f7b\\exec-dba59bb6-4767-4a19-8aed-0ab9858bf180.png",
+      "prompt": "Use case: photorealistic-natural. Asset: premium illustrative image for a Mozambican branding company's website section 'Why companies trust Maputo Publicidade'. Create a vertical portrait 4:5 photograph, ideally 1024x1280. A candid, believable client project review in a refined contemporary Maputo creative studio: two Black Mozambican professionals (a woman account lead in understated deep-green blouse, a man designer in ivory shirt) and a Black Mozambican woman business client in neutral smart-casual attire, ages 30-45, collaborating around a small light-oak table. The account lead listens attentively to the client while the designer points to one neatly laid-out printed design proof. Natural relaxed expressions and purposeful eye contact, not posed smiling at camera, no handshakes. Only a few ordered brand-material samples: printed brochure, paper swatches and closed ivory notebook; no caps, no embroidery machine, no clutter, no crowded product display. Emphasize care, listening, clear decisions, partnership and quality assurance. Real skin texture, natural anatomically correct hands, believable interaction and proportional bodies. Clean warm ivory studio with soft daylight, restrained deep-green accent and subtle brass detail, understated upscale local business environment rather than flashy boardroom. Compose all three complete faces in central upper-middle region, breathing room around people, foreground table occupying bottom quarter as calm space for website caption. Portrait composition with natural proportions, camera medium shot, no vertical stretching. Photographic editorial authenticity and warm welcoming mood. No readable text, no logos, no watermarks, no invented testimonials or claims; fictional illustrative people, not actual MP staff."
+    },
+    {
+      "target": "frontend/public/images/trust-project-review-landscape.webp",
+      "source": "C:\\Users\\Osvaldo Sitoe\\.codex\\generated_images\\019ffa1e-0a88-7223-a156-1480fe8b7f7b\\exec-189b3394-3794-4d6f-889b-be6f48dcf645.png",
+      "prompt": "Use case: identity-preserve. Create a landscape 3:2 responsive recomposition of this portrait project-review photograph for mobile website use. Preserve exactly the same three fictional Black Mozambican adults, faces, hairstyles, clothing, warm refined studio, gestures and activity. Show all three full faces without clipping in the central upper half of the image, and the review table with the open printed brochure, swatches and ivory notebook in lower half. Expand framing horizontally naturally, do not stretch bodies or faces, do not add people. Keep natural attentive expressions and eyes, correct hands and premium soft daylight, deep green and warm ivory accents. Same moment of client collaboration and quality review. No text, logos, watermarks, extra props or collage. Landscape 3:2 image."
+    }
+  ]
+}
