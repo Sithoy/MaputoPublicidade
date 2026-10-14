@@ -1,0 +1,44 @@
+{
+  "tool": "Built-in image_gen",
+  "date": "2026-10-14",
+  "reference": "frontend/public/logo-tight.png",
+  "note": "AI-generated illustrative mockups, not evidence of completed client work. Original assets preserved. WebP conversion only after generation.",
+  "assets": [
+    {
+      "name": "uniformes",
+      "target": "frontend/public/images/services/uniformes-mp.webp",
+      "prompt": "Use case: compositing. Asset type: illustrative service image for Maputo Publicidade website. Image 1 is edit target; Image 2 is exact brand logo reference, not a black rectangle to paste. Replace the small generic gold emblem on the polo chest with the supplied Maputo logo embroidered at a realistic modest uniform chest size. Preserve exact logo silhouette and wordmark; use green and white threads for contrast on dark green cloth; respect piqué fabric texture, stitches, folds and perspective. No oversized print. Preserve original landscape 3:2 framing, scene composition and premium photographic quality. Integrate branding physically into objects, NOT a watermark or corner overlay. Logo text reference is 'Maputo' and 'Publicidade & Serviços, Lda'; preserve when readable, no invented letters. No added objects, no collage. Output one edited photo.",
+      "source": "C:\\Users\\Osvaldo Sitoe\\.codex\\generated_images\\019ffa1e-0a88-7223-a156-1480fe8b7f7b\\exec-8535cc0c-2dce-4a18-b8b3-d5217094e38c.png"
+    },
+    {
+      "name": "grafica",
+      "target": "frontend/public/images/services/grafica-mp.webp",
+      "prompt": "Use case: compositing. Asset type: illustrative service image for Maputo Publicidade website. Image 1 is edit target; Image 2 is exact brand logo reference, not a black rectangle to paste. Apply supplied Maputo logo to the dark green left booklet page and top business card as elegant realistic printed branding. Use logo in faithful green/white contrast adaptation on dark stock; keep original logo shape and Maputo spelling. Preserve paper texture and perspective; do not add slogans. Preserve original landscape 3:2 framing, scene composition and premium photographic quality. Integrate branding physically into objects, NOT a watermark or corner overlay. Logo text reference is 'Maputo' and 'Publicidade & Serviços, Lda'; preserve when readable, no invented letters. No added objects, no collage. Output one edited photo.",
+      "source": "C:\\Users\\Osvaldo Sitoe\\.codex\\generated_images\\019ffa1e-0a88-7223-a156-1480fe8b7f7b\\exec-08077c77-f947-464e-88a4-2f123dd508b4.png"
+    },
+    {
+      "name": "branding",
+      "target": "frontend/public/images/services/branding-mp.webp",
+      "prompt": "Use case: compositing. Asset type: illustrative service image for Maputo Publicidade website. Image 1 is edit target; Image 2 is exact brand logo reference, not a black rectangle to paste. Apply full supplied green Maputo logo as professionally installed vinyl branding on the large white side panel of the van. Realistic perspective, reflections, panel joins and curvature. Keep existing dark-green/gold wrap and vehicle/background unchanged. No phone numbers, no extra text. Preserve original landscape 3:2 framing, scene composition and premium photographic quality. Integrate branding physically into objects, NOT a watermark or corner overlay. Logo text reference is 'Maputo' and 'Publicidade & Serviços, Lda'; preserve when readable, no invented letters. No added objects, no collage. Output one edited photo.",
+      "source": "C:\\Users\\Osvaldo Sitoe\\.codex\\generated_images\\019ffa1e-0a88-7223-a156-1480fe8b7f7b\\exec-955403a2-cd2c-436a-977c-061312bd1e7b.png"
+    },
+    {
+      "name": "brindes",
+      "target": "frontend/public/images/services/brindes-mp.webp",
+      "prompt": "Use case: compositing. Asset type: illustrative service image for Maputo Publicidade website. Image 1 is edit target; Image 2 is exact brand logo reference, not a black rectangle to paste. Replace generic notebook emblem with supplied full Maputo logo printed on ivory notebook cover, and a modest contrasting logo printed on the bottle. Preserve exact wordmark and silhouette; green on ivory and white/green contrast adaptation on bottle. Respect cylindrical curvature, surface texture and light. Preserve original landscape 3:2 framing, scene composition and premium photographic quality. Integrate branding physically into objects, NOT a watermark or corner overlay. Logo text reference is 'Maputo' and 'Publicidade & Serviços, Lda'; preserve when readable, no invented letters. No added objects, no collage. Output one edited photo.",
+      "source": "C:\\Users\\Osvaldo Sitoe\\.codex\\generated_images\\019ffa1e-0a88-7223-a156-1480fe8b7f7b\\exec-dbedc814-9819-4e42-a88c-5bbe9fbcb5f1.png"
+    },
+    {
+      "name": "laser",
+      "target": "frontend/public/images/services/laser-mp.webp",
+      "prompt": "Use case: compositing. Asset type: illustrative service image for Maputo Publicidade website. Image 1 is edit target; Image 2 is exact brand logo reference, not a black rectangle to paste. Replace the generic cutout leaf pattern in the wood panel with a laser-cut/engraved Maputo branded wooden plaque using the supplied logo. Main Maputo symbol/wordmark physically cut or engraved in wood with precise dark recessed edges. Maintain wooden panel placement, warm backdrop, camera angle and natural shadows. Use faithful logo geometry rather than new symbol. Preserve original landscape 3:2 framing, scene composition and premium photographic quality. Integrate branding physically into objects, NOT a watermark or corner overlay. Logo text reference is 'Maputo' and 'Publicidade & Serviços, Lda'; preserve when readable, no invented letters. No added objects, no collage. Output one edited photo.",
+      "source": "C:\\Users\\Osvaldo Sitoe\\.codex\\generated_images\\019ffa1e-0a88-7223-a156-1480fe8b7f7b\\exec-113e4f5b-d1fd-4d87-baa9-1b5ac88a2757.png"
+    },
+    {
+      "name": "paineis",
+      "target": "frontend/public/images/services/paineis-mp.webp",
+      "prompt": "Use case: compositing. Asset type: illustrative service image for Maputo Publicidade website. Image 1 is edit target; Image 2 is exact brand logo reference, not a black rectangle to paste. Replace generic abstract green wall symbol with supplied full Maputo logo built as elegant raised dimensional signage: green Maputo symbol and wordmark, dark charcoal subtitle, mounted on ivory wall with real letter thickness, shadows and discreet gold metal side returns. Preserve wall/slats lighting, camera perspective and uncluttered premium atmosphere. Preserve original landscape 3:2 framing, scene composition and premium photographic quality. Integrate branding physically into objects, NOT a watermark or corner overlay. Logo text reference is 'Maputo' and 'Publicidade & Serviços, Lda'; preserve when readable, no invented letters. No added objects, no collage. Output one edited photo.",
+      "source": "C:\\Users\\Osvaldo Sitoe\\.codex\\generated_images\\019ffa1e-0a88-7223-a156-1480fe8b7f7b\\exec-95dde2b7-9202-478d-8e44-7fa0605d88eb.png"
+    }
+  ]
+}

@@ -10,6 +10,14 @@ import ServicesPage from '@/app/(site)/servicos/page';
 vi.mock('next/image', () => ({ default: ({ src, alt }: { src: string; alt: string }) => <span role="img" aria-label={alt} data-src={src} /> }));
 
 describe('Premium service presentation', () => {
+  it('uses distinct MP-branded illustrative assets for all six services', () => {
+    expect(new Set(mainServices.map((service) => service.image)).size).toBe(6);
+    for (const service of mainServices) {
+      expect(service.image).toMatch(/\/images\/services\/.+-mp\.webp$/);
+      expect(service.imageAlt).toContain('Mockup ilustrativo');
+      expect(service.imageAlt).toContain('Maputo Publicidade');
+    }
+  });
   it('shows six unique, directly accessible services without autoplay controls', () => {
     render(<ServiceGallery />);
     expect(screen.getAllByRole('link')).toHaveLength(6);

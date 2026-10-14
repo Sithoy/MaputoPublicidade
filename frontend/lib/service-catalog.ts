@@ -58,8 +58,8 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos ligados à personalização têxtil para equipas, eventos e ações promocionais.',
     points: ['Polos', 'Bonés', 'Uniformes'],
-    image: '/images/services/uniformes-premium.webp',
-    imageAlt: 'Detalhe ilustrativo de um polo verde com bordado dourado e acabamento cuidado.',
+    image: '/images/services/uniformes-mp.webp',
+    imageAlt: 'Mockup ilustrativo de um polo verde com o logotipo Maputo Publicidade bordado.',
     outcome: 'Dê à sua equipa uma imagem reconhecível, com peças confortáveis e personalização cuidada.',
     benefits: [
       { title: 'Acabamento resistente', text: 'Aplicações pensadas para uso frequente e lavagem regular.' },
@@ -82,8 +82,8 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos gráficos para comunicação institucional, comercial e promocional.',
     points: ['Catálogos', 'Cartões', 'Folhetos'],
-    image: '/images/services/grafica-premium.webp',
-    imageAlt: 'Composição ilustrativa de uma brochura e cartões de visita em verde e tons neutros.',
+    image: '/images/services/grafica-mp.webp',
+    imageAlt: 'Mockup ilustrativo de uma brochura e cartões de visita com o logotipo Maputo Publicidade impresso.',
     outcome: 'Apresente a sua empresa com materiais impressos que dão clareza e credibilidade à sua mensagem.',
     benefits: [
       { title: 'Boa apresentação', text: 'Materiais com impacto visual e acabamento profissional.' },
@@ -106,8 +106,8 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos para promover a marca em espaços comerciais, viaturas, eventos e campanhas.',
     points: ['Rollups', 'Viaturas', 'Placas'],
-    image: '/images/services/branding-premium.webp',
-    imageAlt: 'Viatura branca com aplicação gráfica ilustrativa em verde, num ambiente exterior limpo.',
+    image: '/images/services/branding-mp.webp',
+    imageAlt: 'Mockup ilustrativo de uma viatura branca com o logotipo Maputo Publicidade aplicado em vinil.',
     outcome: 'Torne a sua empresa visível nos espaços, nas viaturas e nos momentos em que o cliente a encontra.',
     benefits: [
       { title: 'Presença forte', text: 'Peças que tornam a marca reconhecível à distância.' },
@@ -130,8 +130,8 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos promocionais e brindes para campanhas, eventos e oferta corporativa.',
     points: ['UV', 'Brindes', 'Premium'],
-    image: '/images/services/brindes-premium.webp',
-    imageAlt: 'Conjunto ilustrativo de uma garrafa verde e um caderno neutro com detalhe dourado.',
+    image: '/images/services/brindes-mp.webp',
+    imageAlt: 'Mockup ilustrativo de uma garrafa e um caderno personalizados com o logotipo Maputo Publicidade.',
     outcome: 'Crie uma lembrança útil e bem pensada, que mantém a sua marca perto de clientes e parceiros.',
     benefits: [
       { title: 'Aplicação em materiais diversos', text: 'Impressão em objetos rígidos, brindes e superfícies especiais.' },
@@ -148,14 +148,14 @@ export const mainServices: MainService[] = [
     eyebrow: 'Precisão que transforma ideias em peças únicas',
     summary: 'Cortes precisos em acrílico, MDF, madeira, couro, papel e plástico para peças únicas.',
     showcaseText:
-      'Quando o detalhe faz a diferença, a precisão dá forma à ideia. Este painel de madeira recortado é uma aplicação ilustrativa; desenvolvemos também letras, placas, peças decorativas e protótipos a partir do seu desenho.',
+      'Quando o detalhe faz a diferença, a precisão dá forma à ideia. Esta placa de madeira gravada com a marca MP é uma aplicação ilustrativa; desenvolvemos também letras, placas, peças decorativas e protótipos a partir do seu desenho.',
     description:
       'Executamos corte e gravação a laser para peças decorativas, sinalização, brindes, protótipos e acabamentos especiais, com atenção à precisão, material e detalhe do desenho.',
     productsIntro:
       'Produtos e aplicações com corte ou gravação a laser para decoração, sinalização e brindes.',
     points: ['Acrílico', 'MDF', 'Precisão'],
-    image: '/images/services/laser-premium.webp',
-    imageAlt: 'Painel decorativo ilustrativo em madeira com recorte geométrico preciso.',
+    image: '/images/services/laser-mp.webp',
+    imageAlt: 'Mockup ilustrativo de uma placa de madeira com o logotipo Maputo Publicidade gravado.',
     outcome: 'Transforme uma ideia numa peça distinta, com cortes precisos e atenção ao desenho e ao material.',
     benefits: [
       { title: 'Alta precisão', text: 'Cortes detalhados para peças pequenas, letras, padrões e formas complexas.' },
@@ -178,8 +178,8 @@ export const mainServices: MainService[] = [
     productsIntro:
       'Produtos para sinalização, decoração e presença de marca em interiores e exteriores.',
     points: ['3D', 'Letras caixa', 'Interiores'],
-    image: '/images/services/paineis-premium.webp',
-    imageAlt: 'Aplicação tridimensional ilustrativa em verde e dourado sobre uma parede clara.',
+    image: '/images/services/paineis-mp.webp',
+    imageAlt: 'Mockup ilustrativo do logotipo Maputo Publicidade em relevo, com faces verdes e laterais douradas.',
     outcome: 'Faça do seu espaço um ponto de identidade, com volume, materiais e sinalização à medida.',
     benefits: [
       { title: 'Impacto visual', text: 'Elementos com volume e acabamento que destacam a marca no espaço.' },
