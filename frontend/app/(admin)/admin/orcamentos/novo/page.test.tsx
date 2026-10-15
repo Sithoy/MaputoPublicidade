@@ -15,6 +15,26 @@ vi.mock('@/lib/admin-api', () => ({
 
 describe('Proposal client identity', () => {
   beforeEach(() => vi.clearAllMocks());
+  it('submits a custom apparel item from new reception intake with its configuration', async () => {
+    vi.mocked(createReceptionIntake).mockResolvedValue({ quote_reference: 'MP-0004-2026', order_reference: null } as Awaited<ReturnType<typeof createReceptionIntake>>);
+    render(<NewQuotePage />);
+    await screen.findByRole('option', { name: /Ana/ });
+    fireEvent.change(screen.getByLabelText('Cliente registado'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Descrição'), { target: { value: 'Polos de campanha' } });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '200' } });
+    fireEvent.change(screen.getByLabelText('Modelo de configuração'), { target: { value: 'apparel' } });
+    fireEvent.change(screen.getByLabelText('Cores pretendidas, separadas por vírgula'), { target: { value: 'Verde' } });
+    fireEvent.change(screen.getByLabelText('Unissexo Verde M'), { target: { value: '200' } });
+    fireEvent.change(screen.getByLabelText('Personalização'), { target: { value: 'Bordado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registar pedido' }));
+    await waitFor(() => expect(createReceptionIntake).toHaveBeenCalled());
+    expect(vi.mocked(createReceptionIntake).mock.calls[0][0]).toMatchObject({ items: [{
+      product_id: undefined, description: 'Polos de campanha', quantity: 200, unit_price: null,
+      material_briefing: { work_type: 'apparel', catalogue_configuration: { template: 'apparel' }, apparel: {
+        pending: true, technique: 'Bordado', rows: [{ model: 'Unissexo', color: 'Verde', size: 'M', quantity: 200 }],
+      } },
+    }] });
+  });
   it('registers a telephone request without requiring prices or email', async () => {
     vi.mocked(createReceptionIntake).mockResolvedValue({ quote_reference: 'MP-0002-2026', order_reference: null } as Awaited<ReturnType<typeof createReceptionIntake>>);
     render(<NewQuotePage />);

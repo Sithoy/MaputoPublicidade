@@ -11,6 +11,7 @@ import type { MaterialBriefing } from '@/lib/material-briefing';
 import { MaterialBriefingSummary } from '@/components/MaterialBriefingSummary';
 import { ProductConfigurationFields } from '@/components/ProductConfigurationFields';
 import { configurationSnapshot, productTemplate } from '@/lib/product-configuration';
+import { CustomItemConfiguration } from '@/components/admin/CustomItemConfiguration';
 
 export type EditableDocumentLine = {
   material_briefing?: MaterialBriefing;
@@ -52,7 +53,7 @@ export function DocumentItemsEditor({
     updateLine(line.key, {
       product_id: product?.id,
       description: product?.name ?? line.description,
-      material_briefing: product?.order_template === 'apparel' ? { work_type: 'apparel', apparel: { pending: true, rows: [] } } : product && !['standard', 'apparel'].includes(productTemplate(product)) ? { catalogue_configuration: configurationSnapshot(product, {}) } : undefined,
+      material_briefing: product && productTemplate(product) === 'apparel' ? { work_type: 'apparel', apparel: { pending: true, rows: [] } } : product && !['standard', 'apparel'].includes(productTemplate(product)) ? { catalogue_configuration: configurationSnapshot(product, {}) } : undefined,
       unit_price: product?.pricing_complexity === 'complex' ? '' : product?.base_price?.toString() ?? line.unit_price,
     });
   }
@@ -82,13 +83,13 @@ export function DocumentItemsEditor({
       </div>
 
       <div className="space-y-3">
-        {lines.map((line, index) => (
+        {lines.map((line, index) => {
+          const product = products?.find(item => item.id === line.product_id);
+          return (
           <div
             key={line.key}
             className="grid gap-3 rounded-2xl border border-[#e1e8e3] bg-[#f8faf8] p-4 lg:grid-cols-12"
           >
-            {(() => { const product = products?.find(item => item.id === line.product_id); return product && line.material_briefing?.catalogue_configuration?.template === productTemplate(product) ? <div className="lg:col-span-12"><ProductConfigurationFields product={product} id={`document-options-${line.key}`} value={line.material_briefing.catalogue_configuration} onChange={catalogue_configuration => updateLine(line.key, { material_briefing: { ...line.material_briefing, catalogue_configuration } })} /></div> : null; })()}
-            {(line.material_briefing?.apparel || products?.find((product) => product.id === line.product_id)?.order_template === 'apparel') && <div className="lg:col-span-12"><ApparelMatrix id={`document-${line.key}`} quantity={Number(line.quantity)} value={line.material_briefing?.apparel || { pending: true, rows: [] }} onChange={(apparel) => updateLine(line.key, { material_briefing: { ...line.material_briefing, work_type: 'apparel', apparel } })} /></div>}{line.material_briefing ? <div className="rounded-xl bg-white p-3 lg:col-span-12"><p className="text-xs font-semibold text-brand-800">Contexto recebido no briefing</p><MaterialBriefingSummary value={line.material_briefing} /></div> : null}
             {products ? (
               <div className="lg:col-span-3">
                 <Label htmlFor={`product-${line.key}`}>Produto</Label>
@@ -163,8 +164,22 @@ export function DocumentItemsEditor({
                 <Input id={`notes-${line.key}`} value={line.notes} onChange={(event) => updateLine(line.key, { notes: event.target.value })} className="mt-1" />
               </div>
             ) : null}
+            {!line.product_id ? <div className="lg:col-span-12">
+              <CustomItemConfiguration id={`custom-${line.key}`} value={line.material_briefing}
+                onChange={material_briefing => updateLine(line.key, { material_briefing })} />
+            </div> : null}
+            {product && line.material_briefing?.catalogue_configuration?.template === productTemplate(product) ? <div className="lg:col-span-12">
+              <ProductConfigurationFields product={product} id={`document-options-${line.key}`} value={line.material_briefing.catalogue_configuration}
+                onChange={catalogue_configuration => updateLine(line.key, { material_briefing: { ...line.material_briefing, catalogue_configuration } })} />
+            </div> : null}
+            {line.material_briefing?.apparel || (product && productTemplate(product) === 'apparel') ? <div className="lg:col-span-12">
+              <ApparelMatrix key={`apparel-${line.key}-${line.product_id || 'custom'}`} id={`document-${line.key}`} quantity={Number(line.quantity)}
+                value={line.material_briefing?.apparel || { pending: true, rows: [] }}
+                onChange={apparel => updateLine(line.key, { material_briefing: { ...line.material_briefing, work_type: 'apparel', apparel } })} />
+            </div> : null}
+            {line.material_briefing && Object.keys(line.material_briefing).length > 0 ? <div className="rounded-xl bg-white p-3 lg:col-span-12"><p className="text-xs font-semibold text-brand-800">Contexto do item</p><MaterialBriefingSummary value={line.material_briefing} /></div> : null}
           </div>
-        ))}
+        ); })}
       </div>
 
       <div className="flex justify-end border-t border-[#e1e8e3] pt-4">
