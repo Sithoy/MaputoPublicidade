@@ -205,13 +205,20 @@ export async function logout() {
 export async function refreshAccessToken(): Promise<string | null> {
   const refresh = getRefreshToken();
   if (!refresh) return null;
-  const res = await fetch(authUrl('/tokens/refresh'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refresh }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(authUrl('/tokens/refresh'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+  } catch {
+    // Network failure: keep the tokens so the user can retry.
+    return null;
+  }
   if (!res.ok) {
-    removeToken();
+    // Only a definitive rejection invalidates the session.
+    if (res.status === 401 || res.status === 403) removeToken();
     return null;
   }
   const data = await readJson<AuthResponse>(res);
@@ -220,6 +227,22 @@ export async function refreshAccessToken(): Promise<string | null> {
   if (access) setToken(access);
   if (nextRefresh) setRefreshToken(nextRefresh);
   return access || null;
+}
+
+export class SessionError extends Error {
+  readonly code: 'expired' | 'unavailable';
+
+  constructor(code: 'expired' | 'unavailable', message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+async function requestSession(): Promise<Response> {
+  const token = getToken();
+  return fetch(authUrl('/auth/session'), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
 }
 
 export async function fetchWithAuth(path: string, options: RequestInit = {}) {
@@ -293,14 +316,33 @@ export async function fetchSession() {
 
   if (!sessionPromise) {
     sessionPromise = (async () => {
-      const token = getToken();
-      const res = await fetch(authUrl('/auth/session'), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      let res: Response;
+      try {
+        res = await requestSession();
+      } catch {
+        // Network failure: keep the tokens so the caller can retry.
+        throw new SessionError('unavailable', AUTH_UNAVAILABLE_MESSAGE);
+      }
+
+      // Access token expired but the refresh token may still be valid.
+      if (res.status === 401 && getRefreshToken()) {
+        const renewed = await refreshAccessToken();
+        if (renewed) {
+          try {
+            res = await requestSession();
+          } catch {
+            throw new SessionError('unavailable', AUTH_UNAVAILABLE_MESSAGE);
+          }
+        }
+      }
+
       const data = await readJson<AuthResponse>(res);
-      if (!res.ok || !data) {
+      if (res.status === 401 || res.status === 403) {
         removeToken();
-        throw new Error('Sessao invalida');
+        throw new SessionError('expired', 'Sessao invalida');
+      }
+      if (!res.ok || !data) {
+        throw new SessionError('unavailable', AUTH_UNAVAILABLE_MESSAGE);
       }
       return data;
     })().finally(() => {

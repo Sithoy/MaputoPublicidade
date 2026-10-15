@@ -20,7 +20,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { removeToken } from '@/lib/auth';
+import { logout } from '@/lib/auth';
 import type { User } from '@/lib/api';
 import { getDefaultAdminPath, hasCapability, type StaffCapability } from '@/lib/rbac';
 
@@ -72,9 +72,8 @@ export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: ()
   const homeHref = getDefaultAdminPath(user);
 
   function handleLogout() {
-    removeToken();
     onNavigate?.();
-    router.push('/admin/login');
+    void logout().finally(() => router.push('/admin/login'));
   }
 
   return (

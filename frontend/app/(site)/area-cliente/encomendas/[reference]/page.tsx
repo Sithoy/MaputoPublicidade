@@ -13,12 +13,14 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
+import { PrivateArtPreview } from '@/components/PrivateArtPreview';
 import { SupportContextLink } from '@/components/SupportContext';
 import {
   approveArtwork,
   confirmDelivery,
   getClientOrder,
   getOrderPayments,
+  getPaymentStatus,
   initiatePayment,
   requestArtworkChange,
 } from '@/lib/client-api';
@@ -38,6 +40,7 @@ export default function ClientOrderDetailPage() {
   const [payPhone, setPayPhone] = useState('');
   const [payAmount, setPayAmount] = useState('');
   const [payLoading, setPayLoading] = useState(false);
+  const [payFeedback, setPayFeedback] = useState('');
 
   const loadOrder = useCallback(async () => {
     if (!reference) return;
@@ -105,19 +108,50 @@ export default function ClientOrderDetailPage() {
 
   async function handlePay() {
     if (!order) return;
-    if (!payPhone.trim()) {
-      setError('Introduza o número de telemóvel.');
+    setError('');
+    setPayFeedback('');
+
+    const phone = payPhone.trim().replace(/[\s-]/g, '');
+    if (!/^(\+?258)?8[2-7]\d{7}$/.test(phone)) {
+      setError('Introduza um número de telemóvel válido (ex.: 84 123 4567).');
       return;
     }
+    const amountValue = payAmount ? Number(payAmount) : undefined;
+    if (amountValue !== undefined && (!Number.isFinite(amountValue) || amountValue <= 0)) {
+      setError('Introduza um valor válido maior que zero.');
+      return;
+    }
+    if (amountValue !== undefined && order.amount_due != null && amountValue > order.amount_due) {
+      setError(`O valor excede o saldo em dívida (${formatMZN(order.amount_due)}).`);
+      return;
+    }
+
     setPayLoading(true);
-    setError('');
     try {
-      await initiatePayment({
+      const result = await initiatePayment({
         order_reference: order.reference,
         method: payMethod,
-        phone_number: payPhone,
-        amount: payAmount ? Number(payAmount) : undefined,
+        phone_number: phone,
+        amount: amountValue,
       });
+      setPayFeedback('Pedido enviado. Confirme o pagamento no seu telemóvel.');
+
+      // Poll the provider status so the client sees the outcome here.
+      const correlationId = result.payment?.correlation_id;
+      if (correlationId) {
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 4000));
+          const current = await getPaymentStatus(correlationId).catch(() => null);
+          if (!current || current.status === 'pending') continue;
+          if (current.status === 'completed') {
+            setPayFeedback('Pagamento confirmado. Obrigado!');
+          } else {
+            setPayFeedback('');
+            setError('O pagamento não foi concluído. Tente novamente.');
+          }
+          break;
+        }
+      }
       await loadOrder();
       setPayAmount('');
     } catch (err) {
@@ -316,6 +350,11 @@ export default function ClientOrderDetailPage() {
               <Button onClick={handlePay} disabled={payLoading} className="w-full">
                 {payLoading ? 'A processar...' : 'Pagar agora'}
               </Button>
+              {payFeedback ? (
+                <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-medium text-brand-800" role="status">
+                  {payFeedback}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </CardContent>
@@ -398,14 +437,7 @@ export default function ClientOrderDetailPage() {
             <div className="flex items-center gap-2">
               <Badge variant="outline">{order.artwork.status_display || order.artwork.status}</Badge>
               {order.artwork.proof_file && (
-                <a
-                  href={order.artwork.proof_file}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-brand hover:underline"
-                >
-                  Ver ficheiro
-                </a>
+                <PrivateArtPreview url={order.artwork.proof_file} label="Ver ficheiro" />
               )}
             </div>
             {order.artwork.designer_comment && (

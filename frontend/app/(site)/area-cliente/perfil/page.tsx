@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import {
   Building2,
@@ -90,7 +90,9 @@ export default function ClientProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
+  const loadProfile = useCallback(() => {
+    setLoading(true);
+    setError('');
     getMe()
       .then((data) => {
         setUser(data);
@@ -106,6 +108,10 @@ export default function ClientProfilePage() {
       )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   useEffect(() => {
     return () => {
@@ -211,6 +217,24 @@ export default function ClientProfilePage() {
   }
 
   if (loading) return <PageSkeleton />;
+
+  // If the profile failed to load, never render empty forms: submitting
+  // them would overwrite the stored company data with blanks.
+  if (!user) {
+    return (
+      <div className="rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-xl font-semibold text-dark">Não foi possível carregar o perfil</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68776f]">{error || 'Erro inesperado.'}</p>
+        <button
+          type="button"
+          onClick={loadProfile}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

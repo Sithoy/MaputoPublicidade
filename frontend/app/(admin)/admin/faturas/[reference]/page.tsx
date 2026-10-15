@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, FileCheck2, Pencil, Printer, Save, X } from 'lucide-react';
 import { DocumentItemsEditor, type EditableDocumentLine } from '@/components/admin/DocumentItemsEditor';
@@ -60,16 +60,26 @@ export default function InvoiceDetailPage() {
     items: EditableDocumentLine[];
   } | null>(null);
 
-  useEffect(() => {
-    if (authLoading || !reference) return;
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  const loadInvoice = useCallback(() => {
+    if (!reference) return;
+    setInitialLoading(true);
+    setError('');
     Promise.all([getInvoice(reference), getProducts().catch(() => [])])
       .then(([data, productData]) => {
         setInvoice(data);
         setNextStatus(data.status);
         setProducts(productData.filter((product) => product.is_active !== false));
       })
-      .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar fatura')));
-  }, [authLoading, reference]);
+      .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar fatura')))
+      .finally(() => setInitialLoading(false));
+  }, [reference]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    loadInvoice();
+  }, [authLoading, loadInvoice]);
 
   const statusOptions = invoice ? statusTransitions[invoice.status] : ['draft'] as InvoiceStatus[];
   const canEdit = Boolean(invoice && invoice.status === 'draft' && can('invoices.manage'));
@@ -184,8 +194,22 @@ export default function InvoiceDetailPage() {
     }
   }
 
-  if (authLoading || !invoice) {
+  if (authLoading || initialLoading) {
     return <div className="flex h-64 items-center justify-center text-gray-500">A carregar...</div>;
+  }
+
+  if (!invoice) {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <div className="rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-xl font-semibold text-dark">Não foi possível carregar a fatura</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68776f]">{error || 'Fatura não encontrada.'}</p>
+          <Button type="button" className="mt-5" onClick={loadInvoice}>
+            Tentar novamente
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (

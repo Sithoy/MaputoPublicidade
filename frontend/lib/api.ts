@@ -53,6 +53,23 @@ export function apiUrl(path: string): string {
 
 const DEFAULT_FETCH_TIMEOUT_MS = 10000;
 
+/**
+ * On a 401, renew the access token once and retry the request.
+ * Dynamic import avoids the auth.ts <-> api.ts module cycle.
+ */
+async function retryWithRefresh(path: string, init: RequestInit): Promise<Response | null> {
+  if (typeof window === 'undefined') return null;
+  const { getRefreshToken, refreshAccessToken } = await import('./auth');
+  if (!getRefreshToken()) return null;
+  const newToken = await refreshAccessToken();
+  if (!newToken) return null;
+  const headers = {
+    ...(init.headers as Record<string, string>),
+    Authorization: `Bearer ${newToken}`,
+  };
+  return fetch(apiUrl(path), { ...init, headers });
+}
+
 export async function get<T = unknown>(path: string, options?: RequestInit): Promise<T> {
   const request = async (url: string): Promise<Response> => {
     const controller = new AbortController();
@@ -85,6 +102,14 @@ export async function get<T = unknown>(path: string, options?: RequestInit): Pro
     res = await request(fallbackUrl);
   }
 
+  if (res.status === 401) {
+    const retried = await retryWithRefresh(path, {
+      ...options,
+      headers: { Accept: 'application/json', ...(options?.headers || {}) },
+    });
+    if (retried) res = retried;
+  }
+
   if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -110,10 +135,19 @@ export async function post<T = unknown>(
     headers,
     body: payload,
   });
+  if (res.status === 401) {
+    const retried = await retryWithRefresh(path, { method: 'POST', headers, body: payload });
+    if (retried) return handleResponse(retried, 'POST', path);
+  }
+  return handleResponse(res, 'POST', path);
+}
+
+async function handleResponse<T>(res: Response, method: string, path: string): Promise<T> {
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`POST ${path} failed: ${res.status} ${text}`);
+    throw new Error(`${method} ${path} failed: ${res.status} ${text}`);
   }
+  if (res.status === 204) return undefined as unknown as T;
   return res.json() as Promise<T>;
 }
 
@@ -138,11 +172,11 @@ export async function put<T = unknown>(
     headers,
     body: payload,
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`PUT ${path} failed: ${res.status} ${text}`);
+  if (res.status === 401) {
+    const retried = await retryWithRefresh(path, { method: 'PUT', headers, body: payload });
+    if (retried) return handleResponse(retried, 'PUT', path);
   }
-  return res.json() as Promise<T>;
+  return handleResponse(res, 'PUT', path);
 }
 
 export async function patch<T = unknown>(
@@ -166,11 +200,11 @@ export async function patch<T = unknown>(
     headers,
     body: payload,
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`PATCH ${path} failed: ${res.status} ${text}`);
+  if (res.status === 401) {
+    const retried = await retryWithRefresh(path, { method: 'PATCH', headers, body: payload });
+    if (retried) return handleResponse(retried, 'PATCH', path);
   }
-  return res.json() as Promise<T>;
+  return handleResponse(res, 'PATCH', path);
 }
 
 export async function del<T = unknown>(path: string, token?: string | null): Promise<T> {
@@ -181,12 +215,11 @@ export async function del<T = unknown>(path: string, token?: string | null): Pro
     method: 'DELETE',
     headers,
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`DELETE ${path} failed: ${res.status} ${text}`);
+  if (res.status === 401) {
+    const retried = await retryWithRefresh(path, { method: 'DELETE', headers });
+    if (retried) return handleResponse(retried, 'DELETE', path);
   }
-  if (res.status === 204) return undefined as unknown as T;
-  return res.json() as Promise<T>;
+  return handleResponse(res, 'DELETE', path);
 }
 
 export type PaginatedResponse<T> = {

@@ -3,7 +3,7 @@
 import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
 import { MaterialBriefingSummary } from '@/components/MaterialBriefingSummary';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Printer, Save, Upload } from 'lucide-react';
 import Link from 'next/link';
@@ -61,8 +61,12 @@ export default function AdminOrderDetailPage() {
   const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState('');
   const [paymentOption, setPaymentOption] = useState<'deposit_50' | 'on_delivery'>('deposit_50');
 
-  useEffect(() => {
-    if (authLoading || !reference) return;
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  const loadQuote = useCallback(() => {
+    if (!reference) return;
+    setInitialLoading(true);
+    setError('');
     getQuote(reference)
       .then((data) => {
         setQuote(data);
@@ -77,8 +81,14 @@ export default function AdminOrderDetailPage() {
         setEstimatedDeliveryDays(data.estimated_delivery_days?.toString() || '');
         setPaymentOption(data.payment_option || 'deposit_50');
       })
-      .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar orçamento')));
-  }, [authLoading, reference]);
+      .catch((err) => setError(getApiErrorMessage(err, 'Erro ao carregar orçamento')))
+      .finally(() => setInitialLoading(false));
+  }, [reference]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    loadQuote();
+  }, [authLoading, loadQuote]);
 
   async function handleClientUpdate() {
     if (!quote || !clientIdentity.trim()) {
@@ -218,10 +228,24 @@ export default function AdminOrderDetailPage() {
     }
   }
 
-  if (authLoading || !quote) {
+  if (authLoading || initialLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <p className="text-gray-500">A carregar...</p>
+      </div>
+    );
+  }
+
+  if (!quote) {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <div className="rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-xl font-semibold text-dark">Não foi possível carregar o orçamento</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68776f]">{error || 'Orçamento não encontrado.'}</p>
+          <Button type="button" className="mt-5" onClick={loadQuote}>
+            Tentar novamente
+          </Button>
+        </div>
       </div>
     );
   }

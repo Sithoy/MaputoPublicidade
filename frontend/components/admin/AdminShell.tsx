@@ -26,7 +26,7 @@ function ProtectedAdminShell({
 }) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, loading, defaultPath } = useAdminAuth();
+  const { user, loading, error, retry, defaultPath } = useAdminAuth();
   const requiredCapability = getRequiredCapability(pathname);
   const isAllowed = Boolean(
     user && (!requiredCapability || hasCapability(user, requiredCapability))
@@ -37,6 +37,21 @@ function ProtectedAdminShell({
       router.replace(defaultPath);
     }
   }, [defaultPath, isAllowed, loading, router, user]);
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f4f7f4] px-4 text-center">
+        <p className="max-w-sm text-sm text-[#5d6d65]">{error}</p>
+        <button
+          type="button"
+          onClick={retry}
+          className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !user || !isAllowed) {
     return (

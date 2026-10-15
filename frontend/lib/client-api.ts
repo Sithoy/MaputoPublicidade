@@ -324,6 +324,10 @@ export async function confirmDelivery(reference: string): Promise<Order> {
   }) as Promise<Order>;
 }
 
+export async function getPaymentStatus(correlationId: string): Promise<Payment> {
+  return fetchWithAuth(`/api/payments/${correlationId}/status/`) as Promise<Payment>;
+}
+
 export async function approveQuotePrice(reference: string, comment?: string) {
   return fetchWithAuth(`/api/quotes/${reference}/approve-price/`, {
     method: 'POST',

@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { removeToken } from "@/lib/auth";
+import { logout } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { PortalNotifications } from "@/components/PortalNotifications";
 import { BrandDeskIdentity } from "@/components/BrandDeskIdentity";
@@ -237,19 +237,32 @@ export default function ClientAreaLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const isPublicAuthRoute =
     pathname === "/area-cliente/login" || pathname === "/area-cliente/registo";
-  const { user, loading } = useClientAuth({ enabled: !isPublicAuthRoute });
+  const { user, loading, error, retry } = useClientAuth({ enabled: !isPublicAuthRoute });
   const counts = useBrandDeskActivity(
     isPublicAuthRoute ? undefined : user?.id,
     pathname,
   );
 
   function handleLogout() {
-    removeToken();
     setMobileOpen(false);
-    router.push("/area-cliente/login");
+    void logout().finally(() => router.push("/area-cliente/login"));
   }
 
   if (isPublicAuthRoute) return <>{children}</>;
+  if (error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f4f7f4] px-4 text-center">
+        <p className="max-w-sm text-sm text-[#5d6d65]">{error}</p>
+        <button
+          type="button"
+          onClick={retry}
+          className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
   if (loading) return <PortalLoading />;
 
   const contactName =

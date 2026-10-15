@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchSession, getToken, removeToken } from '@/lib/auth';
+import { fetchSession, getToken, removeToken, SessionError } from '@/lib/auth';
 import type { User } from '@/lib/api';
 
 type UseClientAuthOptions = {
@@ -13,8 +13,9 @@ export function useClientAuth({ enabled = true }: UseClientAuthOptions = {}) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
+  const checkSession = useCallback(() => {
     if (!enabled) {
       setUser(null);
       setLoading(false);
@@ -22,6 +23,7 @@ export function useClientAuth({ enabled = true }: UseClientAuthOptions = {}) {
     }
 
     setLoading(true);
+    setError('');
 
     if (!getToken()) {
       removeToken();
@@ -44,11 +46,22 @@ export function useClientAuth({ enabled = true }: UseClientAuthOptions = {}) {
         setUser(sessionUser as User);
         setLoading(false);
       })
-      .catch(() => {
-        removeToken();
-        router.replace('/area-cliente/login');
+      .catch((err) => {
+        // Only a definitive auth rejection clears the session; transient
+        // network/server problems offer a retry instead of a forced logout.
+        if (err instanceof SessionError && err.code === 'expired') {
+          removeToken();
+          router.replace('/area-cliente/login');
+          return;
+        }
+        setError('Não foi possível validar a sessão. Verifique a sua ligação.');
+        setLoading(false);
       });
   }, [enabled, router]);
 
-  return { user, loading };
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
+  return { user, loading, error, retry: checkSession };
 }
