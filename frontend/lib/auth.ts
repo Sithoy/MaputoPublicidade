@@ -250,6 +250,10 @@ export async function fetchWithAuth(path: string, options: RequestInit = {}) {
       body?.detail || body?.non_field_errors?.[0] || `Request failed: ${res.status}`;
     throw new Error(message);
   }
+  // DELETE commonly succeeds with 204 No Content: there is no JSON to parse.
+  if (res.status === 204 || res.status === 205 || options.method?.toUpperCase() === 'HEAD') {
+    return null;
+  }
   return res.json();
 }
 
