@@ -21,8 +21,9 @@ indent-style = "space"
 
 [tool.coverage.run]
 source = ["apps"]
-omit = ["*/migrations/*", "*/tests/*"]
+omit = ["*/migrations/*", "*/tests/*", "*/tests.py", "*/test_*.py", "*/*_tests.py"]
+branch = true
 
 [tool.coverage.report]
-fail_under = 0
+fail_under = 80
 show_missing = true

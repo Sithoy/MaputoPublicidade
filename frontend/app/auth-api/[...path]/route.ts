@@ -1,4 +1,4 @@
-import { buildAuthUpstreamUrl } from '@/lib/auth-proxy';
+import { authProxyEndpoint, buildAuthUpstreamUrl } from '@/lib/auth-proxy';
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
@@ -17,19 +17,23 @@ const RESPONSE_HEADERS = [
   'allow',
   'cache-control',
   'content-type',
-  'location',
   'retry-after',
   'set-cookie',
 ];
 
 async function proxyAuthRequest(request: Request, { params: pendingParams }: RouteContext) {
   const params = await pendingParams;
-  if (params.path.length < 3 || params.path.length > 10 || params.path[0] !== 'app' || params.path[1] !== 'v1' ||
-      params.path.some(segment => !/^[a-zA-Z0-9_-]{1,80}$/.test(segment))) {
+  const endpoint = authProxyEndpoint(params.path);
+  if (!endpoint) {
     return Response.json({ detail: 'Authentication route not found.' }, { status: 404 });
   }
-
-  const requestUrl = new URL(request.url);
+  if (!endpoint.methods.includes(request.method)) {
+    return Response.json({ detail: 'Method not allowed.' }, {
+      status: 405, headers: { Allow: endpoint.methods.join(', '), 'Cache-Control': 'no-store' },
+    });
+  }
+  // App/JWT requests carry data in JSON, never in redirect/query parameters.
+  // Do not feed any part of the incoming request URL into the upstream URL.
   const headers = new Headers();
 
   for (const name of REQUEST_HEADERS) {
@@ -39,7 +43,7 @@ async function proxyAuthRequest(request: Request, { params: pendingParams }: Rou
 
   let upstream: Response;
   try {
-    const upstreamUrl = buildAuthUpstreamUrl(params.path, requestUrl.search);
+    const upstreamUrl = buildAuthUpstreamUrl(params.path, '');
     upstream = await fetch(upstreamUrl, {
       method: request.method,
       headers,
@@ -49,6 +53,7 @@ async function proxyAuthRequest(request: Request, { params: pendingParams }: Rou
           : await request.arrayBuffer(),
       cache: 'no-store',
       redirect: 'manual',
+      signal: AbortSignal.timeout(15_000),
     });
   } catch (error) {
     console.error('Authentication backend request failed', {

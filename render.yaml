@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     branch: main
-    autoDeployTrigger: commit
+    autoDeployTrigger: checksPass
     buildFilter:
       paths:
         - backend/**

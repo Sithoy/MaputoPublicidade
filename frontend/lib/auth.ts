@@ -1,4 +1,5 @@
 import { apiUrl } from './api';
+import { authenticatedApiPath } from './authenticated-url';
 import { clearReceptionEdits, receptionEditHeaders } from './reception-edit-session';
 
 // Keep authentication behind our own server route. This avoids exposing the
@@ -246,6 +247,7 @@ async function requestSession(): Promise<Response> {
 }
 
 export async function fetchWithAuth(path: string, options: RequestInit = {}) {
+  const url = apiUrl(authenticatedApiPath(path));
   const token = getToken();
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -254,13 +256,13 @@ export async function fetchWithAuth(path: string, options: RequestInit = {}) {
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  let res = await fetch(apiUrl(path), { ...options, headers });
+  let res = await fetch(url, { ...options, headers, redirect: 'error' });
 
   if (res.status === 401 && getRefreshToken()) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       headers.Authorization = `Bearer ${newToken}`;
-      res = await fetch(apiUrl(path), { ...options, headers });
+      res = await fetch(url, { ...options, headers, redirect: 'error' });
     }
   }
 
@@ -293,15 +295,16 @@ export async function downloadWithAuth(path: string, filename: string) {
 
 /** Private file bytes; never place bearer tokens in image URLs. */
 export async function fetchBlobWithAuth(path: string, options: RequestInit = {}): Promise<Blob> {
+  const url = apiUrl(authenticatedApiPath(path));
   const token = getToken();
   const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
   if (token) headers.Authorization = `Bearer ${token}`;
-  let res = await fetch(apiUrl(path), { ...options, headers, cache: 'no-store' });
+  let res = await fetch(url, { ...options, headers, cache: 'no-store', redirect: 'error' });
   if (res.status === 401 && getRefreshToken()) {
     const renewed = await refreshAccessToken();
     if (renewed) {
       headers.Authorization = `Bearer ${renewed}`;
-      res = await fetch(apiUrl(path), { ...options, headers, cache: 'no-store' });
+      res = await fetch(url, { ...options, headers, cache: 'no-store', redirect: 'error' });
     }
   }
   if (res.status === 401) removeToken();

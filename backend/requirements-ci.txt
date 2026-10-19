@@ -1,0 +1,3 @@
+-r requirements.txt
+# Required PDF assertions must not silently skip on hosted runners.
+PyMuPDF==1.28.2

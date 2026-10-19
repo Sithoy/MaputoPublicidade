@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '@/lib/auth';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { zohoAuthorizationUrl } from '@/lib/zoho-authorization-url';
 
 type Config = { client_id: string; secret_configured: boolean; connected: boolean; tested_at: string | null; callback_url: string; sending_active?: boolean; receiving_active?: boolean; last_synced_at?: string | null };
 const base = '/api/integrations/email/oauth/';
@@ -47,9 +48,7 @@ export function EmailSettings({ embedded = false, onDirtyChange, onBusyChange }:
         body: JSON.stringify(action === 'save' ? { client_id: clientId, client_secret: secret } : action === 'activate' ? { enabled: !config.sending_active } : {}),
       });
       if (action === 'start') {
-        const url = new URL(value.url);
-        if (url.origin !== 'https://accounts.zoho.com' || url.pathname !== '/oauth/v2/auth') throw new Error('Destino inválido');
-        window.location.assign(url.href);
+        window.location.assign(zohoAuthorizationUrl(value.url));
         return;
       }
       setConfig(value); setClientId(value.client_id); setSecret('');

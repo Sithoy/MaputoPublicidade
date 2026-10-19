@@ -32,6 +32,17 @@ frontend/out/
 frontend/.env.local
 frontend/*.log
 *.tsbuildinfo
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+backend/.coverage
+backend/coverage.xml
+backend/coverage.json
+backend/junit.xml
+backend/mp_e2e*.sqlite3
+/mp_e2e*.sqlite3
+backend/.e2e-media/
+.coverage
 .vercel/
 
 # IDEs
