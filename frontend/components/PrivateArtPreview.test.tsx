@@ -6,6 +6,11 @@ import { PrivateArtPreview } from './PrivateArtPreview';
 vi.mock('@/lib/auth', () => ({ fetchBlobWithAuth: vi.fn() }));
 beforeEach(() => { vi.resetAllMocks(); URL.createObjectURL = vi.fn(() => 'blob:private-art'); URL.revokeObjectURL = vi.fn(); });
 describe('Private art preview', () => {
+  it('rejects an executable public fallback URL', () => {
+    render(<PrivateArtPreview url="javascript:alert(1)" />);
+    expect(screen.getByText('Ver ficheiro').closest('a')).not.toHaveAttribute('href');
+    expect(fetchBlobWithAuth).not.toHaveBeenCalled();
+  });
   it('fetches with authentication only on click and clears the PDF blob when closed', async () => {
     vi.mocked(fetchBlobWithAuth).mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
     render(<PrivateArtPreview url="/api/artwork-files/9/" />);

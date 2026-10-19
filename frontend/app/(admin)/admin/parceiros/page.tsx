@@ -22,7 +22,7 @@ function LogoCell({ partner }: { partner: Partner }) {
   if (partner.logo && !hasImageError) {
     return (
       <div className="flex h-14 w-14 items-center justify-center rounded-md border border-gray-100 bg-white p-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        { }
         <img
           src={partner.logo}
           alt={partner.name}

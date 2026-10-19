@@ -99,11 +99,6 @@ function AdminOrdersContent() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (authLoading) return;
-    void loadOrders();
-  }, [authLoading]);
-
-  useEffect(() => {
     const safeStatus = urlStatus && orderStatusLabels[urlStatus] ? urlStatus : '';
     setStatusFilter(safeStatus);
     if (safeStatus) setActiveView(viewFromStatus(safeStatus));
@@ -169,6 +164,11 @@ function AdminOrdersContent() {
       setError(err instanceof Error ? err.message : 'Erro ao carregar encomendas');
     }
   }
+
+  useEffect(() => {
+    if (authLoading) return;
+    void loadOrders();
+  }, [authLoading]);
 
   function selectView(view: OperationsView) {
     setActiveView(view);

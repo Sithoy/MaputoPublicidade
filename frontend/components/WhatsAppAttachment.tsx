@@ -30,7 +30,7 @@ export function WhatsAppAttachment({ conversationId, messageId, file }: { conver
       {open ? <div onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }}>
         {error ? <div role="alert"><p className="text-xs text-red-700">{error}</p><button type="button" onClick={() => setAttempt((value) => value + 1)} className="mt-2 text-sm">Tentar novamente</button></div> : !url ? <p role="status" className="text-sm">A carregar anexo…</p> : <>
           {file.mime_type === 'application/pdf' ? <iframe src={url} title={`Documento ${file.name}`} sandbox="" className="h-[420px] w-full rounded-lg border" /> :
-            // eslint-disable-next-line @next/next/no-img-element
+
             <img src={url} alt={file.name} className="max-h-[420px] max-w-full rounded-lg object-contain" />}
           <a href={url} download={file.name} className="mt-2 inline-block text-xs font-semibold text-brand-800">Descarregar anexo</a>
         </>}

@@ -26,7 +26,8 @@ export async function generateStaticParams() {
   }
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({ params: pendingParams }: { params: Promise<{ slug: string }> }) {
+  const params = await pendingParams;
   try {
     const product = await get<Product>(`/api/products/${params.slug}/`, { next: { revalidate: 60 } });
     return {
@@ -43,7 +44,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
 }
 
-export default async function ProductDetailPage({ params }: { params: { slug: string } }) {
+export default async function ProductDetailPage({ params: pendingParams }: { params: Promise<{ slug: string }> }) {
+  const params = await pendingParams;
   let product: Product | null = null;
   try {
     product = await get<Product>(`/api/products/${params.slug}/`, { next: { revalidate: 60 } });

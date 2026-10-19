@@ -10,7 +10,7 @@ import { PortfolioGallery } from "./PortfolioGallery";
 
 vi.mock("next/image", () => ({
   default: ({ alt, onError }: { alt: string; onError?: () => void }) => (
-    // eslint-disable-next-line @next/next/no-img-element
+
     <img alt={alt} onError={onError} />
   ),
 }));

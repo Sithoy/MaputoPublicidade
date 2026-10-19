@@ -11,7 +11,7 @@ services:
         - backend/**
         - render.yaml
     buildCommand: cd backend && pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: cd backend && python manage.py migrate --noinput && python manage.py seed_initial_data && python manage.py ensure_admin_user && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    startCommand: cd backend && python manage.py migrate --noinput && python manage.py seed_initial_data && python manage.py ensure_admin_user --no-reset-password && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     healthCheckPath: /health/
     envVars:
       - key: PYTHON_VERSION
@@ -29,7 +29,7 @@ services:
       - key: ADMIN_PASSWORD
         sync: false
       - key: ADMIN_RESET_PASSWORD
-        value: "True"
+        value: "False"
       - key: ALLOWED_HOSTS
         value: ".onrender.com,localhost,127.0.0.1"
       - key: CORS_ALLOWED_ORIGINS

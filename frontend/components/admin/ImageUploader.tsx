@@ -84,7 +84,7 @@ export function ImageUploader({
       />
       {localPreview ? (
         <div className="relative inline-block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          { }
           <img
             src={localPreview}
             alt="Preview"

@@ -1,4 +1,5 @@
 'use client';
+import { safeFileUrl } from '@/lib/safe-url';
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -143,7 +144,8 @@ function AdminOrderDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [canViewPayments, reference]);
+  }, [canViewPayments, reference, setPaymentStatus, setAmountPaid, setDeliveryMethod,
+    setDeliveryAddress, setScheduledDate, setInstallationRequired, setResponsibleId]);
 
   useEffect(() => {
     if (authLoading || !reference) return;
@@ -669,7 +671,7 @@ function AdminOrderDetailPage() {
                   />
                   {order.completion_photo ? (
                     <a
-                      href={order.completion_photo}
+                      href={safeFileUrl(order.completion_photo)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-2 inline-block text-xs font-semibold text-brand hover:underline"

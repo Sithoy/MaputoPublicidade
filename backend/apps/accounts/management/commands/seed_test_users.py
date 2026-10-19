@@ -1,89 +1,38 @@
 import os
 
 from allauth.account.models import EmailAddress
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
-
-User = get_user_model()
-
-
-def truthy(value: str | None) -> bool:
-    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
-
-
-TEST_USERS = [
-    {
-        "username": "testadmin",
-        "email": "testadmin@maputopublicidade.co.mz",
-        "password": "admin12345",
-        "first_name": "Teste",
-        "last_name": "Administrador",
-        "is_staff": True,
-        "is_superuser": True,
-    },
-    {
-        "username": "cliente",
-        "email": "cliente@maputopublicidade.co.mz",
-        "password": "cliente12345",
-        "first_name": "Cliente",
-        "last_name": "Demonstração",
-        "is_staff": False,
-        "is_superuser": False,
-    },
-]
+from django.contrib.auth.password_validation import validate_password
+from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
-    help = "Create local test users for admin and client login (development only)."
+    help = "Create explicitly configured development accounts; never allowed in production."
 
     def handle(self, *args, **options):
-        if not truthy(os.getenv("SEED_TEST_USERS")):
-            self.stdout.write(
-                self.style.WARNING(
-                    "SEED_TEST_USERS is not enabled. Set SEED_TEST_USERS=True to create test users."
-                )
-            )
+        if not settings.DEBUG:
+            raise CommandError("Test accounts are disabled outside DEBUG development environments.")
+        if os.getenv("SEED_TEST_USERS", "").lower() not in {"1", "true", "yes"}:
+            self.stdout.write("SEED_TEST_USERS is not enabled.")
             return
-
-        for data in TEST_USERS:
-            user, created = User.objects.get_or_create(
-                email__iexact=data["email"],
-                defaults={
-                    "username": data["username"],
-                    "email": data["email"],
-                    "first_name": data["first_name"],
-                    "last_name": data["last_name"],
-                    "is_staff": data["is_staff"],
-                    "is_superuser": data["is_superuser"],
-                    "is_active": True,
-                },
-            )
-
+        accounts = [
+            ("testadmin", "testadmin@maputopublicidade.co.mz", True, "SEED_TEST_ADMIN_PASSWORD"),
+            ("cliente", "cliente@maputopublicidade.co.mz", False, "SEED_TEST_CLIENT_PASSWORD"),
+        ]
+        # Validate all configuration before changing any account.
+        for _, _, _, key in accounts:
+            secret = os.getenv(key)
+            if not secret:
+                raise CommandError(f"Configure {key} locally; there is no default password.")
+            validate_password(secret)
+        user_model = get_user_model()
+        for username, email, staff, key in accounts:
+            user, _ = user_model.objects.get_or_create(email__iexact=email, defaults={"username": username, "email": email})
             user.is_active = True
-            user.is_staff = data["is_staff"]
-            user.is_superuser = data["is_superuser"]
-            user.set_password(data["password"])
+            user.is_staff = staff
+            user.is_superuser = staff
+            user.set_password(os.environ[key])
             user.save()
-
-            EmailAddress.objects.update_or_create(
-                user=user,
-                email__iexact=data["email"],
-                defaults={
-                    "email": data["email"],
-                    "primary": True,
-                    "verified": True,
-                },
-            )
-
-            action = "Created" if created else "Updated"
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"{action} test user: {data['email']} / {data['password']}"
-                )
-            )
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                "Test users are ready. Make sure NEXT_PUBLIC_ENABLE_TEST_CREDENTIALS=true in the frontend."
-            )
-        )
+            EmailAddress.objects.update_or_create(user=user, email__iexact=email, defaults={"email": email, "primary": True, "verified": True})
+            self.stdout.write(self.style.SUCCESS(f"Configured development account: {email}"))

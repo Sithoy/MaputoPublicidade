@@ -32,7 +32,8 @@ export function generateStaticParams() {
 
 const siteUrl = companyProfile.siteUrl;
 
-export function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({ params: pendingParams }: { params: Promise<{ slug: string }> }) {
+  const params = await pendingParams;
   const service = getMainService(params.slug);
 
   if (!service) {
@@ -123,7 +124,8 @@ function formatPrice(value?: number) {
   return `${Number(value).toLocaleString('pt-MZ')} MZN`;
 }
 
-export default async function ServiceDetailPage({ params }: { params: { slug: string } }) {
+export default async function ServiceDetailPage({ params: pendingParams }: { params: Promise<{ slug: string }> }) {
+  const params = await pendingParams;
   const service = getMainService(params.slug);
 
   if (!service) notFound();

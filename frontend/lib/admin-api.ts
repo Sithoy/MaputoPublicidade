@@ -587,25 +587,7 @@ export async function updateInvoiceStatus(reference: string, status: InvoiceStat
 }
 
 export function downloadExport(path: string, filename: string) {
-  const token = getToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  fetch(`${window.location.origin}${path}`, { headers })
-    .then((res) => {
-      if (!res.ok) throw new Error('Export failed');
-      return res.blob();
-    })
-    .then((blob) => {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    });
+  return downloadWithAuth(path, filename);
 }
 
 export function exportQuotes(format: 'csv' | 'xlsx', params: Record<string, string> = {}) {

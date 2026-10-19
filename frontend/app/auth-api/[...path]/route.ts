@@ -1,7 +1,7 @@
 import { buildAuthUpstreamUrl } from '@/lib/auth-proxy';
 
 type RouteContext = {
-  params: { path: string[] };
+  params: Promise<{ path: string[] }>;
 };
 
 const REQUEST_HEADERS = [
@@ -22,13 +22,14 @@ const RESPONSE_HEADERS = [
   'set-cookie',
 ];
 
-async function proxyAuthRequest(request: Request, { params }: RouteContext) {
-  if (params.path.length < 3 || params.path[0] !== 'app' || params.path[1] !== 'v1') {
+async function proxyAuthRequest(request: Request, { params: pendingParams }: RouteContext) {
+  const params = await pendingParams;
+  if (params.path.length < 3 || params.path.length > 10 || params.path[0] !== 'app' || params.path[1] !== 'v1' ||
+      params.path.some(segment => !/^[a-zA-Z0-9_-]{1,80}$/.test(segment))) {
     return Response.json({ detail: 'Authentication route not found.' }, { status: 404 });
   }
 
   const requestUrl = new URL(request.url);
-  const upstreamUrl = buildAuthUpstreamUrl(params.path, requestUrl.search);
   const headers = new Headers();
 
   for (const name of REQUEST_HEADERS) {
@@ -38,6 +39,7 @@ async function proxyAuthRequest(request: Request, { params }: RouteContext) {
 
   let upstream: Response;
   try {
+    const upstreamUrl = buildAuthUpstreamUrl(params.path, requestUrl.search);
     upstream = await fetch(upstreamUrl, {
       method: request.method,
       headers,
@@ -60,6 +62,13 @@ async function proxyAuthRequest(request: Request, { params }: RouteContext) {
   }
 
   const responseHeaders = new Headers();
+  // This app/JWT proxy serves JSON, not browser OAuth navigation. Never relay
+  // an unexpected upstream redirect to the caller's authenticated fetch.
+  if (upstream.status >= 300 && upstream.status < 400) {
+    return Response.json({ detail: 'Unexpected authentication redirect.' }, {
+      status: 502, headers: { 'Cache-Control': 'no-store' },
+    });
+  }
   for (const name of RESPONSE_HEADERS) {
     const value = upstream.headers.get(name);
     if (value) responseHeaders.set(name, value);

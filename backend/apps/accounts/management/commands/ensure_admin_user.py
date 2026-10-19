@@ -1,6 +1,7 @@
 import os
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -21,16 +22,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         email = os.getenv("ADMIN_EMAIL", "admin@maputopublicidade.co.mz").strip().lower()
-        password = os.getenv("ADMIN_PASSWORD", "admin12345")
+        password = os.getenv("ADMIN_PASSWORD")
         username = os.getenv("ADMIN_USERNAME", "admin").strip() or "admin"
         first_name = os.getenv("ADMIN_FIRST_NAME", "Administrador").strip()
         last_name = os.getenv("ADMIN_LAST_NAME", "Maputo Publicidade").strip()
-        reset_password = truthy(os.getenv("ADMIN_RESET_PASSWORD", "true"))
+        reset_password = truthy(os.getenv("ADMIN_RESET_PASSWORD", "false"))
 
         if not email:
             raise CommandError("ADMIN_EMAIL cannot be empty.")
-        if not password:
-            raise CommandError("ADMIN_PASSWORD cannot be empty.")
 
         user_model = get_user_model()
 
@@ -55,6 +54,9 @@ class Command(BaseCommand):
 
             password_updated = created or (reset_password and not options["no_reset_password"])
             if password_updated:
+                if not password:
+                    raise CommandError("Configure ADMIN_PASSWORD securely before creating or resetting an administrator.")
+                validate_password(password, user=user)
                 user.set_password(password)
 
             user.save()

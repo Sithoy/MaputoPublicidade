@@ -79,7 +79,7 @@ export function AttachmentImageViewer({ reference, files, initialId, onClose }: 
       <div className="max-h-[68vh] min-h-40 overflow-auto rounded-xl bg-slate-100 p-2">
         {loading ? <p role="status" className="p-8 text-center text-sm">A abrir imagem…</p> : null}
         {/* Private authenticated blob, not a public or optimisable image URL. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        { }
         {url ? <img src={url} alt={file?.name || 'Anexo'} className="mx-auto block object-contain" style={{ width: `${zoom}%`, maxWidth: 'none', maxHeight: zoom === 100 ? '65vh' : undefined }} onError={() => setError('O navegador não conseguiu apresentar esta imagem.')} /> : null}
       </div>
     </div>

@@ -1,4 +1,5 @@
 'use client';
+import { safeFileUrl } from '@/lib/safe-url';
 
 import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
 import { MaterialBriefingSummary } from '@/components/MaterialBriefingSummary';
@@ -390,7 +391,7 @@ export default function AdminOrderDetailPage() {
                     {quote.items
                       .filter((i) => i.artwork_file)
                       .map((item) => (
-                        <Link key={item.id} href={item.artwork_file as string} target="_blank" download>
+                        <Link key={item.id} href={safeFileUrl(item.artwork_file) || '#'} target="_blank" rel="noopener noreferrer" download>
                           <Button variant="outline" size="sm" className="gap-2">
                             <Download className="h-4 w-4" />
                             {item.description}
@@ -618,7 +619,7 @@ export default function AdminOrderDetailPage() {
           {quote.artwork?.proof_file && (
             <div className="rounded-lg border border-gray-200 p-4">
               <p className="text-sm text-gray-500">Prova actual</p>
-              <Link href={quote.artwork.proof_file} target="_blank" download>
+              <Link href={safeFileUrl(quote.artwork.proof_file) || '#'} target="_blank" rel="noopener noreferrer" download>
                 <Button variant="outline" size="sm" className="mt-2 gap-2">
                   <Download className="h-4 w-4" />
                   Download da prova

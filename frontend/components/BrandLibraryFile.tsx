@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FileImage, RefreshCw } from 'lucide-react';
 import { downloadWithAuth, fetchBlobWithAuth } from '@/lib/auth';
+import { safeFileUrl } from '@/lib/safe-url';
 
 export function isBrandImage(url: string, mimeType = '', filename = '') {
   return /^image\/(png|jpeg|webp|gif|avif|svg\+xml)$/i.test(mimeType)
@@ -19,7 +20,11 @@ export function BrandLibraryThumbnail({ url, name }: { url: string; name: string
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     setFailed(false); setSrc('');
-    if (!privateFile(url)) { setSrc(url); return; }
+    if (!privateFile(url)) {
+      const safe = safeFileUrl(url);
+      if (safe) setSrc(safe); else setFailed(true);
+      return;
+    }
     let alive = true; let objectUrl = '';
     const controller = new AbortController();
     fetchBlobWithAuth(url, { signal: controller.signal }).then((blob) => {
@@ -33,7 +38,7 @@ export function BrandLibraryThumbnail({ url, name }: { url: string; name: string
   return <div className="flex h-32 items-center justify-center bg-[#f4f7f4] p-4">
     {failed ? <div className="text-center text-xs text-[#64736b]"><FileImage className="mx-auto mb-2 h-6 w-6" /><p>Pré-visualização indisponível</p><button type="button" onClick={() => setRetry((value) => value + 1)} className="mt-2 inline-flex items-center gap-1 font-semibold text-brand-800"><RefreshCw className="h-3 w-3" />Tentar novamente</button></div> : src ?
       // The object URL carries authorized bytes; Next's server optimizer cannot authenticate this file.
-      // eslint-disable-next-line @next/next/no-img-element
+
       <img src={src} alt={name} onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" /> : <p role="status" className="text-xs text-[#64736b]">A carregar imagem…</p>}
   </div>;
 }
@@ -41,7 +46,7 @@ export function BrandLibraryThumbnail({ url, name }: { url: string; name: string
 export function BrandLibraryFileLink({ url, filename, children, className, label }: { url: string; filename: string; children: React.ReactNode; className?: string; label?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  if (!privateFile(url)) return <a href={url} target="_blank" rel="noopener noreferrer" className={className} aria-label={label}>{children}</a>;
+  if (!privateFile(url)) return <a href={safeFileUrl(url)} target="_blank" rel="noopener noreferrer" className={className} aria-label={label}>{children}</a>;
   async function download() {
     setBusy(true); setError('');
     try { await downloadWithAuth(url, filename); }

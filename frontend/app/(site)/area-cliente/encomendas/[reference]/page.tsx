@@ -1,4 +1,5 @@
 'use client';
+import { safeFileUrl } from '@/lib/safe-url';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -379,7 +380,7 @@ export default function ClientOrderDetailPage() {
             </div>
             {order.completion_photo ? (
               <a
-                href={order.completion_photo}
+                href={safeFileUrl(order.completion_photo)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block text-sm font-semibold text-brand-700 hover:underline"

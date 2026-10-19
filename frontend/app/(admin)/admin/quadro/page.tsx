@@ -108,7 +108,6 @@ export default function AdminBoardPage() {
   useEffect(() => {
     if (authLoading) return;
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
   const cards = useMemo<BoardCard[]>(() => {

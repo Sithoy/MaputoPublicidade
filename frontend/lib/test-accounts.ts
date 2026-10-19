@@ -12,7 +12,7 @@ export interface TestAccount {
 }
 
 export const ENABLE_TEST_CREDENTIALS =
-  process.env.NEXT_PUBLIC_ENABLE_TEST_CREDENTIALS === 'true';
+  process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_ENABLE_TEST_CREDENTIALS === 'true';
 
 function fromEnv(
   role: TestRole,

@@ -1,4 +1,5 @@
 'use client';
+import { safeFileUrl } from '@/lib/safe-url';
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -210,7 +211,7 @@ export function SupportDesk({ staff = false, quoteReference, onDirtyChange, onBu
         <div className="min-w-0 p-4 sm:p-6">
           {selected ? <>
             {!detail ? <p className="text-sm text-slate-500">A abrir conversa…</p> : <>
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4"><div><h3 className="font-semibold">{detail.subject}</h3><p className="mt-1 text-xs text-slate-500">{statuses[detail.status]}</p>{context && <Link href={contextHref} className="mt-2 inline-block text-sm text-brand-700">Ver pedido / projeto: {context}</Link>}</div>
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4"><div><h3 className="font-semibold">{detail.subject}</h3><p className="mt-1 text-xs text-slate-500">{statuses[detail.status]}</p>{context && <Link href={safeFileUrl(contextHref) || '#'} className="mt-2 inline-block text-sm text-brand-700">Ver pedido / projeto: {context}</Link>}</div>
                 {staff && detail.status !== 'resolved' && <button type="button" disabled={busy} onClick={resolve} className="rounded-lg border px-3 py-2 text-xs">Marcar como resolvida</button>}</div>
               {detail.context ? <SupportContextCard context={detail.context} staff={staff} /> : null}
               {staff && detail.whatsapp && !detail.whatsapp.can_reply ? <div className="my-3 rounded-xl bg-amber-50 p-4 text-sm"><p>A resposta livre pela API está indisponível: a janela de 24 horas terminou ou a integração está desativada. Uma resposta enviada pela empresa não reabre essa janela.</p>{detail.whatsapp.coexistence ? <a href={`https://wa.me/${detail.whatsapp.phone}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold text-brand-800">Abrir conversa no WhatsApp Business →</a> : <p className="mt-2">Use um template aprovado no editor abaixo, com a integração ativa.</p>}</div> : null}

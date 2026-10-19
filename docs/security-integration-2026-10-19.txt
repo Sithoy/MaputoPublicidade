@@ -1,0 +1,66 @@
+MP SECURITY INTEGRATION - 2026-10-19
+
+Scope
+Integrated the security remediation into origin/main at 4281f44 on local branch
+codex/security-main-20261019. The original dirty staging checkout is unchanged.
+No remote push, deployment, production data change or credential rotation performed.
+
+Changes
+- Updated vulnerable runtime dependencies, including Django/allauth/DRF and
+  Next.js/React. Updated the frontend build, lint and async route APIs accordingly.
+- Preserved main's session handling, private brand-library/art previews, role-based
+  financial visibility, modern catalogue and custom-item configuration.
+- Validated upload/API URLs before browser navigation/rendering; retained private
+  authenticated blob retrieval and sandboxed artwork previews.
+- Restricted auth-proxy paths to app/v1, fixed its configured upstream origin and
+  rejected unexpected upstream redirects. Added regression coverage.
+- Removed shared bootstrap/demo passwords. Existing administrator passwords are
+  not automatically reset; new accounts require an explicitly configured secret.
+  Test-account seeding is opt-in and forbidden outside DEBUG.
+- Explicitly allowed the existing image qualities 75/85/92 for Next.js 16.
+  Private-IP image optimization remains disabled.
+
+Validation
+- Backend: 345 tests passed against an isolated in-memory SQLite database.
+- Frontend: 259 tests passed across 64 files.
+- Backend Ruff, frontend ESLint and TypeScript checks passed.
+- Final production build passed (72 generated pages).
+- git diff --check passed.
+- Local HTTP/browser smoke testing is NOT complete: launching the loopback
+  production server was blocked by execution policy. No authenticated interactive
+  client/admin or deployment validation is claimed.
+
+Snyk
+- Fresh backend production dependency scan: 0 vulnerabilities (60 dependencies).
+- Fresh frontend production dependency scan: 0 vulnerabilities (41 dependencies).
+- Static analysis still reports findings; zero vulnerable runtime dependencies
+  must not be interpreted as zero application security risk.
+- Backend static scan: 34 findings. Two high hardcoded-secret findings refer to
+  public signing SALT namespaces, not signing keys. Tokens are signed using the
+  Django secret, expire and use nonce/contact validation. Do not change these
+  namespaces casually: existing customer links would stop working. Other findings
+  include test fixtures, validation-message keys and account identifiers.
+- Final frontend static scan: 26 findings (1 high, 22 medium, 3 low). These
+  include URL sinks already guarded by safeFileUrl,
+  locally generated blob URLs, fixed-scheme mail/WhatsApp links, and a Zoho OAuth
+  redirect constrained to its exact host/path. The auth-proxy SSRF finding has
+  origin/path/redirect regression tests; it cannot select a request-supplied host.
+  These are manual data-flow assessments, not Snyk dismissals or exhaustive proof.
+- Development tooling retains four distinct advisories (braces and URI.js via
+  lint/build dependencies) with no fixed version reported in the prior --dev
+  scan of this same lockfile. Do not run tooling against untrusted source/config.
+  No Snyk ignore rules or forced breaking dependency fixes were added.
+- Raw reports are local-only under output/security/main-integration-20261019 in
+  the original checkout; they are not committed because they can contain source
+  excerpts and legacy credential evidence.
+
+Before production
+1. Review the integration diff and run authenticated client/admin acceptance tests,
+   especially login/refresh, private library, approvals, exports and image rendering.
+2. Confirm historical shared/demo credentials have been rotated or disabled in
+   production. Removing source defaults does not remediate existing accounts.
+   Review ADMIN_RESET_PASSWORD and seed flags securely; never paste secrets into chat.
+3. Review remaining static findings and development advisories; re-scan as fixes
+   become available. This report does not assert that all 91 original alerts are gone.
+4. Deploy only after approval; verify both backend and frontend together, with a
+   rollback plan. Cloud Run migration has not been started.

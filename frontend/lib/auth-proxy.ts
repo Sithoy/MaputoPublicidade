@@ -40,6 +40,13 @@ export function buildAuthUpstreamUrl(
   search: string,
   env: AuthProxyEnvironment = process.env
 ): string {
-  const safePath = path.map((segment) => encodeURIComponent(segment)).join('/');
-  return `${resolveAuthBackendOrigin(env)}/_allauth/${safePath}${search}`;
+  if (!path.length || path.length > 10 || path.some(segment => !/^[a-zA-Z0-9_-]{1,80}$/.test(segment))) {
+    throw new Error('Invalid authentication route');
+  }
+  const origin = resolveAuthBackendOrigin(env);
+  const url = new URL(origin);
+  url.pathname = `/_allauth/${path.join('/')}`;
+  url.search = new URLSearchParams(search).toString();
+  if (url.origin !== origin) throw new Error('Invalid authentication origin');
+  return url.toString();
 }

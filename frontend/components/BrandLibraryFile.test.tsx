@@ -5,6 +5,17 @@ import { downloadWithAuth, fetchBlobWithAuth } from '@/lib/auth';
 vi.mock('@/lib/auth', () => ({ downloadWithAuth: vi.fn(), fetchBlobWithAuth: vi.fn() }));
 
 describe('Private brand library files', () => {
+  it('blocks executable external file URLs without sending credentials', () => {
+    render(<BrandLibraryFileLink url="javascript:alert(1)" filename="logo.png">Ficheiro inseguro</BrandLibraryFileLink>);
+    expect(screen.getByText('Ficheiro inseguro').closest('a')).not.toHaveAttribute('href');
+    expect(downloadWithAuth).not.toHaveBeenCalled();
+  });
+  it('does not render unsafe thumbnail URLs', async () => {
+    render(<BrandLibraryThumbnail url="javascript:alert(1)" name="Unsafe logo" />);
+    expect(await screen.findByText('Pré-visualização indisponível')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(fetchBlobWithAuth).not.toHaveBeenCalled();
+  });
   beforeEach(() => { vi.clearAllMocks(); URL.createObjectURL = vi.fn(() => 'blob:private-preview'); URL.revokeObjectURL = vi.fn(); });
   it('recognizes metadata and signed image URLs', () => {
     expect(isBrandImage('/api/brand-assets/12/file/', 'image/png')).toBe(true);

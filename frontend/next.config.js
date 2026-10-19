@@ -44,7 +44,7 @@ const nextConfig = {
     ] }];
   },
   images: {
-    domains: ['localhost', 'backend'],
+    qualities: [75, 85, 92],
     remotePatterns: [
       {
         protocol: 'http',

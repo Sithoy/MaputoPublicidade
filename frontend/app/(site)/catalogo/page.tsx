@@ -11,7 +11,8 @@ export const metadata = {
 };
 export const revalidate = 60;
 
-export default async function CatalogPage({ searchParams }: { searchParams: { categoria?: string; q?: string } }) {
+export default async function CatalogPage({ searchParams: pendingSearchParams }: { searchParams: Promise<{ categoria?: string; q?: string }> }) {
+  const searchParams = await pendingSearchParams;
   let products: Product[] = [];
   let failed = false;
   try { products = await getList<Product>('/api/products/', { next: { revalidate: 60 } }); }

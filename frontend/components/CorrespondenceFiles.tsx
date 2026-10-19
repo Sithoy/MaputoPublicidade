@@ -21,7 +21,7 @@ export function CorrespondenceFilePreview({ file }: { file: CorrespondenceFile }
     return () => { alive = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [open, file.url]);
   return <div className="mt-3 rounded-xl border bg-white p-3"><button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="break-all text-xs font-semibold text-brand-800">{open ? 'Fechar' : 'Visualizar'} {file.name} · {(file.size / 1024).toFixed(0)} KB</button>{open && <div className="mt-3">{error ? <p role="alert" className="text-xs text-red-700">{error}</p> : !url ? <p role="status">A abrir anexo…</p> : <>{file.mime_type === 'application/pdf' ? <iframe title={`Anexo ${file.name}`} src={url} sandbox="" className="h-[420px] w-full border" /> :
-    // eslint-disable-next-line @next/next/no-img-element
+
     <img alt={file.name} src={url} className="max-h-[420px] max-w-full object-contain" />}<a href={url} download={file.name} className="mt-2 inline-block text-xs text-brand-800 underline">Descarregar</a></>}</div>}</div>;
 }
 
