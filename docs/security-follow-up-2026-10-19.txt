@@ -1,0 +1,70 @@
+MP SECURITY FOLLOW-UP - 2026-10-19
+
+Scope
+Review of the user's 60 Snyk Code alerts (3 high, 25 medium, 32 low) in the
+isolated main-based worktree. The baseline snyk-code.sarif is preserved unmodified
+and is not committed. No production data, credentials, deployment or Snyk ignore
+policies were changed during this follow-up.
+
+Implemented
+1. Auth proxy accepts only six explicitly mapped app endpoints and their permitted
+   methods. Upstream paths come from constant strings, not free-form routing.
+   Incoming query parameters are no longer forwarded: current app flows use JSON.
+   Unexpected upstream redirects are rejected; Location is not forwarded. Requests
+   have a 15-second upstream timeout. Existing login/signup/logout/refresh/session
+   request shapes and supported config/session read methods are retained.
+2. fetchWithAuth and fetchBlobWithAuth validate the destination BEFORE retrieving
+   or attaching an MP token. Only root-relative, normalized /api/ paths are allowed.
+   External origins, protocol-relative links, traversal escaping /api/, controls,
+   backslashes and fragments are rejected. Redirect following is disabled even if
+   a caller asks for it. Transient errors do not clear the session.
+   This closes a potential token-exfiltration boundary if untrusted API-provided
+   URLs reach these helpers; no observed production exploitation is claimed.
+3. Zoho OAuth navigation reconstructs its destination from a fixed HTTPS endpoint.
+   Exact origin/path validation is retained; userinfo, fragments and malformed
+   values are rejected. Opaque OAuth query values are preserved.
+4. New signing-boundary tests demonstrate that knowledge of either public SALT
+   value is insufficient to forge customer tokens: wrong keys, wrong namespaces
+   and tampering fail verification. Existing expiry/revocation tests also pass.
+   Signing namespaces and the production SECRET_KEY were NOT changed, preserving
+   existing customer tracking and artwork links.
+
+Triage
+docs/security-triage-2026-10-19.json lists all 60 baseline finding IDs, source
+locations, manual assessments and regression-test evidence. Manual assessments
+are not Snyk dismissals or a penetration-test certificate.
+- Two high "secret" alerts refer to public signing namespaces, not signing keys.
+- Password field labels/validation messages are not authentication credentials.
+- Low-severity test fixtures and intentional provisioning account identifiers are
+  not evidence of an active deployed secret. Historical passwords remain a separate
+  operational check: confirm rotation/disablement in production.
+- Browser file links pass safeFileUrl; private library/art flows retain authorized
+  downloads or generated blob URLs. PDF previews are sandboxed and MIME-restricted.
+  Public HTTP(S) file links are intentionally supported, not claimed domain-trusted.
+- Fixed-scheme email/WhatsApp composers are intentional external destinations.
+
+Validation
+- Full frontend suite: 301 tests passed across 66 files.
+- ESLint and TypeScript checks passed.
+- Production frontend build passed, generating 72 pages.
+- Backend focused suite: 17 tests passed (tracking, production/art and signing).
+- Ruff passed for the new backend test file.
+- Previous full backend suite: 345 passed before this follow-up. Backend application
+  code is unchanged here; only two signing tests were added.
+- No authenticated browser acceptance test or production rollout is claimed.
+- A fresh combined Snyk Code scan was started with the repository URL, but did
+  not return findings or produce its SARIF output after more than eight minutes.
+  Only that scan was stopped; the user's IDE/other Snyk processes were left alone.
+  The post-change alert count is therefore NOT confirmed. The 60-alert baseline
+  remains the last available result; do not describe the manual triage as zero
+  scanner findings. Re-run Snyk before accepting/publishing this follow-up.
+
+References used for review
+https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
+https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html
+https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
+
+Release checks
+Test login/signup, token refresh, private library/art previews, email authorization
+and exports with an authenticated account before publishing. Intentional external
+file links must not be routed through authenticated MP API helpers.

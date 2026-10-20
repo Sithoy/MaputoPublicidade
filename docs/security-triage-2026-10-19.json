@@ -1,0 +1,762 @@
+{
+  "date": "2026-10-19",
+  "baseline": {
+    "file": "snyk-code.sarif (user-supplied, left unmodified)",
+    "total": 60,
+    "high": 3,
+    "medium": 25,
+    "low": 32
+  },
+  "scope": "Manual source-level triage plus regression tests. Assessments are not Snyk dismissals, proof of zero vulnerabilities, a pentest, or confirmation of production credential rotation. No ignore policies added.",
+  "findings": [
+    {
+      "id": "a4abf219-723d-42a8-948d-9e12bc10e0bd",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/app/(admin)/admin/encomendas/[reference]/page.tsx",
+      "line": 674,
+      "assessment": "Guarded browser URL; scanner data-flow warning",
+      "reason": "Current reported link passes safeFileUrl, which rejects executable/data schemes, controls, backslashes, protocol-relative URLs and embedded credentials. Root-relative and HTTP(S) file links are intentionally allowed.",
+      "evidence": [
+        "frontend/lib/safe-url.test.ts",
+        "frontend/app/(admin)/admin/encomendas/[reference]/page.tsx"
+      ]
+    },
+    {
+      "id": "f1d49684-b6ed-410f-a55b-0ce0b01fcdad",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/app/(admin)/admin/orcamentos/[reference]/page.tsx",
+      "line": 394,
+      "assessment": "Guarded browser URL; scanner data-flow warning",
+      "reason": "Current reported link passes safeFileUrl, which rejects executable/data schemes, controls, backslashes, protocol-relative URLs and embedded credentials. Root-relative and HTTP(S) file links are intentionally allowed.",
+      "evidence": [
+        "frontend/lib/safe-url.test.ts",
+        "frontend/app/(admin)/admin/orcamentos/[reference]/page.tsx"
+      ]
+    },
+    {
+      "id": "884d1e74-696b-4c7b-8668-64b50a63a8b4",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/app/(admin)/admin/orcamentos/[reference]/page.tsx",
+      "line": 622,
+      "assessment": "Guarded browser URL; scanner data-flow warning",
+      "reason": "Current reported link passes safeFileUrl, which rejects executable/data schemes, controls, backslashes, protocol-relative URLs and embedded credentials. Root-relative and HTTP(S) file links are intentionally allowed.",
+      "evidence": [
+        "frontend/lib/safe-url.test.ts",
+        "frontend/app/(admin)/admin/orcamentos/[reference]/page.tsx"
+      ]
+    },
+    {
+      "id": "1a2749be-e9b3-4fac-9eb4-0d37971acb2a",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/app/(site)/area-cliente/encomendas/[reference]/page.tsx",
+      "line": 383,
+      "assessment": "Guarded browser URL; scanner data-flow warning",
+      "reason": "Current reported link passes safeFileUrl, which rejects executable/data schemes, controls, backslashes, protocol-relative URLs and embedded credentials. Root-relative and HTTP(S) file links are intentionally allowed.",
+      "evidence": [
+        "frontend/lib/safe-url.test.ts",
+        "frontend/app/(site)/area-cliente/encomendas/[reference]/page.tsx"
+      ]
+    },
+    {
+      "id": "6e9c8512-d100-4971-9ca1-d6780ca4bb69",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/app/arte/rever/[token]/page.tsx",
+      "line": 55,
+      "assessment": "Generated object URL, not API-supplied executable URL",
+      "reason": "href/src is a locally generated URL.createObjectURL(blob). Inline preview allows PDF/JPEG/PNG/WebP only; PDF iframe is sandboxed, unsupported types download rather than execute.",
+      "evidence": [
+        "frontend/app/arte/rever/[token]/page.tsx"
+      ]
+    },
+    {
+      "id": "52210427-24f9-45b3-81f7-5c58b6d164a8",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/components/SupportDesk.tsx",
+      "line": 217,
+      "assessment": "Guarded browser URL; scanner data-flow warning",
+      "reason": "Current reported link passes safeFileUrl, which rejects executable/data schemes, controls, backslashes, protocol-relative URLs and embedded credentials. Root-relative and HTTP(S) file links are intentionally allowed.",
+      "evidence": [
+        "frontend/lib/safe-url.test.ts",
+        "frontend/components/SupportDesk.tsx"
+      ]
+    },
+    {
+      "id": "7a58c3d0-daf3-46c8-b607-53f0fdc06166",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/components/admin/ProductionWorkspace.tsx",
+      "line": 127,
+      "assessment": "Fixed-scheme composition / guarded review URL",
+      "reason": "WhatsApp and email hrefs have literal https://wa.me/ and mailto: schemes with encoded message parameters; backend supplies validated contact data. Review link additionally passes safeFileUrl. These are deliberate external destinations, not arbitrary executable schemes.",
+      "evidence": [
+        "frontend/lib/safe-url.test.ts",
+        "frontend/components/admin/ProductionWorkspace.tsx"
+      ]
+    },
+    {
+      "id": "c26094f8-d13e-486f-a812-6ff02933b893",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/components/admin/ProductionWorkspace.tsx",
+      "line": 127,
+      "assessment": "Fixed-scheme composition / guarded review URL",
+      "reason": "WhatsApp and email hrefs have literal https://wa.me/ and mailto: schemes with encoded message parameters; backend supplies validated contact data. Review link additionally passes safeFileUrl. These are deliberate external destinations, not arbitrary executable schemes.",
+      "evidence": [
+        "frontend/lib/safe-url.test.ts",
+        "frontend/components/admin/ProductionWorkspace.tsx"
+      ]
+    },
+    {
+      "id": "faedbe3b-7e60-4611-8e48-40d97594d673",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/components/admin/ProductionWorkspace.tsx",
+      "line": 127,
+      "assessment": "Fixed-scheme composition / guarded review URL",
+      "reason": "WhatsApp and email hrefs have literal https://wa.me/ and mailto: schemes with encoded message parameters; backend supplies validated contact data. Review link additionally passes safeFileUrl. These are deliberate external destinations, not arbitrary executable schemes.",
+      "evidence": [
+        "frontend/lib/safe-url.test.ts",
+        "frontend/components/admin/ProductionWorkspace.tsx"
+      ]
+    },
+    {
+      "id": "6262b88e-2df7-43ad-9c2e-df8a0c66c0d8",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/app/arte/rever/[token]/page.tsx",
+      "line": 53,
+      "assessment": "Generated object URL, not API-supplied executable URL",
+      "reason": "href/src is a locally generated URL.createObjectURL(blob). Inline preview allows PDF/JPEG/PNG/WebP only; PDF iframe is sandboxed, unsupported types download rather than execute.",
+      "evidence": [
+        "frontend/app/arte/rever/[token]/page.tsx"
+      ]
+    },
+    {
+      "id": "a56d82a5-eb3b-4dcd-adec-159c407f52f0",
+      "rule": "javascript/DOMXSS",
+      "level": "warning",
+      "path": "frontend/app/arte/rever/[token]/page.tsx",
+      "line": 55,
+      "assessment": "Generated object URL, not API-supplied executable URL",
+      "reason": "href/src is a locally generated URL.createObjectURL(blob). Inline preview allows PDF/JPEG/PNG/WebP only; PDF iframe is sandboxed, unsupported types download rather than execute.",
+      "evidence": [
+        "frontend/app/arte/rever/[token]/page.tsx"
+      ]
+    },
+    {
+      "id": "9d979df9-81e0-4c2d-b0f4-f0b58d4f55f1",
+      "rule": "python/HardcodedNonCryptoSecret/test",
+      "level": "note",
+      "path": "backend/apps/core/test_zoho_oauth.py",
+      "line": 16,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/core/test_zoho_oauth.py"
+      ]
+    },
+    {
+      "id": "9393cec8-161c-4a1c-8a7d-7578f7290fe5",
+      "rule": "python/NoHardcodedCredentials",
+      "level": "note",
+      "path": "backend/apps/accounts/migrations/0008_provision_etios_admin.py",
+      "line": 12,
+      "assessment": "Intentional account identifier; not a password",
+      "reason": "Provisioning migration contains account email/username, creates an unusable password and preserves existing passwords.",
+      "evidence": [
+        "backend/apps/accounts/test_bootstrap_security.py"
+      ]
+    },
+    {
+      "id": "aa5536b6-d2e8-4b81-8178-91f05f60c2f8",
+      "rule": "python/NoHardcodedCredentials",
+      "level": "note",
+      "path": "backend/apps/accounts/migrations/0008_provision_etios_admin.py",
+      "line": 12,
+      "assessment": "Intentional account identifier; not a password",
+      "reason": "Provisioning migration contains account email/username, creates an unusable password and preserves existing passwords.",
+      "evidence": [
+        "backend/apps/accounts/test_bootstrap_security.py"
+      ]
+    },
+    {
+      "id": "42ae6603-c0aa-4696-8f8f-59845a2ca5e3",
+      "rule": "python/NoHardcodedCredentials/test",
+      "level": "note",
+      "path": "backend/apps/accounts/test_bootstrap_security.py",
+      "line": 17,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/test_bootstrap_security.py"
+      ]
+    },
+    {
+      "id": "7a8a9bd6-55a2-4b2c-bbd7-12652d1e66dd",
+      "rule": "python/NoHardcodedCredentials/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 268,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "7dda1b65-d070-454e-af11-14cae172974f",
+      "rule": "python/NoHardcodedCredentials/test",
+      "level": "note",
+      "path": "backend/apps/invoices/tests.py",
+      "line": 17,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/invoices/tests.py"
+      ]
+    },
+    {
+      "id": "6dc9675d-f274-47d3-b62f-6460d4f72efd",
+      "rule": "python/NoHardcodedCredentials/test",
+      "level": "note",
+      "path": "backend/apps/invoices/tests.py",
+      "line": 142,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/invoices/tests.py"
+      ]
+    },
+    {
+      "id": "85851261-3ff9-47fb-b587-4ff2e935e79a",
+      "rule": "python/NoHardcodedPasswords",
+      "level": "warning",
+      "path": "backend/apps/accounts/serializers.py",
+      "line": 217,
+      "assessment": "False-positive candidate: field label or validation text",
+      "reason": "The reported string is a translated form label or validation message keyed by password/password_confirm, not a credential used for authentication.",
+      "evidence": [
+        "backend/apps/accounts/serializers.py"
+      ]
+    },
+    {
+      "id": "84a62a5d-84ac-48b7-8ebc-910da648ae61",
+      "rule": "python/NoHardcodedPasswords",
+      "level": "warning",
+      "path": "backend/apps/accounts/serializers.py",
+      "line": 221,
+      "assessment": "False-positive candidate: field label or validation text",
+      "reason": "The reported string is a translated form label or validation message keyed by password/password_confirm, not a credential used for authentication.",
+      "evidence": [
+        "backend/apps/accounts/serializers.py"
+      ]
+    },
+    {
+      "id": "9a4fd0d3-d246-4e1d-98ac-580dfc7ac67d",
+      "rule": "python/NoHardcodedPasswords",
+      "level": "warning",
+      "path": "backend/apps/accounts/serializers.py",
+      "line": 226,
+      "assessment": "False-positive candidate: field label or validation text",
+      "reason": "The reported string is a translated form label or validation message keyed by password/password_confirm, not a credential used for authentication.",
+      "evidence": [
+        "backend/apps/accounts/serializers.py"
+      ]
+    },
+    {
+      "id": "abca6d26-67bb-411a-8a49-27262c62bf49",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 109,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "a210ce5d-67ef-40dc-8228-47eff8481bd2",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 110,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "cc87e975-97ce-4dd4-9758-e2bcfa3246b3",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 141,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "323e4d54-c90e-4cd4-ac51-2b3720149f35",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 142,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "d465b571-61d8-4552-8aba-cdc854ce3dd2",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 159,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "37bfc530-f566-47a4-919b-b4ecd2c874dc",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 160,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "112c13c5-e49c-41eb-b523-1d201d40dfb5",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 203,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "5810ca34-365e-4a76-a398-a1df4c1f575d",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 204,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "257256e9-43b7-4f7a-9c63-6cdf997de44a",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 231,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "3e022052-7cf4-4a79-af93-dd024b7976bb",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 232,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "f95d5911-400f-4280-8d3b-bf69dc6bd22e",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 245,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "a778613d-aa71-4303-a094-0f8a326d5c29",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 246,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "668774d9-0196-4c1f-8e6c-77e43c16ef96",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 257,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "c3c42b37-6eea-45f8-82a4-2e11589707f5",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 276,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "75a59e87-df47-4bf8-b771-d28807e208a8",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 455,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "19c2c4f7-9730-45ef-9a57-e818b303f58f",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 456,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "de2e2000-c057-45cf-b7a0-bb548c083bfe",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/core/test_email_connection.py",
+      "line": 13,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/core/test_email_connection.py"
+      ]
+    },
+    {
+      "id": "2cce46e2-7b6b-45d1-8e3d-f32136894fad",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 270,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "0f7d88b6-c634-48c8-8006-b57dd3e1ecb8",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/accounts/tests.py",
+      "line": 313,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/accounts/tests.py"
+      ]
+    },
+    {
+      "id": "ed80fbe0-9e12-4a25-90d5-035698d66061",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/invoices/tests.py",
+      "line": 19,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/invoices/tests.py"
+      ]
+    },
+    {
+      "id": "98cff054-e2d2-4867-acc8-c203a97b7402",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/invoices/tests.py",
+      "line": 144,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/invoices/tests.py"
+      ]
+    },
+    {
+      "id": "bbe43f6b-6f99-4154-a7f6-28fab1df708b",
+      "rule": "python/NoHardcodedPasswords/test",
+      "level": "note",
+      "path": "backend/apps/quotes/tests.py",
+      "line": 18,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "backend/apps/quotes/tests.py"
+      ]
+    },
+    {
+      "id": "4febc4f1-3d48-4b35-9961-4c31756fde80",
+      "rule": "javascript/HardcodedNonCryptoSecret/test",
+      "level": "note",
+      "path": "frontend/components/admin/WhatsAppSettings.test.tsx",
+      "line": 42,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "frontend/components/admin/WhatsAppSettings.test.tsx"
+      ]
+    },
+    {
+      "id": "268183aa-4d9e-4eff-85c3-e346065cf9f7",
+      "rule": "javascript/HardcodedNonCryptoSecret/test",
+      "level": "note",
+      "path": "frontend/lib/auth-blob.test.ts",
+      "line": 23,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "frontend/lib/auth-blob.test.ts"
+      ]
+    },
+    {
+      "id": "1c8e575e-c2f1-48ff-b71a-7bc564c7fa97",
+      "rule": "javascript/HardcodedNonCryptoSecret/test",
+      "level": "note",
+      "path": "frontend/lib/auth-json.test.ts",
+      "line": 33,
+      "assessment": "Test fixture / non-production value",
+      "reason": "Test-only account or provider/token fixture. Not evidence of a deployed secret. Historical production credentials still require separate rotation confirmation.",
+      "evidence": [
+        "frontend/lib/auth-json.test.ts"
+      ]
+    },
+    {
+      "id": "c9d0b55d-3dde-4607-9aad-a3ce145a8b53",
+      "rule": "javascript/NoHardcodedPasswords",
+      "level": "warning",
+      "path": "frontend/lib/api-errors.ts",
+      "line": 3,
+      "assessment": "False-positive candidate: field label or validation text",
+      "reason": "The reported string is a translated form label or validation message keyed by password/password_confirm, not a credential used for authentication.",
+      "evidence": [
+        "frontend/lib/api-errors.ts"
+      ]
+    },
+    {
+      "id": "77b55139-356f-4700-8bca-9b327d2fe2c5",
+      "rule": "javascript/NoHardcodedPasswords",
+      "level": "warning",
+      "path": "frontend/lib/auth.ts",
+      "line": 146,
+      "assessment": "False-positive candidate: field label or validation text",
+      "reason": "The reported string is a translated form label or validation message keyed by password/password_confirm, not a credential used for authentication.",
+      "evidence": [
+        "frontend/lib/auth.ts"
+      ]
+    },
+    {
+      "id": "730e0594-7897-4775-bc7b-4ba42111d421",
+      "rule": "javascript/NoHardcodedPasswords",
+      "level": "warning",
+      "path": "frontend/lib/api-errors.ts",
+      "line": 4,
+      "assessment": "False-positive candidate: field label or validation text",
+      "reason": "The reported string is a translated form label or validation message keyed by password/password_confirm, not a credential used for authentication.",
+      "evidence": [
+        "frontend/lib/api-errors.ts"
+      ]
+    },
+    {
+      "id": "d136557c-1930-40df-9760-32aedef7f93c",
+      "rule": "javascript/NoHardcodedPasswords",
+      "level": "warning",
+      "path": "frontend/lib/auth.ts",
+      "line": 147,
+      "assessment": "False-positive candidate: field label or validation text",
+      "reason": "The reported string is a translated form label or validation message keyed by password/password_confirm, not a credential used for authentication.",
+      "evidence": [
+        "frontend/lib/auth.ts"
+      ]
+    },
+    {
+      "id": "38916199-6dc5-4397-a63d-94080bfa6a20",
+      "rule": "javascript/NoHardcodedPasswords",
+      "level": "warning",
+      "path": "frontend/lib/api-errors.ts",
+      "line": 5,
+      "assessment": "False-positive candidate: field label or validation text",
+      "reason": "The reported string is a translated form label or validation message keyed by password/password_confirm, not a credential used for authentication.",
+      "evidence": [
+        "frontend/lib/api-errors.ts"
+      ]
+    },
+    {
+      "id": "47c1c7d4-cd60-4824-8534-f87f78a96664",
+      "rule": "javascript/OR",
+      "level": "warning",
+      "path": "frontend/app/(site)/area-cliente/encomendas/[reference]/page.tsx",
+      "line": 441,
+      "assessment": "Guarded file flow; scanner data-flow warning",
+      "reason": "Current source uses PrivateArtPreview / BrandLibraryFileLink. Public links pass safeFileUrl; private downloads use authenticated local /api paths and generated object URLs. No API URL is passed directly to window.open. The shared authenticated helpers now reject external destinations and redirects.",
+      "evidence": [
+        "frontend/lib/auth-blob.test.ts",
+        "frontend/lib/authenticated-url.test.ts",
+        "frontend/components/BrandLibraryFile.test.tsx",
+        "frontend/components/PrivateArtPreview.test.tsx"
+      ]
+    },
+    {
+      "id": "134e8bbd-2619-4af6-a410-239c08524fa5",
+      "rule": "javascript/OR",
+      "level": "warning",
+      "path": "frontend/app/(site)/area-cliente/marca/page.tsx",
+      "line": 272,
+      "assessment": "Guarded file flow; scanner data-flow warning",
+      "reason": "Current source uses PrivateArtPreview / BrandLibraryFileLink. Public links pass safeFileUrl; private downloads use authenticated local /api paths and generated object URLs. No API URL is passed directly to window.open. The shared authenticated helpers now reject external destinations and redirects.",
+      "evidence": [
+        "frontend/lib/auth-blob.test.ts",
+        "frontend/lib/authenticated-url.test.ts",
+        "frontend/components/BrandLibraryFile.test.tsx",
+        "frontend/components/PrivateArtPreview.test.tsx"
+      ]
+    },
+    {
+      "id": "b0f28eb8-8c56-475c-aaa0-e16e667192f9",
+      "rule": "javascript/OR",
+      "level": "warning",
+      "path": "frontend/app/(site)/area-cliente/marca/page.tsx",
+      "line": 348,
+      "assessment": "Guarded file flow; scanner data-flow warning",
+      "reason": "Current source uses PrivateArtPreview / BrandLibraryFileLink. Public links pass safeFileUrl; private downloads use authenticated local /api paths and generated object URLs. No API URL is passed directly to window.open. The shared authenticated helpers now reject external destinations and redirects.",
+      "evidence": [
+        "frontend/lib/auth-blob.test.ts",
+        "frontend/lib/authenticated-url.test.ts",
+        "frontend/components/BrandLibraryFile.test.tsx",
+        "frontend/components/PrivateArtPreview.test.tsx"
+      ]
+    },
+    {
+      "id": "65e0791e-8248-4d80-bd18-b46ea3891a45",
+      "rule": "javascript/OR",
+      "level": "warning",
+      "path": "frontend/app/(site)/area-cliente/marca/page.tsx",
+      "line": 362,
+      "assessment": "Guarded file flow; scanner data-flow warning",
+      "reason": "Current source uses PrivateArtPreview / BrandLibraryFileLink. Public links pass safeFileUrl; private downloads use authenticated local /api paths and generated object URLs. No API URL is passed directly to window.open. The shared authenticated helpers now reject external destinations and redirects.",
+      "evidence": [
+        "frontend/lib/auth-blob.test.ts",
+        "frontend/lib/authenticated-url.test.ts",
+        "frontend/components/BrandLibraryFile.test.tsx",
+        "frontend/components/PrivateArtPreview.test.tsx"
+      ]
+    },
+    {
+      "id": "ac93ca15-6bc6-49d9-ab2d-a19b3b9ca667",
+      "rule": "javascript/OR",
+      "level": "warning",
+      "path": "frontend/app/(site)/area-cliente/orcamentos/[reference]/page.tsx",
+      "line": 251,
+      "assessment": "Guarded file flow; scanner data-flow warning",
+      "reason": "Current source uses PrivateArtPreview / BrandLibraryFileLink. Public links pass safeFileUrl; private downloads use authenticated local /api paths and generated object URLs. No API URL is passed directly to window.open. The shared authenticated helpers now reject external destinations and redirects.",
+      "evidence": [
+        "frontend/lib/auth-blob.test.ts",
+        "frontend/lib/authenticated-url.test.ts",
+        "frontend/components/BrandLibraryFile.test.tsx",
+        "frontend/components/PrivateArtPreview.test.tsx"
+      ]
+    },
+    {
+      "id": "4f5e5cbf-a9eb-4531-9893-23642858c6a4",
+      "rule": "javascript/OR",
+      "level": "warning",
+      "path": "frontend/components/admin/EmailSettings.tsx",
+      "line": 52,
+      "assessment": "Hardened approved OAuth navigation",
+      "reason": "Destination reconstructed from constant Zoho HTTPS endpoint after exact origin/path, credentials, fragment and control-character validation. Only query parameters are copied.",
+      "evidence": [
+        "frontend/lib/zoho-authorization-url.test.ts",
+        "frontend/components/admin/EmailSettings.test.tsx"
+      ]
+    },
+    {
+      "id": "1b81a361-fed1-4fbe-8629-fa956b100156",
+      "rule": "javascript/Ssrf",
+      "level": "error",
+      "path": "frontend/app/auth-api/[...path]/route.ts",
+      "line": 43,
+      "assessment": "Hardened boundary; verify re-scan",
+      "reason": "Only explicitly mapped app auth endpoints and methods; incoming query is not forwarded; configured server origin; redirect manual + 3xx rejected; 15s timeout.",
+      "evidence": [
+        "frontend/lib/auth-routes-security.test.ts",
+        "frontend/lib/auth-proxy.test.ts"
+      ]
+    },
+    {
+      "id": "33accff8-60dd-4be2-9ac8-143daccd6744",
+      "rule": "python/HardcodedNonCryptoSecret",
+      "level": "error",
+      "path": "backend/apps/core/production_views.py",
+      "line": 27,
+      "assessment": "False-positive candidate: public signing namespace",
+      "reason": "SALT is not the signing key. Django SECRET_KEY signs tokens; namespace must remain unchanged for existing customer links. Tests reject tampering, wrong namespace and a different secret.",
+      "evidence": [
+        "backend/apps/core/test_signing_boundaries.py",
+        "backend/apps/core/test_production.py",
+        "backend/apps/core/test_tracking.py"
+      ]
+    },
+    {
+      "id": "353f4181-6462-4d40-bad3-9fc19991904a",
+      "rule": "python/HardcodedNonCryptoSecret",
+      "level": "error",
+      "path": "backend/apps/core/tracking_views.py",
+      "line": 23,
+      "assessment": "False-positive candidate: public signing namespace",
+      "reason": "SALT is not the signing key. Django SECRET_KEY signs tokens; namespace must remain unchanged for existing customer links. Tests reject tampering, wrong namespace and a different secret.",
+      "evidence": [
+        "backend/apps/core/test_signing_boundaries.py",
+        "backend/apps/core/test_production.py",
+        "backend/apps/core/test_tracking.py"
+      ]
+    }
+  ]
+}

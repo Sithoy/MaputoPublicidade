@@ -1,6 +1,7 @@
 from decimal import Decimal
 from unittest.mock import patch
 
+import pymupdf as fitz
 import pytest
 from django.urls import reverse
 
@@ -138,7 +139,6 @@ def test_rounding_and_full_discount():
 
 @pytest.mark.django_db
 def test_quote_pdf_contains_bank_details_specs_percentage_and_no_debt(staff_client, quote):
-    fitz = pytest.importorskip("fitz")
     with patch("apps.quotes.views.notify_quote_ready"):
         staff_client.post(
             reverse("quote-proposal", args=[quote.reference]),

@@ -1,0 +1,135 @@
+MP CI/CD HARDENING - 2026-10-20
+
+Scope
+Prepared on codex/ci-hardening-20261020, reconciled with main 8e8fb5b.
+Includes the previously local security hardening in 1070cd6. Do not publish the
+old dirty staging checkout or include local Snyk reports/test databases in a commit.
+This document is a configuration/runbook, not proof that live gates are enabled.
+
+Local validation completed
+- 347 backend tests passed with no PDF skip; aggregate branch-aware coverage 83%.
+- 301 frontend tests passed with the configured global and critical-module floors.
+- 2 real Chromium acceptance scenarios passed against the isolated SQLite backend.
+- 9 CI guard tests passed; invalid-score regression was demonstrated red then green.
+- Ruff, ESLint, TypeScript, actionlint and git diff --check passed.
+- Production Next build passed both against the disposable backend and with the
+  content API deliberately unreachable (no production content dependency in CI).
+- pip-audit found no known vulnerabilities in requirements.txt; npm production
+  audit reported zero vulnerabilities at the time of validation.
+- Docker's local engine is unavailable. PostgreSQL jobs, hosted CodeQL/Gitleaks
+  jobs and live branch/deployment gate enforcement are NOT claimed verified here.
+
+Workflow
+CI runs on main/staging pushes, codex/ci-* pushes, PRs to main/staging, merge
+groups, manual dispatch, and a weekly schedule. Jobs have time limits, least
+privilege permissions and pinned action revisions; superseded PR runs cancel.
+
+Backend:
+- PostgreSQL 16 service, isolated database, random per-run signing key.
+- Ruff, Django checks, migration drift check and fresh migration application.
+- Full pytest under branch coverage; enforced aggregate minimum 80%.
+- Required PyMuPDF dependency; the document-content assertion no longer skips.
+- JUnit and coverage reports retained for seven days.
+
+Frontend:
+- Node 24, matching Vercel's configured major version; npm ci with a lockfile.
+- ESLint, TypeScript, full Vitest coverage and production build.
+- Measured local baseline: lines 36.98%, statements 38.81%, functions 35.01%,
+  branches 42.92%, across application, components, hooks and libraries.
+- Initial global floors: lines/statements 35%, functions 30%, branches 40%.
+  These prevent major regression, not evidence of adequate frontend coverage.
+- Higher auth-proxy floors and 100% coverage floors for URL-boundary helpers.
+- Generated coverage/browser reports are excluded from lint and Git.
+
+Security:
+- pip-audit --strict on requirements.txt (currently runtime and some test tools).
+- npm production audit blocks high/critical dependency advisories.
+- PR dependency review rejects newly introduced high/critical advisories across
+  runtime, development and unknown scopes. Known pre-existing development risks
+  are NOT silently claimed fixed by the production-only audit.
+- CodeQL security-extended scans Python and JavaScript/TypeScript. A separately
+  tested SARIF gate rejects high/critical/error findings, failed scans, missing
+  reports and invalid severity values. A green scanner process alone is not enough.
+- Gitleaks checks committed credentials, with comments, summaries and raw secret
+  artifact uploads disabled. No blanket ignore policy is introduced.
+- Dependabot proposes weekly npm, pip and GitHub Actions updates; it does not
+  automatically approve or merge them.
+- Snyk remains an additional tool, not a required secret-bearing CI dependency.
+  CodeQL results are independent of the previous Snyk triage.
+
+Browser acceptance:
+- Chromium drives a production Next build against a real disposable backend.
+- Registration, real API session, reload and subsequent password login.
+- Private-library upload/read, denial to a second client, and deletion with 204.
+- Tests do not mock fetch/routes, seed production accounts or use real email.
+- All endpoints are loopback. Backend settings require MP_E2E=1 and a database
+  named mp_e2e*, refusing remote hosts and non-test database names.
+- Parent .env discovery is disabled; SMTP/Zoho/SMS/payments/storage are isolated.
+- No browser auth-state, trace, screenshots or video are published as artifacts.
+- These two scenarios do NOT cover the entire reception-to-delivery workflow.
+
+Release readiness
+The final job requires success from Backend, Frontend, Dependencies, Secrets,
+Source security (both languages) and Browser acceptance. Failed, skipped and
+cancelled prerequisites do not produce a successful readiness check.
+There is deliberately no automatic production deploy command in this workflow.
+
+ACTIVATION CHECKLIST - ADMINISTRATOR MUST VERIFY
+1. Run the PR workflow and resolve every failing prerequisite without bypassing it.
+2. GitHub main/staging protection: require PRs, the "Release readiness" status
+   check, up-to-date checks, and block force pushes/deletion. Restrict bypasses.
+   Require independent review where a second maintainer is available.
+   Existing classic branch-protection settings could not be read with the current
+   integration permissions; enforcement must not be assumed.
+3. Vercel project maputopublicidade, team etioscorp-2867s-projects:
+   Settings > Build and Deployment > Deployment Checks. Require the GitHub
+   "Release readiness" check for production. Keep production domain assignment
+   governed by checks; do not use Force Promote to bypass failures.
+4. Render maputo-publicidade-backend: the proposed render.yaml now specifies
+   autoDeployTrigger: checksPass. After merge/Blueprint synchronization, verify
+   the LIVE setting is "After CI Checks Pass" and the production branch is main.
+   Merely editing YAML does not prove a manually configured service changed.
+5. Confirm PostgreSQL major version against production; 16 is the initial CI
+   baseline, not a claim that the live database's major version was inspected.
+6. Test both deployment gates with a deliberately failing NON-production PR/check
+   before considering the release-control change complete. Never break main or
+   production to demonstrate a negative test.
+
+Local reproduction (PowerShell, from frontend with the test Python environment)
+Install backend/requirements-ci.txt and run npm ci, then:
+  npx playwright install chromium
+  $env:MP_E2E = '1'
+  $env:DATABASE_URL = 'sqlite:///mp_e2e_local.sqlite3'
+  $env:DATABASE_SSL_REQUIRE = 'False'
+  # If Python is not on PATH, set E2E_PYTHON to the test interpreter's full path.
+  npm run test:e2e
+The harness migrates ONLY its isolated test database and binds ports 8008/3108.
+Do not set a production DATABASE_URL. It will refuse remote/non-test databases.
+For production-representative runs, use the workflow's PostgreSQL services.
+
+TDD/BDD working agreement
+- Before a change, write concrete acceptance examples with the business owner.
+- For a bug, first reproduce the failure in an automated test; record the red
+  result, implement the smallest fix, then run/refactor with the suite green.
+- Keep pricing/RBAC/state transitions mainly in fast unit/API tests; use browser
+  scenarios for critical cross-boundary journeys, not every field permutation.
+- Given/When/Then scenarios can use pytest and Playwright; Cucumber is not required.
+- This workflow cannot certify that a developer wrote a test before implementation.
+  Test-first evidence and business acceptance remain review responsibilities.
+- A red/green case was exercised for invalid SARIF security scores; gate tests
+  also cover missing reports, failed scans, suppressions and severity handling.
+
+Remaining work
+- Activate and negatively verify live GitHub/Vercel/Render release gates.
+- Expand browser journeys to reception triage, commercial approval, client
+  acceptance, production, artwork decisions, invoices and token refresh.
+- Add safe staging DAST (authenticated role and IDOR checks), not attacks on
+  production; assess load/race conditions using PostgreSQL transactions.
+- Raise frontend coverage incrementally, especially auth/session and API adapters.
+- Add staged release promotion, explicit frontend/backend revision visibility,
+  migration compatibility and backup/restore/rollback drills. Passing checks does
+  not make independent Vercel/Render releases atomic.
+- Freeze indirect Python dependencies and validate the production container before
+  Cloud Run migration; current Dockerfiles still serve development workflows.
+- Confirm historical credential rotation separately. No production credentials
+  were read, reset or disabled during this CI implementation.
