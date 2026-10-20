@@ -73,12 +73,24 @@ class TestEmailWorkspace:
         assert 'no-store' in response['Cache-Control']
 
     def test_reply_subject_stays_within_database_limit(self, staff_client, email_thread):
-        email_thread.subject = 'A' * 255
+        conversation_limit = SupportConversation._meta.get_field('subject').max_length
+        email_thread.subject = 'A' * conversation_limit
         email_thread.save(update_fields=['subject'])
         response = staff_client.get(f'{BASE}{email_thread.pk}/email-draft/')
         assert response.status_code == 200
-        assert response.data['subject'].startswith('Re: ')
-        assert len(response.data['subject']) == 255
+        assert response.data['subject'] == 'Re: ' + 'A' * conversation_limit
+        draft = EmailDraft.objects.get(conversation=email_thread)
+        assert draft.subject == response.data['subject']
+        assert len(draft.subject) <= EmailDraft._meta.get_field('subject').max_length
+
+    def test_reply_subject_defensively_truncates_before_draft_insert(self, email_thread):
+        from apps.core.email_workspace import get_draft
+
+        # Exercise the defensive boundary without storing an invalid conversation.
+        email_thread.subject = 'A' * 255
+        draft = get_draft(email_thread)
+        draft.refresh_from_db()
+        assert draft.subject == 'Re: ' + 'A' * 251
 
     def test_clients_production_and_non_email_threads_cannot_access_workspace(self, authenticated_client, staff_client, staff_user, email_thread, client_user):
         assert APIClient().get(BASE + 'inbox-summary/').status_code == 401
