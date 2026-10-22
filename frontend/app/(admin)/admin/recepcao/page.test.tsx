@@ -4,7 +4,7 @@ import { fetchWithAuth } from '@/lib/auth';
 import { getQuote } from '@/lib/admin-api';
 import ReceptionPage from './page';
 
-const auth = vi.hoisted(() => ({ loading: false, allowed: true, editable: true, session: null as { editor_name: string } | null, acquire: vi.fn().mockResolvedValue(true) }));
+const auth = vi.hoisted(() => ({ loading: false, allowed: true, editable: true, session: null as { editor_name: string; editor_id?: number } | null, acquire: vi.fn().mockResolvedValue(true) }));
 vi.mock('@/hooks/useReceptionEdit', () => ({ useReceptionEdit: () => ({ editable: auth.editable, pending: false, session: auth.session, error: '', acquire: auth.acquire, release: vi.fn() }) }));
 vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ user: { id: 1 }, loading: auth.loading, can: () => auth.allowed }) }));
 vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
@@ -21,6 +21,19 @@ beforeEach(() => {
   vi.mocked(getQuote).mockResolvedValue(quote as never);
 });
 describe('Reception workspace', () => {
+  it('offers a confirmed resume for the current user without requiring a supervisor', async () => {
+    auth.editable = false; auth.session = { editor_id: 1, editor_name: 'Dário' };
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    const resume = await screen.findByRole('button', { name: 'Retomar a minha edição' });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(resume);
+    expect(auth.acquire).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true); fireEvent.click(resume);
+    await waitFor(() => expect(auth.acquire).toHaveBeenCalledWith('', true));
+    confirm.mockRestore();
+  });
+
   it('preserves direct links to an order without auto-opening a different task', async () => {
     window.history.replaceState({}, '', '/admin/recepcao?pedido=MP-0001-2026');
     render(<ReceptionPage />);

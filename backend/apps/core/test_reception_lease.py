@@ -27,6 +27,30 @@ def reserve(api, quote, **data):
 
 @pytest.mark.django_db
 class TestReceptionLease:
+    def test_user_can_explicitly_resume_own_session_and_fences_the_previous_tab(self, quote):
+        first, user = editor("resume-own")
+        other_tab = APIClient()
+        other_tab.force_authenticate(user)
+        assert reserve(first, quote).status_code == 200
+        path = f"/api/reception/{quote.reference}/edit-session/"
+        assert other_tab.post(path, {"action": "acquire"}, format="json").status_code == 409
+        resumed = other_tab.post(path, {"action": "resume"}, format="json")
+        assert resumed.status_code == 200
+        other_tab.credentials(HTTP_X_RECEPTION_EDIT_TOKEN=resumed.data["token"])
+        assert first.post(path, {"action": "heartbeat"}, format="json").status_code == 409
+        assert first.post(path, {"action": "release"}, format="json").status_code == 409
+        assert first.patch(f"/api/quotes/{quote.reference}/", {"notes": "Old tab"}, format="json").status_code == 409
+        assert other_tab.patch(f"/api/quotes/{quote.reference}/", {"notes": "Resumed"}, format="json").status_code == 200
+        assert quote.activity_events.filter(actor=user, comment__contains="retomou a sua sessão").exists()
+
+    def test_resume_cannot_take_another_receptionists_reservation(self, quote):
+        first, user = editor("resume-protected")
+        second, _ = editor("resume-denied")
+        assert reserve(first, quote).status_code == 200
+        path = f"/api/reception/{quote.reference}/edit-session/"
+        assert second.post(path, {"action": "resume"}, format="json").status_code == 403
+        assert ReceptionEditLease.objects.get(quote=quote).editor_id == user.pk
+
     def test_reading_does_not_reserve_and_any_colleague_can_continue(self, quote, staff_user):
         first, user = editor("desk-one")
         second, colleague = editor("desk-two")
