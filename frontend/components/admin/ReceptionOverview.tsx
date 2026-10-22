@@ -5,7 +5,7 @@ import { ArrowRight, CalendarDays, Clock3, MessagesSquare, Zap } from 'lucide-re
 export type ReceptionHQ = { counts: Record<string, number>; unassigned_team: number; scope: string; updated_at: string };
 export const taskLabels: Record<string, string> = {
   all: 'Todos os trabalhos', new: 'Novos pedidos', briefing: 'Completar briefing', proposal: 'Preparar / corrigir proposta',
-  send: 'Prontas para enviar', delivery: 'Coordenar entrega', review: 'Com o Comercial', client: 'Com o cliente',
+  send: 'Prontas para enviar', delivery: 'Coordenar entrega', review: 'Propostas guardadas (fluxo anterior)', client: 'Com o cliente',
   production: 'Em produção', handover: 'Confirmar ordem de produção', messages: 'Conversas por responder',
   urgent: 'Pedidos urgentes', overdue: 'Compromissos de dias anteriores', today: 'Agenda de hoje',
   followup: 'Seguimentos para hoje ou em atraso', delivery_today: 'Entregas / levantamentos de hoje',
@@ -18,7 +18,7 @@ const sections = [
   { title: 'Dia da recepção', question: 'O que temos marcado para hoje?', icon: CalendarDays,
     tasks: [ ['today', 'Pedidos com compromisso hoje'], ['followup', 'Seguimentos a fazer'], ['delivery_today', 'Entregas / levantamentos hoje'] ] },
   { title: 'A acompanhar', question: 'De quem estamos à espera?', icon: Clock3,
-    tasks: [ ['review', 'Aprovação do Comercial'], ['client', 'Decisão do cliente'], ['production', 'Execução pela Produção'], ['handover', 'Confirmação da ordem'] ] },
+    tasks: [ ['client', 'Decisão do cliente'], ['production', 'Execução pela Produção'], ['handover', 'Confirmação da ordem'] ] },
 ];
 
 export function ReceptionOverview({ data, name, task, onTask, onInbox, disabled }: {
@@ -27,7 +27,7 @@ export function ReceptionOverview({ data, name, task, onTask, onInbox, disabled 
 }) {
   return <section aria-label="Agenda da Recepção" className="space-y-4">
     <div className="desk-hero flex flex-wrap items-end justify-between gap-3">
-      <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Reception HQ · Agenda de trabalho</p>
+      <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Recepção · Agenda de trabalho</p>
         <h1 className="mt-2 font-semibold tracking-tight">Olá{name ? `, ${name}` : ''}. O que vamos resolver hoje?</h1>
         <p className="mt-2 text-sm text-slate-500">Prioridades, compromissos e esperas — com o pedido completo sempre à mão.</p></div>
       {data ? <p className="text-xs text-slate-500">Atualizado às {new Date(data.updated_at).toLocaleTimeString('pt-MZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Maputo' })}</p> : null}

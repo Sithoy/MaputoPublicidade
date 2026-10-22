@@ -57,8 +57,8 @@ def selected_files(conversation, ids, user=None):
         if row.document_source.get('kind') == 'proposal':
             from apps.quotes.models import QuoteRequest
             source = row.document_source
-            if not QuoteRequest.objects.filter(pk=source['quote_id'], proposal_version=source['version'], proposal_stage__in=['approved', 'sent']).exists():
-                raise ValidationError('A proposta anexada foi alterada ou deixou de estar aprovada. Selecione a versão atual.')
+            if not QuoteRequest.objects.filter(pk=source['quote_id'], proposal_version=source['version'], proposal_stage__in=['approved', 'review', 'sent']).exists():
+                raise ValidationError('A proposta anexada foi alterada. Guarde e selecione a versão atual.')
     return rows
 
 
@@ -104,8 +104,8 @@ class SupportFilesMixin:
             raise PermissionDenied()
         quote = conversation.quote or (conversation.order.quote if conversation.order else None)
         options = []
-        if quote and has_staff_capability(user, 'quotes.export') and quote.proposal_stage in ['approved', 'sent']:
-            options.append({'key': 'proposal', 'label': f'Proposta aprovada {quote.reference} · v{quote.proposal_version}'})
+        if quote and has_staff_capability(user, 'quotes.export') and quote.proposal_stage in ['approved', 'review', 'sent']:
+            options.append({'key': 'proposal', 'label': f'Proposta {quote.reference} · v{quote.proposal_version}'})
         if conversation.invoice and has_staff_capability(user, 'invoices.export') and conversation.invoice.status in ['issued', 'paid']:
             options.append({'key': 'invoice', 'label': f'Fatura {conversation.invoice.reference}'})
         if quote and has_staff_capability(user, 'quotes.view'):

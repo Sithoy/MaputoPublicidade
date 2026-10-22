@@ -99,7 +99,7 @@ function AdminQuotesContent() {
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       <nav aria-label="Filas de propostas" className="flex flex-wrap gap-3">{[
-        ['all', 'Todos os pedidos'], ['mine', 'As minhas propostas'], ...(can('quotes.review') ? [['review', 'Aguardam aprovação']] : []),
+        ['all', 'Todos os pedidos'], ['mine', 'As minhas propostas'],
       ].map(([value, label]) => <button key={value} type="button" aria-pressed={queue === value} onClick={() => { setQueue(value); setError(''); }} className={`rounded-xl border px-4 py-3 text-sm font-semibold ${queue === value ? 'bg-brand-800 text-white' : 'bg-white'}`}>{label}</button>)}</nav>
 
       <Card>

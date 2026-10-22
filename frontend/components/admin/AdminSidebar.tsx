@@ -28,7 +28,7 @@ const navGroups = [
   {
     label: 'Operações',
     items: [
-      { href: '/admin/recepcao', label: 'Recepção HQ', icon: Headphones, capability: 'reception.manage' },
+      { href: '/admin/recepcao', label: 'Recepção', icon: Headphones, capability: 'reception.manage' },
       { href: '/admin/producao', label: 'Operação · Produção', icon: ImageIcon, capability: 'production.view' },
       { href: '/admin/apoio', label: 'Mensagens e apoio', icon: Headphones, capability: 'support.manage' },
       { href: '/admin', label: 'Visão geral', icon: BarChart3, capability: 'dashboard.view' },

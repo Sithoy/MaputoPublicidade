@@ -3,11 +3,11 @@ import type { AdminQuote } from './admin-api';
 import { receptionStage, productionStage } from './operational-workflow';
 
 describe('Operational stages', () => {
-  it('does not interpret internal approval as client acceptance', () => {
+  it('keeps saved and old-review proposals actionable without treating them as accepted', () => {
     const quote = { status: 'reviewing', proposal_workflow: { stage: 'approved' } } as AdminQuote;
-    expect(receptionStage(quote).index).toBe(3);
-    expect(receptionStage({ ...quote, proposal_workflow: { ...quote.proposal_workflow!, stage: 'review' } }).waiting).toBe(true);
-    expect(receptionStage({ ...quote, order_reference: 'ORD-0001' }).index).toBe(4);
+    expect(receptionStage(quote).index).toBe(2);
+    expect(receptionStage({ ...quote, proposal_workflow: { ...quote.proposal_workflow!, stage: 'review' } }).waiting).toBe(false);
+    expect(receptionStage({ ...quote, order_reference: 'ORD-0001' }).index).toBe(3);
   });
   it('keeps returned proposals actionable and sent proposals in waiting', () => {
     expect(receptionStage({ proposal_workflow: { stage: 'returned' } } as AdminQuote).index).toBe(1);

@@ -112,9 +112,10 @@ class TestReception:
         SupportMessage.objects.create(conversation=conversation, sender=client_user, body="Obrigado")
         SupportMessage.objects.create(conversation=conversation, sender=staff_user, is_staff=True, delivery_status="failed", body="Falhou")
         context = reception_api.get(f"/api/quotes/{quote.reference}/").data["workdesk"]
-        assert context["waiting_since"] == yesterday.isoformat()
+        assert context["waiting_since"] is None
         assert context["owner_id"] == staff_user.pk
-        assert context["blocker"] == "Aprovação do Comercial"
+        assert context["blocker"] == ""
+        assert context["next_action"] == "Enviar proposta"
         assert context["last_contact_at"] == sent.created_at
         assert context["confirmed_date"] is None
 

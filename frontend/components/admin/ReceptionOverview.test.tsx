@@ -7,6 +7,8 @@ describe('Reception agenda', () => {
     const onTask = vi.fn();
     render(<ReceptionOverview name="Dário" task="today" disabled={false} onTask={onTask} onInbox={vi.fn()} data={{ scope: 'mine', unassigned_team: 2, updated_at: '2026-10-12T08:00:00Z', counts: { total: 5, urgent: 1, messages_general: 0, today: 2, followup: 1, delivery_today: 1 } }} />);
     for (const heading of ['Agora', 'Dia da recepção', 'A acompanhar']) expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument();
+    expect(screen.queryByText(/Reception HQ/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Aprovação do Comercial/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Pedidos com compromisso hoje/ }));
     expect(onTask).toHaveBeenCalledWith('today');
     fireEvent.click(screen.getByRole('button', { name: /Seguimentos a fazer/ }));

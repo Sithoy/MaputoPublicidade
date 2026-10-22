@@ -97,8 +97,8 @@ class QuoteRequest(models.Model):
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     commercial_pricing = models.BooleanField(default=False)
     proposal_stage = models.CharField(max_length=12, default="legacy", choices=[
-        ("legacy", "Fluxo anterior"), ("draft", "Em preparação"), ("review", "Aguarda aprovação interna"),
-        ("returned", "Devolvida para ajustes"), ("approved", "Aprovada internamente"), ("sent", "Enviada ao cliente")])
+        ("legacy", "Fluxo anterior"), ("draft", "Em preparação"), ("review", "Proposta guardada (fluxo anterior)"),
+        ("returned", "Em preparação (fluxo anterior)"), ("approved", "Pronta para enviar"), ("sent", "Enviada ao cliente")])
     proposal_version = models.PositiveIntegerField(default=0)
     proposal_prepared_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="prepared_proposals")
     proposal_reviewed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="reviewed_proposals")
