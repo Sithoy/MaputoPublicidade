@@ -766,10 +766,15 @@ def build_quote_pdf(quote) -> bytes:
         )
         totals_rows.append([label, f"-{_money(quote.discount_amount)}"])
     if quote.commercial_pricing:
-        totals_rows.append([f"IVA ({_quantity(quote.tax_rate)}%)", _money(quote.tax_amount)])
+        totals_rows.append(["Isento de IVA" if quote.vat_exempt else f"IVA ({_quantity(quote.tax_rate)}%)", _money(quote.tax_amount)])
     totals_rows.append(["Total da proposta", _money(total)])
     terms = quote.terms or DEFAULT_QUOTE_TERMS
     commercial_terms = []
+    if quote.vat_exempt:
+        from apps.quotes.vat import current_evidence
+
+        if not quote.vat_exemption_reason.strip() or current_evidence(quote) is None:
+            commercial_terms.append("RASCUNHO - Isenção de IVA por confirmar. Não enviar ao cliente.")
     if quote.estimated_delivery_days:
         commercial_terms.append(
             "Prazo estimado de entrega: "

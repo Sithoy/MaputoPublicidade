@@ -36,7 +36,8 @@ def test_prepare_existing_retains_reference_items_and_sources(staff_client, quot
     item.refresh_from_db()
     assert QuoteRequest.objects.count() == count
     assert quote.reference == reference and quote.contact_source == 'phone'
-    assert quote.status == 'reviewing' and quote.final_price == Decimal('50.00')
+    assert quote.status == 'reviewing' and quote.final_price == Decimal('58.00')
+    assert quote.tax_rate == 16
     assert quote.proposal_stage == 'draft'
     assert item.size == 'A3' and item.material == 'Vinil'
     assert item.artwork_file.name == 'quotes/original.pdf'

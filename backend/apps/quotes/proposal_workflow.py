@@ -10,6 +10,7 @@ DOCUMENT_FIELDS = {
     "billing_address", "final_price", "estimated_price", "notes", "terms", "valid_until",
     "estimated_delivery_days", "payment_option", "discount_type", "discount_amount",
     "discount_percentage", "tax_rate", "commercial_pricing",
+    "vat_exempt", "vat_exemption_reason",
 }
 
 
@@ -60,6 +61,9 @@ def document_snapshot(quote):
          "unit_price": str(item.unit_price), "notes": item.notes}
         for item in quote.items.all()
     ]
+    from .vat import current_evidence
+    evidence = current_evidence(quote) if quote.vat_exempt else None
+    snapshot["vat_evidence"] = {"id": evidence.pk, "checksum": evidence.checksum} if evidence else None
     return snapshot
 
 
@@ -74,6 +78,9 @@ def transition(quote, actor, action, version, comment):
         raise ValidationError("Esta versão já foi enviada. Edite a proposta para preparar uma nova versão.")
     if quote.final_price is None or not quote.items.exists():
         raise ValidationError("Prepare os artigos, preços e condições antes de guardar ou enviar a proposta.")
+    if action == "send":
+        from .vat import require_vat_evidence
+        require_vat_evidence(quote)
     # Preserve the existing stored stage for compatibility; 'approved' now means ready to send.
     # Every saved revision or direct send has an immutable conditions snapshot, not an internal approval.
     if action == "save" or quote.proposal_stage != "approved" or quote.proposal_version == 0:

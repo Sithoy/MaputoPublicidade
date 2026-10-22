@@ -229,7 +229,7 @@ export function InvoiceDocument({ invoice, audience = 'admin', proposal }: Invoi
                 </div>
               ) : null}
               <div className="flex justify-between gap-4">
-                <dt className="text-[#65736b]">IVA ({Number(invoice.tax_rate).toLocaleString('pt-MZ')}%)</dt>
+                <dt className="text-[#65736b]">{proposal?.vat_exempt ? 'Isento de IVA' : `IVA (${Number(invoice.tax_rate).toLocaleString('pt-MZ')}%)`}</dt>
                 <dd className="font-semibold tabular-nums text-dark">{formatMZN(invoice.tax_amount)}</dd>
               </div>
               {invoice.amount_paid > 0 ? (

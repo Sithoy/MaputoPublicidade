@@ -8,7 +8,7 @@ import RequestForm from './RequestForm';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }) }));
 vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ loading: false, can: () => true }) }));
 vi.mock('@/lib/admin-api', () => ({ getClientOptions: vi.fn(), getProducts: vi.fn(), getQuote: vi.fn(), prepareExistingQuote: vi.fn(), createManualQuote: vi.fn(), createReceptionIntake: vi.fn() }));
-vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn(), fetchBlobWithAuth: vi.fn() }));
+vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn(), fetchBlobWithAuth: vi.fn(), downloadWithAuth: vi.fn() }));
 vi.mock('@/components/admin/ProposalAssistant', () => ({ ProposalAssistant: () => null }));
 vi.mock('@/components/admin/DocumentItemsEditor', () => ({
   newDocumentLine: () => ({ key: 'line', description: '', quantity: '1', unit_price: '' }),
@@ -45,23 +45,76 @@ async function setup(initialQuote = quote) {
 }
 
 describe('Focused proposal editor', () => {
+  it('places PDF preview in the commercial summary, not the bottom action bar', async () => {
+    await setup();
+    expect(within(screen.getByRole('complementary', { name: 'Resumo comercial' })).getByRole('button', { name: 'Guardar e pré-visualizar PDF' })).toBeInTheDocument();
+  });
+
+  it('can save an incomplete exempt draft but blocks sending without justification and evidence', async () => {
+    await setup();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Aplicar isenção de IVA' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar e enviar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('anexe o comprovativo');
+    expect(prepareExistingQuote).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar proposta' }));
+    await waitFor(() => expect(prepareExistingQuote).toHaveBeenCalledWith(quote.reference, expect.objectContaining({ tax_rate: 0, vat_exempt: true, vat_exemption_reason: '' })));
+  });
+
+  it('uploads exemption evidence after saving and before sending', async () => {
+    const { onSaved } = await setup();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Aplicar isenção de IVA' }));
+    fireEvent.change(screen.getByLabelText('Justificação da isenção'), { target: { value: 'Declaração apresentada' } });
+    const file = new File(['%PDF-1.4'], 'declaracao.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Comprovativo da isenção'), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar e enviar' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(quote.reference, 'send'));
+    const calls = vi.mocked(fetchWithAuth).mock.calls;
+    expect(calls[0][0]).toBe(`/api/quotes/${quote.reference}/vat-evidence/`);
+    expect((calls[0][1]?.body as FormData).get('file')).toBe(file);
+    expect(calls[1][0]).toBe(`/api/quotes/${quote.reference}/proposal-workflow/`);
+  });
+
+  it('keeps the exemption file for retry and does not send when uploading fails', async () => {
+    const { onSaved } = await setup();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Aplicar isenção de IVA' }));
+    fireEvent.change(screen.getByLabelText('Justificação da isenção'), { target: { value: 'Declaração' } });
+    fireEvent.change(screen.getByLabelText('Comprovativo da isenção'), { target: { files: [new File(['%PDF-1.4'], 'prova.pdf')] } });
+    vi.mocked(fetchWithAuth).mockRejectedValueOnce(new Error('Falha no envio do comprovativo'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar e enviar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('não foi possível confirmar');
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar e enviar' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(quote.reference, 'send'));
+    expect(vi.mocked(fetchWithAuth).mock.calls[1][1]?.body).toBeInstanceOf(FormData);
+  });
+
+  it('returns to 16% when removing an exemption', async () => {
+    await setup({ ...quote, commercial_pricing: true, tax_rate: 0, vat_exempt: true });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Aplicar isenção de IVA' }));
+    expect(screen.getByText('IVA (16%)')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Comprovativo da isenção')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar proposta' }));
+    await waitFor(() => expect(prepareExistingQuote).toHaveBeenCalledWith(quote.reference, expect.objectContaining({ tax_rate: 16, vat_exempt: false })));
+  });
   it('defaults unpriced intake proposals to 16% IVA and sends it when saving', async () => {
     await setup({ ...quote, commercial_pricing: false, tax_rate: 0 });
-    expect(screen.getByLabelText('IVA (%)')).toHaveValue(16);
+    expect(screen.queryByLabelText('IVA (%)')).not.toBeInTheDocument();
+    expect(screen.getByText('IVA (16%)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar proposta' }));
     await waitFor(() => expect(prepareExistingQuote).toHaveBeenCalledWith(quote.reference, expect.objectContaining({ tax_rate: 16 })));
   });
 
   it.each([0, 5, 16])('preserves an existing commercial IVA rate of %s%%', async (tax_rate) => {
     await setup({ ...quote, commercial_pricing: true, tax_rate });
-    expect(screen.getByLabelText('IVA (%)')).toHaveValue(tax_rate);
+    expect(screen.getByText(`IVA (${tax_rate}%)`)).toBeInTheDocument();
   });
 
   it('switches discount type with radio buttons, resetting the amount and updating totals', async () => {
     await setup();
-    expect(screen.getByRole('radio', { name: 'Valor fixo (MZN)' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'MZN' })).toBeChecked();
     fireEvent.change(screen.getByLabelText('Valor do desconto (MZN)'), { target: { value: '50' } });
-    fireEvent.click(screen.getByRole('radio', { name: 'Percentagem (%)' }));
+    fireEvent.click(screen.getByRole('radio', { name: '%' }));
     expect(screen.getByLabelText('Valor do desconto (%)')).toHaveValue(0);
     fireEvent.change(screen.getByLabelText('Valor do desconto (%)'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar proposta' }));

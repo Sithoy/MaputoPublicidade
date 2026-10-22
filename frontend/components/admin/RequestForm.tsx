@@ -7,7 +7,7 @@ import { DocumentItemsEditor, newDocumentLine, type EditableDocumentLine } from 
 import { ProposalAssistant } from '@/components/admin/ProposalAssistant';
 import type { AdminQuote, ProposalPreparation } from '@/lib/admin-api';
 import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
-import { fetchBlobWithAuth, fetchWithAuth } from '@/lib/auth';
+import { downloadWithAuth, fetchBlobWithAuth, fetchWithAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -69,12 +69,21 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
   const [discount, setDiscount] = useState('0');
   const [taxRate, setTaxRate] = useState('16');
+  const [vatExempt, setVatExempt] = useState(false);
+  const [vatReason, setVatReason] = useState('');
+  const [vatFile, setVatFile] = useState<File | null>(null);
+  const [vatEvidence, setVatEvidence] = useState<NonNullable<AdminQuote['vat_exemption']>['evidence']>(null);
+  const [evidenceClientKey, setEvidenceClientKey] = useState('');
+  const clientKey = JSON.stringify([clientName.trim(), clientNuit.trim()]);
+  const validVatEvidence = evidenceClientKey === clientKey ? vatEvidence : null;
+  const effectiveTaxRate = vatExempt ? '0' : taxRate;
   const [internalNotes, setInternalNotes] = useState('');
   const [lines, setLines] = useState<EditableDocumentLine[]>([newDocumentLine()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [preparationId, setPreparationId] = useState<number>();
   const [reviewed, setReviewed] = useState(false);
+  const [createdReference, setCreatedReference] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
@@ -127,6 +136,10 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
           setDiscount(String(quote.discount_type === 'percentage' ? quote.discount_percentage || 0 : quote.discount_amount || 0));
           // Intake has no commercial terms yet; preserve explicit rates (including 0%) once priced.
           setTaxRate(String(quote.commercial_pricing ? quote.tax_rate ?? 16 : 16));
+          setVatExempt(Boolean(quote.vat_exempt));
+          setVatReason(quote.vat_exemption?.reason || '');
+          setVatEvidence(quote.vat_exemption?.evidence || null);
+          setEvidenceClientKey(JSON.stringify([(quote.client_company || quote.client_name).trim(), (quote.client_nuit || '').trim()]));
           setNotes(quote.notes || '');
           setInternalNotes(quote.internal_notes || '');
           setUrgency(quote.urgency === 'urgent' ? 'urgent' : 'normal');
@@ -188,7 +201,15 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
       setError('Indique um prazo estimado entre 1 e 365 dias úteis.');
       return;
     }
+    if (intent === 'send' && vatExempt && (!vatReason.trim() || (!vatFile && !validVatEvidence))) {
+      setError('Indique a justificação e anexe o comprovativo da isenção de IVA antes de enviar.');
+      return;
+    }
     if (intent === 'send' && !window.confirm('Guardar as condições atuais e disponibilizar a proposta no BrandDesk? Para clientes sem conta, envie também o PDF pelo canal acordado. Não são enviadas mensagens por email ou WhatsApp automaticamente.')) return;
+    if (vatExempt && vatFile && (!/\.(pdf|png|jpe?g)$/i.test(vatFile.name) || vatFile.size > 2 * 1024 * 1024 || vatFile.size === 0)) {
+      setError('Use um comprovativo PDF, PNG ou JPG, com conteúdo e até 2 MB.');
+      return;
+    }
     setSaving(true); onBusyChange?.(true);
     let persisted = false;
     try {
@@ -203,7 +224,8 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
         client_nuit: clientNuit.trim(),
         ...(mode === 'proposal' ? { billing_address: billingAddress.trim(), valid_until: validUntil || null, terms: terms.trim(), discount_type: discountType,
           discount_amount: discountType === 'fixed' ? Number(discount) : 0,
-          discount_percentage: discountType === 'percentage' ? Number(discount) : 0, tax_rate: Number(taxRate) } : {}),
+          discount_percentage: discountType === 'percentage' ? Number(discount) : 0, tax_rate: Number(effectiveTaxRate),
+          vat_exempt: vatExempt, vat_exemption_reason: vatReason.trim() } : {}),
         contact_source: contactSource,
         urgency,
         estimated_delivery_days: deliveryDays,
@@ -234,8 +256,19 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
         else router.push(result.order_reference ? `/admin/encomendas/${result.order_reference}` : `/admin/orcamentos/${result.quote_reference}`);
         return;
       }
-      const quote = reference ? await prepareExistingQuote(reference, data) : await createManualQuote(data);
+      const existingReference = reference || createdReference;
+      const quote = existingReference ? await prepareExistingQuote(existingReference, data) : await createManualQuote(data);
+      if (!existingReference) setCreatedReference(quote.reference);
       persisted = true;
+      setVatEvidence(quote.vat_exemption?.evidence || null);
+      setEvidenceClientKey(clientKey);
+      if (vatExempt && vatFile) {
+        const fileData = new FormData(); fileData.append('file', vatFile);
+        const updated = await fetchWithAuth(`/api/quotes/${quote.reference}/vat-evidence/`, { method: 'POST', body: fileData }) as AdminQuote;
+        setVatEvidence(updated.vat_exemption?.evidence || null);
+        setEvidenceClientKey(clientKey);
+        setVatFile(null);
+      }
       if (intent === 'preview') {
         onDirtyChange?.(false);
         const blob = await fetchBlobWithAuth(`/api/quotes/${quote.reference}/pdf/`);
@@ -283,13 +316,24 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
   }
 
   const discountOptions = <fieldset><legend className="mb-2 text-sm font-medium">Tipo de desconto</legend><div className="flex flex-wrap gap-2">
-    {([{ value: 'fixed', label: 'Valor fixo (MZN)' }, { value: 'percentage', label: 'Percentagem (%)' }] as const).map((option) => <label key={option.value} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${discountType === option.value ? 'border-brand-700 bg-brand-50 text-brand-900' : 'border-[#dce3d3] bg-white text-slate-600'}`}><input type="radio" name="proposal-discount-type" value={option.value} checked={discountType === option.value} onChange={() => { setDiscountType(option.value); setDiscount('0'); }} className="accent-brand-700" />{option.label}</label>)}
+    {([{ value: 'fixed', label: 'MZN' }, { value: 'percentage', label: '%' }] as const).map((option) => <label key={option.value} className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium ${discountType === option.value ? 'border-brand-700 bg-brand-50 text-brand-900' : 'border-[#dce3d3] bg-white text-slate-600'}`}><input type="radio" name="proposal-discount-type" value={option.value} checked={discountType === option.value} onChange={() => { setDiscountType(option.value); setDiscount('0'); }} className="accent-brand-700" />{option.label}</label>)}
   </div></fieldset>;
+  const vatControls = <div className="space-y-3 rounded-xl border border-[#dce3d3] bg-white p-3">
+    <div className="flex justify-between gap-3 text-sm"><span>IVA</span><strong>{vatExempt ? 'Isento de IVA' : `${taxRate}%`}</strong></div>
+    {!vatExempt && taxRate !== '16' ? <p className="text-xs text-slate-500">Taxa histórica preservada nesta proposta.</p> : null}
+    <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={vatExempt} onChange={(event) => { setVatExempt(event.target.checked); if (!event.target.checked) setTaxRate('16'); }} className="accent-brand-700" />Aplicar isenção de IVA</label>
+    {vatExempt ? <div className="space-y-3 border-t pt-3">
+      <div><Label htmlFor="vat-reason">Justificação da isenção</Label><Textarea id="vat-reason" maxLength={1000} rows={3} value={vatReason} onChange={(event) => setVatReason(event.target.value)} /></div>
+      <div><Label htmlFor="vat-evidence">Comprovativo da isenção</Label><Input key={`${vatEvidence?.id || 'new'}-${vatFile?.name || 'empty'}`} id="vat-evidence" type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(event) => setVatFile(event.target.files?.[0] || null)} className="w-full min-w-0 text-xs" />{vatFile ? <p className="mt-1 break-words text-xs">Selecionado: {vatFile.name} <button type="button" className="font-semibold underline" onClick={() => setVatFile(null)}>Remover seleção</button></p> : null}</div>
+      {validVatEvidence ? <div className="break-words text-xs text-slate-500"><p>Comprovativo: {validVatEvidence.name}</p><p>{validVatEvidence.uploaded_by} · {new Date(validVatEvidence.uploaded_at).toLocaleDateString('pt-MZ')}</p>{reference ? <button type="button" className="mt-1 font-semibold text-brand-800 underline" onClick={() => void downloadWithAuth(`/api/quotes/${reference}/vat-evidence/`, validVatEvidence.name).catch(() => setError('Não foi possível abrir o comprovativo.'))}>Consultar comprovativo</button> : null}</div> : vatEvidence ? <p className="text-xs text-amber-800">Os dados do cliente mudaram. Anexe um novo comprovativo.</p> : null}
+      <p className="text-xs leading-5 text-slate-500">PDF, PNG ou JPG até 2 MB. Documento interno. Pode guardar um rascunho; a justificação e o comprovativo são obrigatórios para enviar.</p>
+    </div> : null}
+  </div>;
 
   if (focused) {
     const subtotal = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unit_price) || 0), 0);
     const deduction = discountType === 'percentage' ? Math.round(subtotal * (Number(discount) || 0)) / 100 : Number(discount) || 0;
-    const tax = Math.round(Math.max(0, subtotal - deduction) * (Number(taxRate) || 0)) / 100;
+    const tax = Math.round(Math.max(0, subtotal - deduction) * (Number(effectiveTaxRate) || 0)) / 100;
     const total = Math.max(0, subtotal - deduction) + tax;
     return <form aria-label="Preparar proposta" onSubmit={handleSubmit} className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[#dce3d3] pb-5">
@@ -321,18 +365,19 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
         </fieldset>
         <aside aria-label="Resumo comercial" className="rounded-2xl border border-[#dce3d3] border-t-[3px] border-t-[#c7aa68] bg-[#f5f7ee] p-5 xl:sticky xl:top-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-brand-700">Resumo da proposta</p><p className="mt-2 text-xs text-slate-500">{lines.length} {lines.length === 1 ? 'artigo' : 'artigos'} · MZN</p>
-          <dl className="mt-5 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt>Subtotal</dt><dd className="tabular-nums">{formatMZN(subtotal)}</dd></div><div className="flex justify-between gap-3"><dt>Desconto</dt><dd className="tabular-nums">−{formatMZN(deduction)}</dd></div><div className="flex justify-between gap-3"><dt>IVA ({taxRate || 0}%)</dt><dd className="tabular-nums">{formatMZN(tax)}</dd></div><div className="border-t border-[#dce3d3] pt-4"><dt className="text-xs text-slate-500">Total estimado</dt><dd className="mt-1 text-2xl font-semibold tabular-nums text-brand-900">{formatMZN(total)}</dd></div></dl>
+          <dl className="mt-5 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt>Subtotal</dt><dd className="tabular-nums">{formatMZN(subtotal)}</dd></div><div className="flex justify-between gap-3"><dt>Desconto</dt><dd className="tabular-nums">−{formatMZN(deduction)}</dd></div><div className="flex justify-between gap-3"><dt>{vatExempt ? 'Isento de IVA' : `IVA (${taxRate || 0}%)`}</dt><dd className="tabular-nums">{formatMZN(tax)}</dd></div><div className="border-t border-[#dce3d3] pt-4"><dt className="text-xs text-slate-500">Total estimado</dt><dd className="mt-1 text-2xl font-semibold tabular-nums text-brand-900">{formatMZN(total)}</dd></div></dl>
           <fieldset disabled={saving || !loaded} className="mt-5 space-y-3 border-t border-[#dce3d3] pt-4"><legend className="sr-only">Ajustes comerciais</legend>
             {discountOptions}
             <div><Label htmlFor="proposal-discount">Valor do desconto ({discountType === 'percentage' ? '%' : 'MZN'})</Label><Input id="proposal-discount" type="number" min="0" max={discountType === 'percentage' ? 100 : subtotal} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} /></div>
-            <div><Label htmlFor="proposal-tax-rate">IVA (%)</Label><Input id="proposal-tax-rate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} /></div>
+            {vatControls}
           </fieldset><p className="mt-4 text-xs leading-5 text-slate-500">O servidor valida os valores finais ao guardar.</p>
+          <Button type="submit" className="mt-4 min-h-11 w-full text-sm" name="intent" value="preview" variant="outline" disabled={saving || !loaded}>Guardar e pré-visualizar PDF</Button>
+          <p className="mt-2 text-xs leading-5 text-slate-500">Guarda o rascunho sem enviar ao cliente.</p>
         </aside>
       </div>
       <footer className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#dce3d3] bg-[#fffefb] p-4 shadow-[0_-4px_20px_rgb(19_60_46/5%)]">
-        <p className="text-xs text-slate-500">A pré-visualização guarda o rascunho sem enviar ao cliente.</p><div className="flex w-full flex-wrap gap-2 sm:w-auto">
+        <p className="text-xs text-slate-500">Guardar mantém a proposta privada.</p><div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Button type="button" className="min-h-11 text-sm" variant="ghost" disabled={saving} onClick={onClose}>Cancelar</Button>
-          <Button type="submit" className="min-h-11 text-sm" name="intent" value="preview" variant="outline" disabled={saving || !loaded}>Guardar e pré-visualizar PDF</Button>
           <Button type="submit" className="min-h-11 text-sm" name="intent" value="save" variant="outline" disabled={saving || !loaded}>Guardar proposta</Button>
           <Button type="submit" className="min-h-11 text-sm" name="intent" value="send" disabled={saving || !loaded}>Guardar e enviar</Button>
         </div>
@@ -384,7 +429,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
           <div><Label htmlFor="proposal-valid-until">Válida até</Label><Input id="proposal-valid-until" type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} /></div>
           {discountOptions}
           <div><Label htmlFor="proposal-discount">Desconto ({discountType === 'percentage' ? '%' : 'MZN'})</Label><Input id="proposal-discount" type="number" min="0" max={discountType === 'percentage' ? 100 : undefined} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} /></div>
-          <div><Label htmlFor="proposal-tax-rate">IVA (%)</Label><Input id="proposal-tax-rate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} /></div>
+          {vatControls}
         </div>
         <div><Label htmlFor="proposal-billing-address">Morada de faturação</Label><Textarea id="proposal-billing-address" maxLength={2000} value={billingAddress} onChange={(event) => setBillingAddress(event.target.value)} rows={2} /></div>
         <div><Label htmlFor="proposal-terms">Condições comerciais e exclusões</Label><Textarea id="proposal-terms" maxLength={10000} value={terms} onChange={(event) => setTerms(event.target.value)} rows={3} /></div>
@@ -392,7 +437,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
           const subtotal = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unit_price) || 0), 0);
           const deduction = discountType === 'percentage' ? Math.round(subtotal * (Number(discount) || 0)) / 100 : Number(discount) || 0;
           const taxable = Math.max(0, subtotal - deduction);
-          return taxable + Math.round(taxable * (Number(taxRate) || 0)) / 100;
+          return taxable + Math.round(taxable * (Number(effectiveTaxRate) || 0)) / 100;
         })())}</strong> · Desconto antes do IVA. O valor final é validado ao guardar.</p>
       </CardContent></Card> : null}
       {preparationId ? (

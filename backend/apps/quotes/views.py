@@ -1,7 +1,9 @@
 import base64
 import json
 import os
+from hashlib import sha256
 from io import BytesIO
+from pathlib import Path
 
 from django.db import transaction
 from django.db.models import Prefetch, Q
@@ -9,7 +11,7 @@ from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -144,7 +146,7 @@ class QuoteRequestViewSet(
             return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
         if self.action == "destroy":
             return [HasStaffCapability(StaffCapability.REVIEW_PROPOSALS)]
-        if self.action == "proposal_workflow":
+        if self.action in {"proposal_workflow", "vat_evidence"}:
             return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
         if self.action == "brand_request":
             return [IsAuthenticated()]
@@ -598,6 +600,36 @@ class QuoteRequestViewSet(
             f'attachment; filename="Proposta-{quote.reference}.pdf"'
         )
         return response
+
+    @action(detail=True, methods=["get", "post"], url_path="vat-evidence")
+    @transaction.atomic
+    def vat_evidence(self, request, reference=None):
+        from .models import QuoteVatEvidence
+        from .vat import client_identity, current_evidence
+
+        quote = self.get_object()
+        if request.method == "GET":
+            evidence = current_evidence(quote)
+            if evidence is None:
+                raise NotFound("Comprovativo indisponível para este cliente.")
+            response = FileResponse(BytesIO(bytes(evidence.content)), as_attachment=True,
+                                    filename=evidence.name, content_type=evidence.mime_type)
+            response["Cache-Control"] = "private, no-store"
+            response["X-Content-Type-Options"] = "nosniff"
+            return response
+        if quote.price_approved_at or quote.status == "cancelled" or hasattr(quote, "order") or quote.proposal_stage != "draft":
+            raise ValidationError("Guarde o rascunho antes de anexar o comprovativo da isenção.")
+        files = request.FILES.getlist("file")
+        types = {".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+        if len(files) != 1 or Path(files[0].name).suffix.lower() not in types:
+            raise ValidationError("Anexe um comprovativo em PDF, PNG ou JPG (até 2 MB).")
+        file = validated_attachments(files)[0]
+        evidence = QuoteVatEvidence.objects.create(quote=quote, name=file["name"], content=file["content"],
+            mime_type=types[Path(file["name"]).suffix.lower()], checksum=sha256(file["content"]).hexdigest(),
+            client_identity=client_identity(quote), uploaded_by=request.user)
+        record_activity(action="reception_updated", quote=quote, actor=request.user, is_internal=True,
+                        comment=f"Comprovativo de isenção de IVA anexado: #{evidence.pk} ({evidence.checksum}).")
+        return Response(QuoteRequestDetailSerializer(quote, context={"request": request}).data)
 
     @action(detail=True, methods=['patch'], url_path='apparel-distribution')
     def apparel_distribution(self, request, reference=None):

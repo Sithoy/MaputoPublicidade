@@ -4,6 +4,14 @@ import type { Quote } from '@/lib/api';
 import { ProposalDocument } from './ProposalDocument';
 
 describe('ProposalDocument', () => {
+  it('labels an exemption explicitly instead of showing IVA 0%', () => {
+    const quote = { id: 3, reference: 'MP-0003-2026', client_name: 'Empresa', created_at: '2026-10-10T09:00:00Z', status: 'quoted',
+      vat_exempt: true, tax_rate: 0, tax_amount: 0, final_price: 1000, items: [{ id: 1, description: 'Polos', quantity: 10, unit_price: 100 }],
+    } as unknown as Quote;
+    render(<ProposalDocument quote={quote} />);
+    expect(screen.getByText('Isento de IVA')).toBeInTheDocument();
+    expect(screen.queryByText('IVA (0%)')).not.toBeInTheDocument();
+  });
   it('does not present missing prices as free items or a zero advance', () => {
     const quote = { id: 2, reference: 'MP-0002-2026', client_name: 'Maria', created_at: '2026-10-10T09:00:00Z', status: 'received',
       items: [{ id: 1, description: 'Vinil', quantity: 1, unit_price: null }],
