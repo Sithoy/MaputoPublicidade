@@ -144,7 +144,9 @@ class TestQuoteApi:
         assert response.status_code == 201
         assert response.json()["status"] == QuoteRequest.STATUS_REVIEWING
         assert response.json()["proposal_workflow"]["stage"] == "draft"
-        assert response.json()["final_price"] == 1500.0
+        assert response.json()["final_price"] == 1740.0
+        assert response.json()["tax_rate"] == 16
+        assert response.json()["vat_exempt"] is False
         assert response.json()["client_email"] == client_user.email
         assert response.json()["estimated_delivery_days"] == 10
         assert response.json()["payment_option"] == QuoteRequest.PAYMENT_DEPOSIT_50

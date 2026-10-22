@@ -179,6 +179,8 @@ export type DocumentLineInput = {
 };
 
 export type ManualQuoteInput = {
+  vat_exempt?: boolean;
+  vat_exemption_reason?: string;
   billing_address?: string;
   valid_until?: string | null;
   terms?: string;

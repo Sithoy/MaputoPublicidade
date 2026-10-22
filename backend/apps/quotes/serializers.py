@@ -199,6 +199,18 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
 
 
 class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    vat_exemption = serializers.SerializerMethodField()
+
+    def get_vat_exemption(self, obj):
+        request = self.context.get("request")
+        if not request or not has_staff_capability(request.user, StaffCapability.MANAGE_QUOTES):
+            return None
+        from .vat import current_evidence
+        evidence = current_evidence(obj)
+        return {"reason": obj.vat_exemption_reason, "evidence": {
+            "id": evidence.pk, "name": evidence.name, "uploaded_at": evidence.created_at,
+            "uploaded_by": (evidence.uploaded_by.get_full_name() or evidence.uploaded_by.email) if evidence.uploaded_by else "",
+        } if evidence else None}
     workdesk = serializers.SerializerMethodField()
     operational_order_status = serializers.CharField(source="order.status", default=None, read_only=True)
     proposal_workflow = serializers.SerializerMethodField()
@@ -279,6 +291,8 @@ class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSeria
             "tax_amount",
             "subtotal",
             "commercial_pricing",
+            "vat_exempt",
+            "vat_exemption",
             "terms",
             "estimated_delivery_days",
             "payment_option",
@@ -492,6 +506,8 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
     contact_source = serializers.ChoiceField(
         choices=QuoteRequest.CONTACT_SOURCE_CHOICES, required=False
     )
+    vat_exempt = serializers.BooleanField(required=False)
+    vat_exemption_reason = serializers.CharField(max_length=1000, required=False, allow_blank=True)
     user_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(is_staff=False, is_active=True),
         source="user",
@@ -539,6 +555,11 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         from apps.core.pricing import document_totals
+
+        from .vat import proposal_tax_rate
+
+        attrs["vat_exempt"] = attrs.get("vat_exempt", getattr(self.instance, "vat_exempt", False))
+        attrs["tax_rate"] = proposal_tax_rate(self.instance, attrs["vat_exempt"], attrs.get("tax_rate"))
 
         subtotal = sum(
             (item["unit_price"] * item["quantity"] for item in attrs["items"]), Decimal("0")

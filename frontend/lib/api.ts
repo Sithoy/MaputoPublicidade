@@ -385,6 +385,8 @@ export type Quote = {
   tax_amount?: number;
   subtotal?: number;
   commercial_pricing?: boolean;
+  vat_exempt?: boolean;
+  vat_exemption?: { reason: string; evidence: { id: number; name: string; uploaded_at: string; uploaded_by: string } | null } | null;
   briefing?: { project_name?: string; notes?: string; deadline?: string | null; fulfilment?: string; source_reference?: string; needs_design?: boolean; intent?: string };
   request_attachments?: Array<{ id: number; name: string; size: number }>;
   id: number;

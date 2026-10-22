@@ -95,6 +95,8 @@ class QuoteRequest(models.Model):
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    vat_exempt = models.BooleanField(default=False)
+    vat_exemption_reason = models.CharField(max_length=1000, blank=True)
     commercial_pricing = models.BooleanField(default=False)
     proposal_stage = models.CharField(max_length=12, default="legacy", choices=[
         ("legacy", "Fluxo anterior"), ("draft", "Em preparação"), ("review", "Proposta guardada (fluxo anterior)"),
@@ -270,6 +272,19 @@ class QuoteRequestAttachment(models.Model):
     size = models.PositiveIntegerField()
     is_internal = models.BooleanField(default=False)
     content = models.BinaryField()
+
+
+class QuoteVatEvidence(models.Model):
+    """Immutable, staff-only evidence. Never store fiscal evidence in public media."""
+
+    quote = models.ForeignKey(QuoteRequest, on_delete=models.CASCADE, related_name="vat_evidence")
+    name = models.CharField(max_length=255)
+    content = models.BinaryField()
+    mime_type = models.CharField(max_length=50)
+    checksum = models.CharField(max_length=64)
+    client_identity = models.CharField(max_length=64)
+    uploaded_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class QuoteItem(models.Model):
