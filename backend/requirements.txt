@@ -4,7 +4,7 @@ django-allauth[headless]==65.19.4
 djangorestframework==3.17.2
 django-cors-headers==4.7.0
 gunicorn==23.0.0
-Pillow==12.3.0
+Pillow==13.0.0
 psycopg2-binary==2.9.10
 python-dotenv==1.2.2
 whitenoise==6.9.0
