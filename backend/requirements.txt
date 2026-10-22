@@ -11,7 +11,7 @@ whitenoise==6.9.0
 django-storages[boto3]==1.14.4
 boto3==1.35.95
 openpyxl==3.1.5
-africastalking==1.2.9
+africastalking==2.0.3
 twilio==9.5.0
 requests==2.33.0
 cryptography==50.0.0
