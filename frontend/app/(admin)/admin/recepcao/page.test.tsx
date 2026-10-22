@@ -152,7 +152,7 @@ describe('Reception workspace', () => {
     vi.mocked(fetchWithAuth).mockImplementation(async (path) => path.startsWith('/api/reception/hq/') ? hq : path.includes('page=2') ? { results: [second], next: null, count: 11 } : { results: Array.from({ length: 10 }, (_, index) => ({ ...quote, reference: `MP-${String(index + 1).padStart(4, '0')}-2026` })), next: 'https://backend.example/api/quotes/?page=2', count: 11 });
     render(<ReceptionPage />);
     await screen.findByText('1–10 de 11 pedidos');
-    expect(within(screen.getByRole('list', { name: 'Tarefas da recepção' })).getAllByRole('listitem')).toHaveLength(10);
+    expect(within(screen.getByRole('table', { name: 'Tarefas da recepção' })).getAllByRole('row')).toHaveLength(11);
     expect(getQuote).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Seguinte' }));
     await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&page_size=10&page=2'));
