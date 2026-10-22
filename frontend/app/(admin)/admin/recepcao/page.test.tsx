@@ -4,18 +4,19 @@ import { fetchWithAuth } from '@/lib/auth';
 import { getQuote } from '@/lib/admin-api';
 import ReceptionPage from './page';
 
-const auth = vi.hoisted(() => ({ loading: false, allowed: true, editable: true, acquire: vi.fn().mockResolvedValue(true) }));
-vi.mock('@/hooks/useReceptionEdit', () => ({ useReceptionEdit: () => ({ editable: auth.editable, pending: false, session: null, error: '', acquire: auth.acquire, release: vi.fn() }) }));
+const auth = vi.hoisted(() => ({ loading: false, allowed: true, editable: true, session: null as { editor_name: string } | null, acquire: vi.fn().mockResolvedValue(true) }));
+vi.mock('@/hooks/useReceptionEdit', () => ({ useReceptionEdit: () => ({ editable: auth.editable, pending: false, session: auth.session, error: '', acquire: auth.acquire, release: vi.fn() }) }));
 vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ user: { id: 1 }, loading: auth.loading, can: () => auth.allowed }) }));
 vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('@/lib/admin-api', () => ({ getQuote: vi.fn(), convertQuoteToOrder: vi.fn(), downloadQuotePdf: vi.fn() }));
 vi.mock('@/components/admin/ProposalWorkflowCard', () => ({ ProposalWorkflowCard: () => <p>Revisão da mesma proposta</p> }));
 vi.mock('@/components/admin/RequestForm', () => ({ default: ({ onSaved }: { onSaved: (ref: string) => void }) => <><input aria-label="Detalhe do rascunho" /><button onClick={() => onSaved('MP-0001-2026')}>Guardar proposta no espaço</button></> }));
+vi.mock('@/components/admin/ReceptionRequestPanel', () => ({ ReceptionRequestPanel: ({ onChange }: { onChange: (value: null) => void }) => <button onClick={() => onChange(null)}>Concluir triagem</button> }));
 const quote = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'reviewing', reception: { completed_at: '2026-10-12', owner_name: 'Dário' }, proposal_workflow: { stage: 'review', prepared_by: 'Dário', prepared_by_id: 1 }, items: [] };
 const hq = { scope: 'mine', unassigned_team: 4, updated_at: '2026-10-12T10:00:00Z', counts: { total: 30, urgent: 2, upcoming: 3, briefing: 5, proposal: 6, send: 2, delivery: 1, review: 4, client: 8, production: 4, handover: 0, messages: 3, messages_general: 2 } };
 beforeEach(() => {
   window.history.replaceState({}, '', '/admin/recepcao');
-  vi.clearAllMocks(); auth.loading = false; auth.allowed = true; auth.editable = true;
+  vi.clearAllMocks(); auth.loading = false; auth.allowed = true; auth.editable = true; auth.session = null; auth.acquire.mockResolvedValue(true);
   vi.mocked(fetchWithAuth).mockImplementation(async (path) => path.startsWith('/api/reception/hq/') ? hq : { results: [quote], next: null, count: 30 });
   vi.mocked(getQuote).mockResolvedValue(quote as never);
 });
@@ -33,7 +34,6 @@ describe('Reception workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     await screen.findByRole('region', { name: 'Resumo do pedido' });
     fireEvent.click(screen.getByRole('button', { name: /2 Preparar proposta/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Editar proposta' }));
     fireEvent.change(await screen.findByLabelText('Detalhe do rascunho'), { target: { value: 'Por guardar' } });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     fireEvent.click(screen.getByRole('button', { name: 'Voltar à lista' }));
@@ -70,10 +70,14 @@ describe('Reception workspace', () => {
     expect(screen.queryByRole('heading', { name: 'Agora' })).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Percurso do pedido' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /2 Preparar proposta/ }));
-    expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Editar proposta' }));
+    expect(await screen.findByRole('region', { name: 'Espaço da proposta' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Editar proposta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Iniciar edição' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Pedido em foco' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Resumo do pedido' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Revisão da mesma proposta')).not.toBeInTheDocument();
     fireEvent.click(await screen.findByText('Guardar proposta no espaço'));
-    await waitFor(() => expect(getQuote).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getQuote).toHaveBeenCalledTimes(3));
     expect(screen.getByRole('heading', { name: 'Empresa ABC' })).toBeInTheDocument();
   });
   it('uses server filters and keeps completed requests available', async () => {
@@ -81,6 +85,43 @@ describe('Reception workspace', () => {
     await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=active&hq=1&page_size=10'));
     fireEvent.change(screen.getByLabelText('Mostrar'), { target: { value: 'closed' } });
     await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/?operational_state=closed&hq=1&page_size=10'));
+  });
+
+  it('opens a prepared task directly in the focused editor and reserves it once', async () => {
+    auth.editable = false;
+    auth.acquire.mockImplementation(async () => { auth.editable = true; return true; });
+    vi.mocked(getQuote).mockResolvedValue({ ...quote, proposal_workflow: { ...quote.proposal_workflow, stage: 'draft' } } as never);
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    expect(await screen.findByLabelText('Detalhe do rascunho')).toBeInTheDocument();
+    expect(auth.acquire).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('region', { name: 'Pedido em foco' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Novo atendimento' })).not.toBeInTheDocument();
+  });
+
+  it('moves from completed briefing straight into the proposal workspace', async () => {
+    const briefing = { ...quote, reception: null, proposal_workflow: { ...quote.proposal_workflow, stage: 'draft', prepared_by_id: null } };
+    const prepared = { ...quote, proposal_workflow: { ...quote.proposal_workflow, stage: 'draft' } };
+    vi.mocked(getQuote).mockResolvedValueOnce(briefing as never).mockResolvedValue(prepared as never);
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    await screen.findByRole('region', { name: 'Resumo do pedido' });
+    fireEvent.click(screen.getByRole('button', { name: 'Trabalho' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir triagem' }));
+    expect(await screen.findByLabelText('Detalhe do rascunho')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Espaço da proposta' })).toBeInTheDocument();
+  });
+
+  it('keeps an actively reserved proposal read-only with no editing bypass', async () => {
+    auth.editable = false; auth.session = { editor_name: 'Ana' }; auth.acquire.mockResolvedValue(false);
+    vi.mocked(getQuote).mockResolvedValue({ ...quote, proposal_workflow: { ...quote.proposal_workflow, stage: 'draft' } } as never);
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    expect(await screen.findByText(/Em edição por Ana. Pode consultar/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Detalhe do rascunho')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Editar proposta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tentar novamente' })).not.toBeInTheDocument();
   });
   it('does not fetch while authentication is loading or permission is denied', () => {
     auth.loading = true; const view = render(<ReceptionPage />); expect(fetchWithAuth).not.toHaveBeenCalled();
