@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FilePlus2 } from 'lucide-react';
 import { DocumentItemsEditor, newDocumentLine, type EditableDocumentLine } from '@/components/admin/DocumentItemsEditor';
 import { ProposalAssistant } from '@/components/admin/ProposalAssistant';
 import type { AdminQuote, ProposalPreparation } from '@/lib/admin-api';
 import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
-import { fetchWithAuth } from '@/lib/auth';
+import { fetchBlobWithAuth, fetchWithAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -19,6 +19,23 @@ import { createManualQuote, createReceptionIntake, prepareExistingQuote, getQuot
 import type { ClientOption, Product } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { formatMZN } from '@/lib/utils';
+
+function ProposalPdfPreview({ url, reference, onClose }: { url: string; reference: string; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const node = dialog.current;
+    node?.showModal();
+    return () => { node?.close(); };
+  }, []);
+  return <dialog ref={dialog} aria-labelledby="proposal-pdf-title" onCancel={onClose} className="m-auto max-h-[95dvh] w-[calc(100%_-_1rem)] max-w-6xl rounded-2xl bg-white p-0 shadow-2xl backdrop:bg-black/60">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
+      <div><h2 id="proposal-pdf-title" className="font-semibold text-brand-900">Pré-visualização · {reference}</h2><p className="mt-1 text-xs text-slate-500">Rascunho guardado. A proposta não foi enviada ao cliente.</p></div>
+      <div className="flex gap-3"><a href={url} download={`Proposta-${reference}.pdf`} className="rounded-xl border px-3 py-2 text-sm font-semibold text-brand-800">Descarregar PDF</a><Button type="button" variant="ghost" onClick={onClose} autoFocus>Fechar PDF</Button></div>
+    </header>
+    <iframe src={url} title="PDF da proposta" className="h-[75dvh] w-full border-0" />
+    <p className="p-3 text-xs text-slate-500">Se o navegador não apresentar o documento, utilize Descarregar PDF.</p>
+  </dialog>;
+}
 
 export default function RequestForm({ reference, onSaved, onClose, focused = false, initialQuote, onBusyChange, onDirtyChange }: {
   reference?: string; onSaved?: (reference: string, intent?: 'save' | 'send') => void; onClose?: () => void;
@@ -51,13 +68,15 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
   const [terms, setTerms] = useState('');
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
   const [discount, setDiscount] = useState('0');
-  const [taxRate, setTaxRate] = useState('0');
+  const [taxRate, setTaxRate] = useState('16');
   const [internalNotes, setInternalNotes] = useState('');
   const [lines, setLines] = useState<EditableDocumentLine[]>([newDocumentLine()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [preparationId, setPreparationId] = useState<number>();
   const [reviewed, setReviewed] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   function applyPreparation(preparation: ProposalPreparation) {
     const draft = preparation.draft;
@@ -106,7 +125,8 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
           setBillingAddress(quote.billing_address || ''); setValidUntil(quote.valid_until || ''); setTerms(quote.terms || '');
           setDiscountType(quote.discount_type || 'fixed');
           setDiscount(String(quote.discount_type === 'percentage' ? quote.discount_percentage || 0 : quote.discount_amount || 0));
-          setTaxRate(String(quote.tax_rate || 0));
+          // Intake has no commercial terms yet; preserve explicit rates (including 0%) once priced.
+          setTaxRate(String(quote.commercial_pricing ? quote.tax_rate ?? 16 : 16));
           setNotes(quote.notes || '');
           setInternalNotes(quote.internal_notes || '');
           setUrgency(quote.urgency === 'urgent' ? 'urgent' : 'normal');
@@ -139,7 +159,8 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!loaded || saving) return;
-    const intent = focused && (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'send' ? 'send' : 'save';
+    const requestedIntent = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value');
+    const intent = focused && requestedIntent === 'preview' ? 'preview' : focused && requestedIntent === 'send' ? 'send' : 'save';
     setError('');
     if (preparationId && !reviewed) {
       setError('Confirme a revisão dos dados, quantidades, preços e condições antes de criar a proposta.');
@@ -215,6 +236,14 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
       }
       const quote = reference ? await prepareExistingQuote(reference, data) : await createManualQuote(data);
       persisted = true;
+      if (intent === 'preview') {
+        onDirtyChange?.(false);
+        const blob = await fetchBlobWithAuth(`/api/quotes/${quote.reference}/pdf/`);
+        if (blob.type !== 'application/pdf') throw new Error('O servidor não devolveu um PDF válido.');
+        setPreviewUrl(URL.createObjectURL(blob));
+        setSaving(false);
+        return;
+      }
       if (focused) {
         if (!quote.proposal_workflow) throw new Error('Atualize a proposta antes de continuar.');
         await fetchWithAuth(`/api/quotes/${quote.reference}/proposal-workflow/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: intent, version: quote.proposal_workflow.version, comment: '' }) });
@@ -222,7 +251,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
       if (onSaved) { onSaved(quote.reference, intent); setSaving(false); }
       else router.push(`/admin/orcamentos/${quote.reference}`);
     } catch (err) {
-      if (persisted && focused && reference) {
+      if (persisted && focused && reference && intent !== 'preview') {
         try {
           const current = await getQuote(reference);
           // A lost response must not turn a completed send into a second publication.
@@ -234,7 +263,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
         } catch { /* Keep the editor intact when completion cannot be confirmed. */ }
       }
       const message = getApiErrorMessage(err, 'Não foi possível guardar a proposta.');
-      setError(persisted && focused ? `Os dados foram guardados, mas não foi possível confirmar a conclusão desta ação. ${message}` : message);
+      setError(persisted && intent === 'preview' ? `O rascunho foi guardado, mas não foi possível abrir o PDF. ${message}` : persisted && focused ? `Os dados foram guardados, mas não foi possível confirmar a conclusão desta ação. ${message}` : message);
       setSaving(false);
     } finally { onBusyChange?.(false); }
   }
@@ -252,6 +281,10 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
       </Card>
     );
   }
+
+  const discountOptions = <fieldset><legend className="mb-2 text-sm font-medium">Tipo de desconto</legend><div className="flex flex-wrap gap-2">
+    {([{ value: 'fixed', label: 'Valor fixo (MZN)' }, { value: 'percentage', label: 'Percentagem (%)' }] as const).map((option) => <label key={option.value} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${discountType === option.value ? 'border-brand-700 bg-brand-50 text-brand-900' : 'border-[#dce3d3] bg-white text-slate-600'}`}><input type="radio" name="proposal-discount-type" value={option.value} checked={discountType === option.value} onChange={() => { setDiscountType(option.value); setDiscount('0'); }} className="accent-brand-700" />{option.label}</label>)}
+  </div></fieldset>;
 
   if (focused) {
     const subtotal = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unit_price) || 0), 0);
@@ -290,19 +323,21 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
           <p className="text-xs font-semibold uppercase tracking-widest text-brand-700">Resumo da proposta</p><p className="mt-2 text-xs text-slate-500">{lines.length} {lines.length === 1 ? 'artigo' : 'artigos'} · MZN</p>
           <dl className="mt-5 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt>Subtotal</dt><dd className="tabular-nums">{formatMZN(subtotal)}</dd></div><div className="flex justify-between gap-3"><dt>Desconto</dt><dd className="tabular-nums">−{formatMZN(deduction)}</dd></div><div className="flex justify-between gap-3"><dt>IVA ({taxRate || 0}%)</dt><dd className="tabular-nums">{formatMZN(tax)}</dd></div><div className="border-t border-[#dce3d3] pt-4"><dt className="text-xs text-slate-500">Total estimado</dt><dd className="mt-1 text-2xl font-semibold tabular-nums text-brand-900">{formatMZN(total)}</dd></div></dl>
           <fieldset disabled={saving || !loaded} className="mt-5 space-y-3 border-t border-[#dce3d3] pt-4"><legend className="sr-only">Ajustes comerciais</legend>
-            <div><Label htmlFor="proposal-discount-type">Desconto</Label><Select id="proposal-discount-type" value={discountType} onChange={(event) => { setDiscountType(event.target.value as 'fixed' | 'percentage'); setDiscount('0'); }}><option value="fixed">Valor fixo (MZN)</option><option value="percentage">Percentagem (%)</option></Select></div>
+            {discountOptions}
             <div><Label htmlFor="proposal-discount">Valor do desconto ({discountType === 'percentage' ? '%' : 'MZN'})</Label><Input id="proposal-discount" type="number" min="0" max={discountType === 'percentage' ? 100 : subtotal} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} /></div>
             <div><Label htmlFor="proposal-tax-rate">IVA (%)</Label><Input id="proposal-tax-rate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} /></div>
           </fieldset><p className="mt-4 text-xs leading-5 text-slate-500">O servidor valida os valores finais ao guardar.</p>
         </aside>
       </div>
       <footer className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#dce3d3] bg-[#fffefb] p-4 shadow-[0_-4px_20px_rgb(19_60_46/5%)]">
-        <p className="text-xs text-slate-500">Guardar mantém a proposta privada.</p><div className="flex w-full flex-wrap gap-2 sm:w-auto">
+        <p className="text-xs text-slate-500">A pré-visualização guarda o rascunho sem enviar ao cliente.</p><div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Button type="button" className="min-h-11 text-sm" variant="ghost" disabled={saving} onClick={onClose}>Cancelar</Button>
+          <Button type="submit" className="min-h-11 text-sm" name="intent" value="preview" variant="outline" disabled={saving || !loaded}>Guardar e pré-visualizar PDF</Button>
           <Button type="submit" className="min-h-11 text-sm" name="intent" value="save" variant="outline" disabled={saving || !loaded}>Guardar proposta</Button>
           <Button type="submit" className="min-h-11 text-sm" name="intent" value="send" disabled={saving || !loaded}>Guardar e enviar</Button>
         </div>
       </footer>
+      {previewUrl ? <ProposalPdfPreview url={previewUrl} reference={reference || ''} onClose={() => setPreviewUrl('')} /> : null}
     </form>;
   }
 
@@ -347,7 +382,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
         <h2 className="text-lg font-semibold">Condições da proposta</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div><Label htmlFor="proposal-valid-until">Válida até</Label><Input id="proposal-valid-until" type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} /></div>
-          <div><Label htmlFor="proposal-discount-type">Tipo de desconto</Label><Select id="proposal-discount-type" value={discountType} onChange={(event) => { setDiscountType(event.target.value as 'fixed' | 'percentage'); setDiscount('0'); }}><option value="fixed">Valor fixo (MZN)</option><option value="percentage">Percentagem (%)</option></Select></div>
+          {discountOptions}
           <div><Label htmlFor="proposal-discount">Desconto ({discountType === 'percentage' ? '%' : 'MZN'})</Label><Input id="proposal-discount" type="number" min="0" max={discountType === 'percentage' ? 100 : undefined} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} /></div>
           <div><Label htmlFor="proposal-tax-rate">IVA (%)</Label><Input id="proposal-tax-rate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} /></div>
         </div>

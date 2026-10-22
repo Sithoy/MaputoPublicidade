@@ -2,13 +2,13 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminQuote } from '@/lib/admin-api';
 import { getClientOptions, getProducts, getQuote, prepareExistingQuote } from '@/lib/admin-api';
-import { fetchWithAuth } from '@/lib/auth';
+import { fetchBlobWithAuth, fetchWithAuth } from '@/lib/auth';
 import RequestForm from './RequestForm';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }) }));
 vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ loading: false, can: () => true }) }));
 vi.mock('@/lib/admin-api', () => ({ getClientOptions: vi.fn(), getProducts: vi.fn(), getQuote: vi.fn(), prepareExistingQuote: vi.fn(), createManualQuote: vi.fn(), createReceptionIntake: vi.fn() }));
-vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
+vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn(), fetchBlobWithAuth: vi.fn() }));
 vi.mock('@/components/admin/ProposalAssistant', () => ({ ProposalAssistant: () => null }));
 vi.mock('@/components/admin/DocumentItemsEditor', () => ({
   newDocumentLine: () => ({ key: 'line', description: '', quantity: '1', unit_price: '' }),
@@ -29,17 +29,75 @@ beforeEach(() => {
   vi.mocked(getQuote).mockResolvedValue(quote);
   vi.mocked(prepareExistingQuote).mockResolvedValue(quote);
   vi.mocked(fetchWithAuth).mockResolvedValue(quote);
+  vi.mocked(fetchBlobWithAuth).mockResolvedValue(new Blob(['%PDF-test'], { type: 'application/pdf' }));
+  URL.createObjectURL = vi.fn(() => 'blob:proposal-preview');
+  URL.revokeObjectURL = vi.fn();
+  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) { this.open = true; });
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) { this.open = false; });
   vi.spyOn(window, 'confirm').mockReturnValue(true);
 });
 
-async function setup() {
+async function setup(initialQuote = quote) {
   const onSaved = vi.fn(), onBusyChange = vi.fn(), onDirtyChange = vi.fn();
-  render(<RequestForm focused initialQuote={quote} reference={quote.reference} onSaved={onSaved} onBusyChange={onBusyChange} onDirtyChange={onDirtyChange} onClose={vi.fn()} />);
+  render(<RequestForm focused initialQuote={initialQuote} reference={initialQuote.reference} onSaved={onSaved} onBusyChange={onBusyChange} onDirtyChange={onDirtyChange} onClose={vi.fn()} />);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar proposta' })).toBeEnabled());
   return { onSaved, onBusyChange, onDirtyChange };
 }
 
 describe('Focused proposal editor', () => {
+  it('defaults unpriced intake proposals to 16% IVA and sends it when saving', async () => {
+    await setup({ ...quote, commercial_pricing: false, tax_rate: 0 });
+    expect(screen.getByLabelText('IVA (%)')).toHaveValue(16);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar proposta' }));
+    await waitFor(() => expect(prepareExistingQuote).toHaveBeenCalledWith(quote.reference, expect.objectContaining({ tax_rate: 16 })));
+  });
+
+  it.each([0, 5, 16])('preserves an existing commercial IVA rate of %s%%', async (tax_rate) => {
+    await setup({ ...quote, commercial_pricing: true, tax_rate });
+    expect(screen.getByLabelText('IVA (%)')).toHaveValue(tax_rate);
+  });
+
+  it('switches discount type with radio buttons, resetting the amount and updating totals', async () => {
+    await setup();
+    expect(screen.getByRole('radio', { name: 'Valor fixo (MZN)' })).toBeChecked();
+    fireEvent.change(screen.getByLabelText('Valor do desconto (MZN)'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Percentagem (%)' }));
+    expect(screen.getByLabelText('Valor do desconto (%)')).toHaveValue(0);
+    fireEvent.change(screen.getByLabelText('Valor do desconto (%)'), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar proposta' }));
+    await waitFor(() => expect(prepareExistingQuote).toHaveBeenCalledWith(quote.reference, expect.objectContaining({ discount_type: 'percentage', discount_percentage: 10, discount_amount: 0, tax_rate: 16 })));
+  });
+
+  it('saves current edits and previews the authenticated PDF without sending or leaving the editor', async () => {
+    const { onSaved, onDirtyChange, onBusyChange } = await setup();
+    fireEvent.change(screen.getByLabelText('Preço unitário'), { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar e pré-visualizar PDF' }));
+    const preview = await screen.findByRole('dialog');
+    expect(prepareExistingQuote).toHaveBeenCalledWith(quote.reference, expect.objectContaining({ items: [expect.objectContaining({ unit_price: 12 })] }));
+    expect(fetchBlobWithAuth).toHaveBeenCalledWith(`/api/quotes/${quote.reference}/pdf/`);
+    expect(vi.mocked(prepareExistingQuote).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(fetchBlobWithAuth).mock.invocationCallOrder[0]);
+    expect(within(preview).getByTitle('PDF da proposta')).toHaveAttribute('src', 'blob:proposal-preview');
+    expect(within(preview).getByRole('link', { name: 'Descarregar PDF' })).toHaveAttribute('download', `Proposta-${quote.reference}.pdf`);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(fetchWithAuth).not.toHaveBeenCalled();
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(onDirtyChange).toHaveBeenCalledWith(false);
+    expect(onBusyChange.mock.calls.map(([busy]) => busy)).toEqual([true, false]);
+    fireEvent.click(within(preview).getByRole('button', { name: 'Fechar PDF' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:proposal-preview');
+    expect(screen.getByLabelText('Preço unitário')).toHaveValue('12');
+  });
+
+  it('keeps the editor available and explains that the draft was saved when PDF loading fails', async () => {
+    const { onSaved } = await setup();
+    vi.mocked(fetchBlobWithAuth).mockRejectedValueOnce(new Error('Ligação indisponível'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar e pré-visualizar PDF' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('O rascunho foi guardado, mas não foi possível abrir o PDF');
+    expect(screen.getByRole('button', { name: 'Guardar e pré-visualizar PDF' })).toBeEnabled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(fetchWithAuth).not.toHaveBeenCalled();
+  });
   it('inherits the client and materials with one action bar and no unrelated intake controls', async () => {
     await setup();
     expect(screen.getByRole('heading', { name: 'Empresa ABC' })).toBeInTheDocument();
