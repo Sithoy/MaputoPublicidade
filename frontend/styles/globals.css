@@ -201,13 +201,6 @@
   border-color: #dce3d3;
 }
 
-.admin-workdesk .desk-reception-list { max-height: 420px; }
-
-@media (min-width: 1280px) {
-  .admin-workdesk .desk-reception-body { height: clamp(580px, 72vh, 850px); }
-  .admin-workdesk .desk-reception-list { max-height: none; }
-}
-
 .admin-workdesk .desk-reception-filters {
   background: #fafbf7;
   border-color: #dce3d3;

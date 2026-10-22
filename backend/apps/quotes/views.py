@@ -38,6 +38,7 @@ from .models import (
     QuoteRequest,
     QuoteRequestAttachment,
 )
+from .pagination import QuotePagination
 from .proposal_assistant import PreparationThrottle, extract_draft, prepare_sources
 from .proposal_workflow import DOCUMENT_FIELDS, prepare, require_sent, transition
 from .serializers import (
@@ -109,6 +110,7 @@ class QuoteRequestViewSet(
         .prefetch_related("items", "items__product", "items__product_variant", Prefetch("proof_versions", queryset=ArtworkProofVersion.objects.defer("private_content")))
     )
     lookup_field = "reference"
+    pagination_class = QuotePagination
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     @transaction.atomic
