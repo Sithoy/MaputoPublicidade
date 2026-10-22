@@ -260,7 +260,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         quote = QuoteRequest.objects.select_for_update().get(pk=self.get_object().pk)
         if request.method == "GET":
             return Response({"session": lease_state(quote)})
-        command = serializers.ChoiceField(choices=["acquire", "heartbeat", "release", "takeover"]).run_validation(request.data.get("action"))
+        command = serializers.ChoiceField(choices=["acquire", "heartbeat", "release", "takeover", "resume"]).run_validation(request.data.get("action"))
         if command == "release":
             require_edit(quote, request)
             quote.reception_edit_lease.delete()
@@ -272,6 +272,15 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         if not open_work(QuoteRequest.objects.filter(pk=quote.pk)).exists():
             raise ValidationError("O pedido já foi encerrado; consulte o histórico.")
         reason = ""
+        if command == "resume":
+            from rest_framework.exceptions import PermissionDenied
+
+            from .models import ReceptionEditLease
+
+            previous = ReceptionEditLease.objects.filter(quote=quote, expires_at__gt=timezone.now()).first()
+            if previous and previous.editor_id != request.user.pk:
+                raise PermissionDenied("Só pode retomar a sua própria sessão de edição.")
+            reason = "O próprio utilizador retomou a sua sessão anterior."
         if command == "takeover":
             if not has_staff_capability(request.user, StaffCapability.REVIEW_PROPOSALS):
                 from rest_framework.exceptions import PermissionDenied

@@ -10,31 +10,40 @@ export function useReceptionEdit(reference: string, order: string | null | undef
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const token = useRef(''); const expires = useRef(0); const activity = useRef(Date.now());
+  const operation = useRef(0);
   const current = useRef(reference); current.current = reference;
   const path = `/api/reception/${encodeURIComponent(reference)}/edit-session/`;
   function lose(message: string) { forgetReceptionEdit(token.current); token.current = ''; setEditable(false); setError(message); }
-  async function acquire(reason = '') {
+  async function acquire(reason = '', resumeOwn = false) {
     if (!reference || pending) return false;
     setPending(true); setError('');
+    const attempt = ++operation.current;
     try {
-      const response: { session: EditSession; token: string } = await fetchWithAuth(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: reason ? 'takeover' : 'acquire', ...(reason ? { reason } : {}) }) });
-      if (current.current !== reference) { await fetchWithAuth(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Reception-Edit-Token': response.token }, body: JSON.stringify({ action: 'release' }) }); return false; }
+      const response: { session: EditSession; token: string } = await fetchWithAuth(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: resumeOwn ? 'resume' : reason ? 'takeover' : 'acquire', ...(reason ? { reason } : {}) }) });
+      if (current.current !== reference || operation.current !== attempt) { await fetchWithAuth(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Reception-Edit-Token': response.token }, body: JSON.stringify({ action: 'release' }) }); return false; }
       token.current = response.token; expires.current = new Date(response.session.expires_at).getTime(); registerReceptionEdit(reference, response.token, order); activity.current = Date.now();
       setSession(response.session); setEditable(true); return true;
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível reservar a edição.'); return false; }
-    finally { setPending(false); }
+    } catch (reason) { if (operation.current === attempt) setError(reason instanceof Error ? reason.message : 'Não foi possível reservar a edição.'); return false; }
+    finally { if (operation.current === attempt) setPending(false); }
   }
   async function release() {
     if (!token.current) return;
+    const previous = token.current; const attempt = ++operation.current;
     setPending(true);
-    try { await fetchWithAuth(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'release' }) }); }
+    try { await fetchWithAuth(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Reception-Edit-Token': previous }, body: JSON.stringify({ action: 'release' }) }); }
     catch { /* Expired/superseded sessions must never release a newer reservation. */ }
-    finally { lose(''); setSession(null); setPending(false); }
+    finally {
+      forgetReceptionEdit(previous);
+      if (token.current === previous) { token.current = ''; setEditable(false); setError(''); setSession(null); }
+      if (operation.current === attempt) setPending(false);
+    }
   }
   useEffect(() => { if (token.current && order) registerReceptionEdit(reference, token.current, order); }, [reference, order]);
   useEffect(() => {
-    setSession(null); setEditable(false); setError(''); if (!reference) return;
+    setSession(null); setEditable(false); setError(''); setPending(false); if (!reference) return;
     let alive = true; let checking = false;
+    // Invalidate outstanding requests, not a DOM ref captured by the effect.
+    const abandonAcquisition = () => { ++operation.current; };
     const interact = () => { activity.current = Date.now(); };
     const check = async () => {
       if (checking) return; checking = true;
@@ -49,9 +58,16 @@ export function useReceptionEdit(reference: string, order: string | null | undef
       finally { checking = false; }
     };
     void check(); const timer = window.setInterval(check, 20000);
+    const leave = () => {
+      abandonAcquisition(); setPending(false);
+      const previous = token.current; if (!previous) return;
+      token.current = ''; forgetReceptionEdit(previous); setEditable(false); setSession(null);
+      void fetchWithAuth(path, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json', 'X-Reception-Edit-Token': previous }, body: JSON.stringify({ action: 'release' }) }).catch(() => {});
+    };
+    window.addEventListener('pagehide', leave);
     window.addEventListener('pointerdown', interact, { passive: true }); window.addEventListener('keydown', interact);
     return () => {
-      alive = false; window.clearInterval(timer); window.removeEventListener('pointerdown', interact); window.removeEventListener('keydown', interact);
+      alive = false; abandonAcquisition(); window.clearInterval(timer); window.removeEventListener('pointerdown', interact); window.removeEventListener('keydown', interact); window.removeEventListener('pagehide', leave);
       const previous = token.current; token.current = ''; forgetReceptionEdit(previous);
       if (previous) void fetchWithAuth(path, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json', 'X-Reception-Edit-Token': previous }, body: JSON.stringify({ action: 'release' }) }).catch(() => {});
     };
