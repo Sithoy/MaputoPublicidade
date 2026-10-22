@@ -145,8 +145,7 @@ class QuoteRequestViewSet(
         if self.action == "destroy":
             return [HasStaffCapability(StaffCapability.REVIEW_PROPOSALS)]
         if self.action == "proposal_workflow":
-            capability = StaffCapability.REVIEW_PROPOSALS if self.request.data.get("action") in {"approve", "return"} else StaffCapability.MANAGE_QUOTES
-            return [HasStaffCapability(capability)]
+            return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
         if self.action == "brand_request":
             return [IsAuthenticated()]
         if self.action == "intake":
@@ -210,7 +209,7 @@ class QuoteRequestViewSet(
             if state == "active":
                 queryset = queryset.exclude(status="cancelled").exclude(order__status="delivered")
             elif state == "waiting":
-                queryset = queryset.filter(proposal_stage__in=["review", "sent"], price_approved_at__isnull=True, order__isnull=True)
+                queryset = queryset.filter(proposal_stage="sent", price_approved_at__isnull=True, order__isnull=True)
             elif state == "closed":
                 queryset = queryset.filter(Q(status="cancelled") | Q(order__status="delivered"))
             if self.request.query_params.get("hq") == "1":
@@ -460,7 +459,7 @@ class QuoteRequestViewSet(
     @transaction.atomic
     def intake(self, request):
         if request.data.get("outcome") == "confirmed_order" and not has_staff_capability(request.user, StaffCapability.REVIEW_PROPOSALS):
-            raise ValidationError("Prepare a proposta e obtenha aprovação do Comercial antes de confirmar a encomenda.")
+            raise ValidationError("Prepare e envie a proposta, registe a aceitação do cliente e depois confirme a encomenda.")
         serializer = ReceptionIntakeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         outcome = serializer.validated_data["outcome"]
@@ -576,11 +575,11 @@ class QuoteRequestViewSet(
     def proposal_workflow(self, request, reference=None):
         original = self.get_object()
         quote = QuoteRequest.objects.select_for_update().get(pk=original.pk)
-        command = serializers.ChoiceField(choices=["submit", "approve", "return", "send"]).run_validation(request.data.get("action"))
+        command = serializers.ChoiceField(choices=["save", "send"]).run_validation(request.data.get("action"))
         version = serializers.IntegerField(min_value=0).run_validation(request.data.get("version"))
         comment = serializers.CharField(max_length=3000, allow_blank=True).run_validation(request.data.get("comment", ""))
         transition(quote, request.user, command, version, comment)
-        if command in {"submit", "send"}:
+        if command in {"save", "send"}:
             from apps.core.models import ReceptionEditLease
 
             ReceptionEditLease.objects.filter(quote=quote, editor=request.user).delete()

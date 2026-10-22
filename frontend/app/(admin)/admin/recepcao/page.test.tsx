@@ -64,7 +64,9 @@ describe('Reception workspace', () => {
     expect(await screen.findByRole('heading', { name: /Todos os trabalhos.*30/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     await screen.findByRole('region', { name: 'Resumo do pedido' });
-    expect(screen.getByText('O que estamos a aguardar?')).toBeInTheDocument();
+    expect(screen.getByText('O que acontece a seguir?')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Aprovação comercial/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /4 Produção e entrega/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Agora' })).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Percurso do pedido' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /2 Preparar proposta/ }));

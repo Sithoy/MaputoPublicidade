@@ -21,169 +21,118 @@ def reception(db):
     return staff_api("workflow-reception", StaffRole.RECEPTIONIST)
 
 
-@pytest.fixture
-def commercial(db):
-    return staff_api("workflow-commercial", StaffRole.COMMERCIAL)
-
-
 @pytest.mark.django_db
 class TestProposalWorkflow:
-    def test_operational_queue_keeps_handover_and_filters_waiting_and_closed(self, reception, quote, order):
-        api, user = reception
-        quote.reception_owner = user
-        quote.proposal_stage = "review"
-        quote.save()
-        response = api.get("/api/quotes/", {"proposal_queue": "mine", "operational_state": "active"})
-        assert response.status_code == 200
-        row = response.data["results"][0]
-        assert row["reference"] == quote.reference
-        assert row["operational_order_status"] == order.status
-        assert api.get("/api/quotes/", {"operational_scope": "unassigned"}).data["count"] == 0
-        # An order is no longer waiting for the initial client acceptance.
-        assert api.get("/api/quotes/", {"operational_state": "waiting"}).data["count"] == 0
-        order.status = "delivered"
-        order.save()
-        assert api.get("/api/quotes/", {"operational_state": "active"}).data["count"] == 0
-        assert api.get("/api/quotes/", {"operational_state": "closed"}).data["count"] == 1
-
-    def test_waiting_queue_includes_only_unaccepted_review_and_sent(self, reception, quote):
-        api, _ = reception
-        quote.proposal_stage = "review"
-        quote.save()
-        assert api.get("/api/quotes/", {"operational_state": "waiting"}).data["count"] == 1
-        quote.proposal_stage = "returned"
-        quote.save()
-        assert api.get("/api/quotes/", {"operational_state": "waiting"}).data["count"] == 0
-
-    def command(self, api, quote, command, version=0, comment=""):
-        return api.post(
-            f"/api/quotes/{quote.reference}/proposal-workflow/",
-            {"action": command, "version": version, "comment": comment},
-            format="json",
-        )
+    def command(self, api, quote, action, version=0, comment=""):
+        return api.post(f"/api/quotes/{quote.reference}/proposal-workflow/",
+                        {"action": action, "version": version, "comment": comment}, format="json")
 
     def draft(self, reception, quote):
         api, _ = reception
-        assert (
-            api.post(
-                f"/api/quotes/{quote.reference}/set-price/", {"final_price": "1000"}, format="json"
-            ).status_code
-            == 200
-        )
+        assert api.post(f"/api/quotes/{quote.reference}/set-price/", {"final_price": "1000"}, format="json").status_code == 200
         quote.refresh_from_db()
         assert quote.proposal_stage == "draft" and quote.status == "reviewing"
 
-    def test_full_flow_keeps_owner_and_separates_client_acceptance(
-        self, reception, commercial, quote, authenticated_client
-    ):
+    def test_reception_sends_directly_and_client_accepts_only_after_send(self, reception, quote, authenticated_client):
         api, owner = reception
-        reviewer, user = commercial
         self.draft(reception, quote)
-        assert self.command(api, quote, "send").status_code == 400
-        assert self.command(api, quote, "submit").status_code == 200
+        assert authenticated_client.post(f"/api/quotes/{quote.reference}/approve-price/", {}, format="json").status_code == 400
+        assert self.command(api, quote, "send").status_code == 200
         quote.refresh_from_db()
-        assert quote.proposal_version == 1
-        assert self.command(api, quote, "approve", 1).status_code == 403
-        assert self.command(reviewer, quote, "approve", 1).status_code == 200
-        quote.refresh_from_db()
-        assert quote.proposal_stage == "approved" and not quote.price_approved_at
-        assert quote.reception_owner_id == owner.pk and quote.proposal_reviewed_by_id == user.pk
-        assert (
-            authenticated_client.post(
-                f"/api/quotes/{quote.reference}/approve-price/", {}, format="json"
-            ).status_code
-            == 400
-        )
-        assert self.command(api, quote, "send", 1).status_code == 200
-        assert (
-            authenticated_client.post(
-                f"/api/quotes/{quote.reference}/approve-price/", {}, format="json"
-            ).status_code
-            == 200
-        )
-        quote.refresh_from_db()
-        assert quote.price_approved_at and quote.proposal_stage == "sent"
-        assert quote.proposal_history[1]["snapshot"]["final_price"] == "1000.00"
+        assert quote.proposal_stage == "sent" and quote.proposal_version == 1
+        assert quote.reception_owner_id == owner.pk and quote.proposal_prepared_by_id == owner.pk
+        assert quote.proposal_reviewed_by_id is None and quote.price_approved_at is None
+        assert quote.proposal_history[-1]["snapshot"]["final_price"] == "1000.00"
+        assert quote.proposal_history[-1]["actor_id"] == owner.pk
+        assert authenticated_client.post(f"/api/quotes/{quote.reference}/approve-price/", {}, format="json").status_code == 200
 
-    def test_return_requires_reason_and_revision_requires_new_review(
-        self, reception, commercial, quote
-    ):
+    def test_save_is_private_and_can_be_sent_later_without_another_reviewer(self, reception, quote, authenticated_client):
         api, _ = reception
-        reviewer, _ = commercial
         self.draft(reception, quote)
-        self.command(api, quote, "submit")
-        assert self.command(reviewer, quote, "return", 1).status_code == 400
-        assert (
-            self.command(reviewer, quote, "return", 1, "Rever prazo de entrega").status_code == 200
-        )
-        assert self.command(api, quote, "send", 1).status_code == 400
-        assert (
-            api.patch(
-                f"/api/quotes/{quote.reference}/", {"estimated_delivery_days": 12}, format="json"
-            ).status_code
-            == 200
-        )
-        assert self.command(api, quote, "submit", 1).status_code == 200
+        assert self.command(api, quote, "save", comment="Condições confirmadas").status_code == 200
         quote.refresh_from_db()
-        assert quote.proposal_version == 2 and quote.reception_owner_id
-        assert self.command(reviewer, quote, "approve", 1).status_code == 400
-        assert self.command(reviewer, quote, "approve", 2).status_code == 200
-
-    def test_any_commercial_edit_invalidates_approval_and_blocks_bypasses(
-        self, reception, commercial, quote
-    ):
-        api, _ = reception
-        reviewer, _ = commercial
-        self.draft(reception, quote)
-        self.command(api, quote, "submit")
-        self.command(reviewer, quote, "approve", 1)
-        assert (
-            api.patch(
-                f"/api/quotes/{quote.reference}/", {"client_nuit": "400001234"}, format="json"
-            ).status_code
-            == 200
-        )
-        quote.refresh_from_db()
-        assert quote.proposal_stage == "draft" and not quote.proposal_reviewed_at
-        for path, data in (
-            ("set-status", {"status": "quoted"}),
-            ("approve-price", {}),
-            ("convert-to-order", {}),
-        ):
-            assert (
-                api.post(f"/api/quotes/{quote.reference}/{path}/", data, format="json").status_code
-                == 400
-            )
-        assert self.command(api, quote, "send", 1).status_code == 400
-
-    def test_self_approval_and_contributor_approval_are_forbidden(self, commercial, quote):
-        api, _ = commercial
-        self.draft(commercial, quote)
-        self.command(api, quote, "submit")
-        assert self.command(api, quote, "approve", 1).status_code == 400
-
-    def test_draft_prices_history_and_pdf_are_not_published_to_client(
-        self, reception, commercial, quote, authenticated_client
-    ):
-        self.draft(reception, quote)
-        api, owner = reception
-        reviewer, user = commercial
+        assert quote.proposal_version == 1 and quote.proposal_stage == "approved"
+        assert quote.get_proposal_stage_display() == "Pronta para enviar"
+        assert quote.proposal_sent_at is None and quote.proposal_reviewed_at is None
         response = authenticated_client.get(f"/api/quotes/{quote.reference}/")
-        assert response.status_code == 200
         assert response.data["final_price"] is None and response.data["proposal_workflow"] is None
         assert response.data["items"][0]["unit_price"] is None
         assert authenticated_client.get(f"/api/quotes/{quote.reference}/pdf/").status_code == 400
-        assert self.command(authenticated_client, quote, "submit").status_code == 403
-        self.command(api, quote, "submit")
-        assert PortalNotification.objects.filter(
-            recipient=user, title__contains=quote.reference
-        ).exists()
-        rows = api.get("/api/quotes/", {"proposal_queue": "mine"}).data["results"]
-        assert any(row["reference"] == quote.reference for row in rows)
-        rows = reviewer.get("/api/quotes/", {"proposal_queue": "review"}).data["results"]
-        assert any(row["reference"] == quote.reference for row in rows)
-        other, _ = staff_api("other-reception", StaffRole.RECEPTIONIST)
-        assert not other.get("/api/quotes/", {"proposal_queue": "mine"}).data["results"]
+        assert not PortalNotification.objects.filter(title__contains=quote.reference).exists()
+        assert self.command(api, quote, "send", 1).status_code == 200
+        quote.refresh_from_db()
+        assert quote.proposal_version == 1 and quote.proposal_sent_at
+
+    def test_edits_after_save_require_a_new_snapshot_not_internal_approval(self, reception, quote):
+        api, _ = reception
+        self.draft(reception, quote)
+        self.command(api, quote, "save")
+        assert api.patch(f"/api/quotes/{quote.reference}/", {"estimated_delivery_days": 12}, format="json").status_code == 200
+        quote.refresh_from_db()
+        assert quote.proposal_stage == "draft"
+        assert self.command(api, quote, "send", 0).status_code == 400
+        assert self.command(api, quote, "send", 1).status_code == 200
+        quote.refresh_from_db()
+        assert quote.proposal_version == 2
+        assert quote.proposal_history[-1]["snapshot"]["estimated_delivery_days"] == "12"
+        assert quote.proposal_history[1]["snapshot"]["estimated_delivery_days"] != "12"
+
+    @pytest.mark.parametrize("stage", ["review", "returned", "approved"])
+    def test_old_internal_workflow_does_not_block_sending(self, reception, quote, stage):
+        api, _ = reception
+        self.draft(reception, quote)
+        quote.proposal_stage = stage
+        quote.proposal_version = 1
+        quote.save()
+        assert self.command(api, quote, "send", 1).status_code == 200
+
+    @pytest.mark.parametrize("action", ["submit", "approve", "return"])
+    def test_internal_approval_actions_are_retired(self, reception, quote, action):
+        api, _ = reception
+        self.draft(reception, quote)
+        assert self.command(api, quote, action).status_code == 400
+
+    @pytest.mark.parametrize("action", ["save", "send"])
+    def test_client_and_production_cannot_save_or_send(self, reception, quote, authenticated_client, action):
+        self.draft(reception, quote)
+        production, _ = staff_api("production-workflow", StaffRole.PRODUCTION)
+        assert self.command(production, quote, action).status_code == 403
+        assert self.command(authenticated_client, quote, action).status_code == 403
+
+    @pytest.mark.parametrize("action", ["save", "send"])
+    def test_missing_price_or_items_block_actions(self, reception, quote, action):
+        api, _ = reception
+        quote.final_price = None
+        quote.save()
+        assert self.command(api, quote, action).status_code == 400
+        self.draft(reception, quote)
+        quote.items.all().delete()
+        assert self.command(api, quote, action).status_code == 400
+
+    def test_duplicate_sending_and_changes_after_acceptance_are_blocked(self, reception, quote, authenticated_client):
+        api, _ = reception
+        self.draft(reception, quote)
+        self.command(api, quote, "send")
+        assert self.command(api, quote, "send", 1).status_code == 400
+        assert authenticated_client.post(f"/api/quotes/{quote.reference}/approve-price/", {}, format="json").status_code == 200
+        assert self.command(api, quote, "save", 1).status_code == 400
+        assert api.patch(f"/api/quotes/{quote.reference}/", {"final_price": "2000"}, format="json").status_code == 400
+
+    def test_cannot_bypass_client_acceptance_or_send_using_status(self, reception, quote):
+        api, _ = reception
+        self.draft(reception, quote)
+        for path, data in [("set-status", {"status": "quoted"}), ("approve-price", {}), ("convert-to-order", {})]:
+            assert api.post(f"/api/quotes/{quote.reference}/{path}/", data, format="json").status_code == 400
+
+    def test_waiting_queue_is_only_waiting_for_the_client(self, reception, quote):
+        api, _ = reception
+        quote.proposal_stage = "review"
+        quote.save()
+        assert api.get("/api/quotes/", {"operational_state": "waiting"}).data["count"] == 0
+        assert api.get("/api/quotes/", {"hq": "1", "task": "send"}).data["count"] == 1
+        quote.proposal_stage = "sent"
+        quote.save()
+        assert api.get("/api/quotes/", {"operational_state": "waiting"}).data["count"] == 1
 
     def test_legacy_quotes_remain_compatible_until_revision(self, reception, quote):
         api, _ = reception
@@ -191,13 +140,5 @@ class TestProposalWorkflow:
         quote.final_price = 1000
         quote.save()
         assert quote.proposal_stage == "legacy"
-        assert (
-            api.post(f"/api/quotes/{quote.reference}/approve-price/", {}, format="json").status_code
-            == 200
-        )
-        assert (
-            api.patch(
-                f"/api/quotes/{quote.reference}/", {"final_price": "2000"}, format="json"
-            ).status_code
-            == 400
-        )
+        assert api.post(f"/api/quotes/{quote.reference}/approve-price/", {}, format="json").status_code == 200
+        assert api.patch(f"/api/quotes/{quote.reference}/", {"final_price": "2000"}, format="json").status_code == 400

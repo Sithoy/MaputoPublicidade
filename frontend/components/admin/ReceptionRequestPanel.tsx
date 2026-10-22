@@ -148,7 +148,7 @@ export function ReceptionRequestPanel({ request, userId, canReleaseOthers = fals
         <div className="rounded-2xl border border-brand-200 bg-brand-50/50 p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Próximo passo</p>
           <h3 className="mt-2 font-semibold text-brand-900">{dirty ? 'Guardar para validar' : missing.length ? 'Completar informação' : 'Pronto para preparar a proposta'}</h3>
-          <p className="mt-2 text-xs leading-5 text-slate-600">{dirty ? 'Existem alterações por guardar. O sistema confirma a informação necessária depois de guardar.' : 'A Receção prepara a proposta neste pedido. O Comercial revê e aprova antes do envio ao cliente.'}</p>
+          <p className="mt-2 text-xs leading-5 text-slate-600">{dirty ? 'Existem alterações por guardar. O sistema confirma a informação necessária depois de guardar.' : 'A Recepção prepara a proposta neste pedido e pode guardá-la ou enviá-la diretamente ao cliente.'}</p>
           <dl className="mt-4 space-y-3 text-sm"><div><dt className="text-slate-500">Cliente</dt><dd className="mt-1 break-words font-medium">{form.client_name || 'A confirmar'}</dd></div><div><dt className="text-slate-500">Materiais registados</dt><dd className="mt-1 font-medium">{items.length || 'A definir com o cliente'}</dd></div></dl>
           {missing.length > 0 && <div className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800"><p className="font-semibold">Por completar{dirty ? ' na última versão guardada' : ''}</p><ul className="mt-2 list-disc space-y-1 pl-4">{missing.map((value) => <li key={value}>{value}</li>)}</ul></div>}
         </div>

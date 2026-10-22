@@ -29,8 +29,8 @@ def task_filters():
         "new": before_order & triage & Q(status="received"),
         "briefing": before_order & triage,
         "proposal": before_order & ~triage & (Q(proposal_stage__in=["draft", "returned"]) | Q(proposal_stage="legacy", status__in=["received", "reviewing"])),
-        "review": before_order & Q(proposal_stage="review"),
-        "send": before_order & Q(proposal_stage="approved"),
+        "review": before_order & Q(proposal_stage="review"),  # Compatibility for saved filters.
+        "send": before_order & Q(proposal_stage__in=["approved", "review"]),
         "client": before_order & (Q(proposal_stage="sent") | Q(proposal_stage="legacy", status="quoted")),
         "delivery": Q(order__status="ready"),
         "production": Q(order__status__in=["approved", "in_production"]),
@@ -73,18 +73,13 @@ def workdesk_context(quote):
             blocker = "Execução pela Produção"
     elif quote.price_approved_at:
         label, action = "Aceite pelo cliente", "Confirmar ordem de produção"
-    elif stage == "review":
-        label, action, blocker = "Em revisão comercial", "Acompanhar revisão", "Aprovação do Comercial"
-        submitted = next((row for row in reversed(quote.proposal_history or []) if row.get("action") == "Submetida para aprovação"), {})
-        waiting_since = submitted.get("at")
-    elif stage == "approved":
-        label, action = "Proposta aprovada", "Enviar proposta"
+    elif stage in {"review", "approved"}:
+        label, action = "Pronta para enviar", "Enviar proposta"
     elif stage == "sent" or (stage == "legacy" and quote.status == "quoted"):
         label, action, blocker = "Com o cliente", "Acompanhar decisão", "Decisão do cliente"
         waiting_since = quote.proposal_sent_at
     elif stage == "returned":
-        label, action = "Proposta devolvida", "Corrigir proposta"
-        blocker = quote.proposal_review_comment or "Ajustes pedidos pelo Comercial"
+        label, action = "Em preparação", "Preparar proposta"
     elif quote.reception_completed_at or quote.proposal_prepared_by_id:
         label, action = "Em preparação", "Preparar proposta"
     else:
