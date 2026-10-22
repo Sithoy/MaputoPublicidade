@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useEffectEvent, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { fetchWithAuth } from '@/lib/auth';
@@ -66,6 +66,8 @@ export function ReceptionWorkspace() {
   const queueIdentity = useRef('');
   const editAfterLoad = useRef(false);
   const backButton = useRef<HTMLButtonElement>(null);
+  const openedReference = useRef(reference); openedReference.current = reference;
+  const enterLoadedProposal = useEffectEvent((value: AdminQuote) => { void enterProposal(value); });
   const detailOpen = Boolean(reference || inbox || newRequest);
   useEffect(() => { if (detailOpen) backButton.current?.focus(); }, [detailOpen]);
   useEffect(() => {
@@ -101,6 +103,7 @@ export function ReceptionWorkspace() {
       if (!active) return;
       setQuote(value); setStep(receptionStage(value).index);
       setEditing(editAfterLoad.current && receptionStage(value).index === 1 && canQuoteEdit); editAfterLoad.current = false;
+      if (receptionStage(value).index === 1) enterLoadedProposal(value);
       if (receptionStage(value).index === 0) {
         const request: ReceptionRequest = await fetchWithAuth(`/api/reception/${encodeURIComponent(reference)}/`);
         if (active) setTriage(request);
@@ -136,6 +139,23 @@ export function ReceptionWorkspace() {
   if (!allowed) return <p role="alert">A sua função não tem acesso à Recepção.</p>;
   const current = quote ? receptionStage(quote) : null;
   const closed = quote?.status === 'cancelled' || quote?.status === 'delivered' || ['cancelled', 'delivered'].includes(quote?.operational_order_status || '');
+  const focusedProposal = Boolean(quote && step === 1 && tab === 'work');
+  async function enterProposal(value: AdminQuote) {
+    setStep(1); setTab('work'); setEditing(false);
+    if (!canQuoteEdit || value.price_approved_at || value.order_reference || ['cancelled', 'delivered'].includes(value.status) || receptionStage(value).index === 0) return;
+    setBusy(true); setError('');
+    try {
+      if (!lease.editable && !await lease.acquire()) return;
+      const fresh = await getQuote(value.reference);
+      if (openedReference.current !== value.reference) return;
+      setQuote(fresh);
+      if (!fresh.price_approved_at && !fresh.order_reference && !['cancelled', 'delivered'].includes(fresh.status)) setEditing(true);
+    } catch { setError('Não foi possível abrir a proposta para edição. Tente novamente.'); }
+    finally { setBusy(false); }
+  }
+  function proposalSaved(value: string, intent?: 'save' | 'send') {
+    void lease.release(); setTab(intent === 'send' ? 'work' : 'summary'); saved(value);
+  }
   function chooseTask(value: string) { if (!busy) { setTask(value); setState('active'); setTick((previous) => previous + 1); } }
   function openCase(value: string) { navigate(() => { setInbox(false); setNewRequest(false); setReference(value); setTab('summary'); }); }
   function backToList() { navigate(() => {
@@ -147,7 +167,7 @@ export function ReceptionWorkspace() {
     if (await lease.acquire(reason)) { editAfterLoad.current = current?.index === 1; setDirty(false); setFollowUpDirty(false); setFollowUpReset((value) => value + 1); setRevision((value) => value + 1); setTab('work'); }
   }
   function finishEditing() { navigate(() => { void lease.release(); setEditing(false); }); }
-  return <div className="desk-hq space-y-6"><header className="desk-toolbar flex flex-wrap items-center justify-between gap-3 border-b pb-4"><div><p className="text-xs uppercase tracking-widest text-brand-700">Recepção · Caixa partilhada</p><p className="mt-1 text-xs text-slate-500">Uma fila para toda a equipa. Cada ação fica registada por quem a realizou.</p></div><div className="flex gap-2">{!detailOpen ? <button type="button" onClick={() => setShowOverview(!showOverview)} aria-expanded={showOverview} className="flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm"><LayoutDashboard className="h-4 w-4" />Agenda do dia</button> : null}<button disabled={busy || lease.pending} type="button" onClick={() => navigate(() => { setInbox(false); setNewRequest(true); setReference(''); })} className="desk-primary flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" />Novo atendimento</button></div></header>
+  return <div className="desk-hq space-y-6">{!focusedProposal ? <header className="desk-toolbar flex flex-wrap items-center justify-between gap-3 border-b pb-4"><div><p className="text-xs uppercase tracking-widest text-brand-700">Recepção · Caixa partilhada</p><p className="mt-1 text-xs text-slate-500">Uma fila para toda a equipa. Cada ação fica registada por quem a realizou.</p></div><div className="flex gap-2">{!detailOpen ? <button type="button" onClick={() => setShowOverview(!showOverview)} aria-expanded={showOverview} className="flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm"><LayoutDashboard className="h-4 w-4" />Agenda do dia</button> : null}<button disabled={busy || lease.pending} type="button" onClick={() => navigate(() => { setInbox(false); setNewRequest(true); setReference(''); })} className="desk-primary flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" />Novo atendimento</button></div></header> : null}
     {hqError ? <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{hqError}</p> : null}
     {showOverview && !detailOpen ? <ReceptionOverview data={hq} name={user?.first_name || ''} task={task} disabled={busy || lease.pending} onTask={chooseTask} onInbox={() => navigate(() => { setInbox(true); setReference(''); setNewRequest(false); })} /> : null}
     {error ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{error}</p> : null}
@@ -161,11 +181,19 @@ export function ReceptionWorkspace() {
         <button ref={backButton} type="button" disabled={busy || lease.pending} onClick={backToList} className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-brand-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 disabled:opacity-50"><ArrowLeft aria-hidden="true" className="h-4 w-4" />Voltar à lista</button>
         <p className="text-xs text-slate-500">{reference || (inbox ? 'Caixa de entrada' : 'Novo atendimento')}</p>
       </div>
-    <section aria-label="Espaço do pedido" className="desk-reception-detail min-h-0 min-w-0 space-y-5 overflow-y-auto p-4 lg:p-5">{inbox ? <Suspense fallback={<p>A carregar a caixa de entrada…</p>}><CommunicationWorkspace onDirtyChange={setDirty} onBusyChange={setBusy} /></Suspense> : newRequest ? <div onChangeCapture={() => setDirty(true)}><RequestForm onSaved={saved} onClose={() => navigate(() => setNewRequest(false))} /></div> : !quote || !current ? <p role="status">A abrir o pedido…</p> : <>
+    <section aria-label="Espaço do pedido" className="desk-reception-detail min-h-0 min-w-0 space-y-5 overflow-y-auto p-4 lg:p-5">{inbox ? <Suspense fallback={<p>A carregar a caixa de entrada…</p>}><CommunicationWorkspace onDirtyChange={setDirty} onBusyChange={setBusy} /></Suspense> : newRequest ? <div onChangeCapture={() => setDirty(true)}><RequestForm onSaved={saved} onClose={() => navigate(() => setNewRequest(false))} /></div> : !quote || !current ? <p role="status">A abrir o pedido…</p> : focusedProposal ? <section aria-label="Espaço da proposta" className="space-y-4" onChangeCapture={() => setDirty(true)}>
+      {lease.error ? <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{lease.error}</p> : null}
+      {current.index === 0 ? <p className="rounded-xl border bg-white p-5">Conclua o briefing antes de preparar a proposta.</p> : closed || quote.price_approved_at || quote.order_reference ? <p className="rounded-xl border bg-white p-5">Esta proposta já não pode ser alterada. Consulte a versão no pedido.</p> : editing ? <fieldset disabled={!lease.editable || lease.pending} className="min-w-0"><RequestForm key={reference} focused initialQuote={quote} reference={reference} onBusyChange={setBusy} onDirtyChange={setDirty} onSaved={proposalSaved} onClose={() => navigate(() => { setTab('summary'); setEditing(false); void lease.release(); })} /></fieldset> : busy || lease.pending ? <p role="status">A abrir a proposta…</p> : <>
+        <p role="status" className="rounded-xl border bg-[#f5f7ee] p-4 text-sm">{lease.session ? `Em edição por ${lease.session.editor_name}. Pode consultar a proposta sem alterar o trabalho em curso.` : !canQuoteEdit ? 'A sua função permite apenas consultar esta proposta.' : 'A proposta está em modo de consulta.'}</p>
+        <ProposalReadView quote={quote} />
+        {!lease.session && canQuoteEdit ? <button type="button" onClick={() => void enterProposal(quote)} className="rounded-xl border px-4 py-3 text-sm font-semibold">Tentar novamente</button> : null}
+      </>}
+      {!editing ? <button type="button" disabled={busy || lease.pending} onClick={() => navigate(() => setTab('summary'))} className="rounded-xl border px-4 py-3 text-sm">Voltar ao pedido</button> : null}
+    </section> : <>
       <ReceptionOrderHeader quote={quote} step={step} tab={tab} busy={busy || lease.pending} editControls={<section aria-label="Reserva de edição" className="desk-edit-status border-t pt-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-brand-900">{lease.editable ? 'Está a editar este pedido' : lease.session ? `Em edição por ${lease.session.editor_name}` : 'Disponível para toda a Recepção'}</p><p className="mt-1 text-xs text-slate-500">Consulta partilhada. A reserva protege apenas a edição.</p></div><div className="flex gap-2">{!closed ? lease.editable ? <button disabled={busy || lease.pending} type="button" onClick={finishEditing} className="rounded-lg border px-3 py-2 text-xs font-semibold">Terminar edição</button> : <button disabled={busy || lease.pending || Boolean(lease.session)} type="button" onClick={() => void beginEditing()} className="desk-primary rounded-lg px-3 py-2 text-xs font-semibold text-white">Iniciar edição</button> : null}{!closed && lease.session && !lease.editable && can('quotes.review') ? <button type="button" disabled={busy || lease.pending} onClick={() => { const reason = window.prompt('Motivo para retomar esta edição ativa:'); if (reason?.trim()) void beginEditing(reason.trim()); }} className="rounded-lg border px-3 py-2 text-xs">Retomar com motivo</button> : null}</div></div>{lease.error ? <p role="alert" className="mt-3 text-xs text-amber-900">{lease.error}</p> : null}</section>}
-        onStep={(index) => navigate(() => { setStep(index); setTab('work'); })}
-        onTab={(value) => navigate(() => setTab(value))}
-        onAction={() => { if (!lease.editable && !current.waiting && !closed && current.index !== 3) { void beginEditing(); return; } navigate(() => { setStep(current.index); setTab(closed ? 'history' : 'work'); setEditing(lease.editable && current.index === 1 && can('quotes.manage') && !closed); window.requestAnimationFrame(() => document.getElementById('reception-work-panel')?.scrollIntoView({ block: 'start' })); }); }}>
+        onStep={(index) => navigate(() => { if (index === 1) { void enterProposal(quote); return; } setStep(index); setTab('work'); })}
+        onTab={(value) => navigate(() => { if (value === 'work' && step === 1) { void enterProposal(quote); return; } setTab(value); })}
+        onAction={() => { if (current.index === 1) { navigate(() => { void enterProposal(quote); }); return; } if (!lease.editable && !current.waiting && !closed && current.index !== 3) { void beginEditing(); return; } navigate(() => { setStep(current.index); setTab(closed ? 'history' : 'work'); window.requestAnimationFrame(() => document.getElementById('reception-work-panel')?.scrollIntoView({ block: 'start' })); }); }}>
         <ReceptionCaseContext key={`${reference}:${followUpReset}`} quote={quote} canSchedule={!closed && !dirty && lease.editable} busy={busy || lease.pending} onBusy={setBusy}
           onDirty={setFollowUpDirty}
           onSaved={(value) => { setFollowUpDirty(false); setQuote((previous) => previous?.workdesk ? { ...previous, workdesk: { ...previous.workdesk, follow_up_date: value.date, follow_up_note: value.note } } : previous); setTick((previous) => previous + 1); getQuote(quote.reference).then((fresh) => setQuote((previous) => previous?.reference === fresh.reference ? fresh : previous)).catch(() => {}); }} />
@@ -173,8 +201,7 @@ export function ReceptionWorkspace() {
       <fieldset disabled={followUpDirty || busy || (tab === 'work' && !lease.editable)} className="min-w-0">
       {tab === 'summary' ? <ReceptionOrderSummary quote={quote} /> : tab === 'proposal' ? <ProposalReadView quote={quote} /> : tab === 'messages' ? can('support.manage') ? <Suspense fallback={<p>A carregar mensagens…</p>}><CommunicationWorkspace key={reference} quoteReference={reference} onDirtyChange={setDirty} onBusyChange={setBusy} /></Suspense> : <p>Sem permissão para consultar mensagens.</p> : tab === 'history' ? <section className="space-y-5 rounded-2xl border bg-white p-5"><QuoteRequestEvidence quote={quote} /><ActivityTimeline events={quote.activity || []} /></section> : <div id="reception-work-panel" className="scroll-mt-24" onChangeCapture={() => setDirty(true)}>
         {step === 0 ? triage && user ? <ReceptionRequestPanel embedded editingAllowed={lease.editable} request={triage} userId={user.id} canReleaseOthers={can('quotes.review')} onChange={(value) => { setDirty(false); if (value) setTriage(value); else saved(); }} onClose={() => { setDirty(false); setReference(''); }} /> : <section className="rounded-2xl border bg-white p-5"><h3 className="font-semibold">Briefing confirmado</h3><p className="mt-3 whitespace-pre-wrap text-sm">{quote.reception?.briefing?.description || quote.notes || 'Consulte os materiais e anexos.'}</p><QuoteRequestEvidence quote={quote} /></section> : null}
-        {step === 1 ? current.index === 0 || closed ? <p className="rounded-xl border bg-white p-5">Conclua a triagem antes de preparar a proposta.</p> : quote.price_approved_at || quote.order_reference ? <p>Proposta aceite. Consulte a versão no histórico; alterações requerem novo acordo.</p> : <section className="space-y-4">{editing ? <RequestForm key={`${reference}:${revision}`} reference={reference} onSaved={saved} onClose={() => navigate(() => setEditing(false))} /> : <><ProposalReadView quote={quote} /><button type="button" disabled={!can('quotes.manage')} onClick={() => setEditing(true)} className="rounded-xl bg-brand-800 px-4 py-3 text-sm font-semibold text-white">Editar proposta</button></>}</section> : null}
-        {(step === 1 && current.index > 0 && !closed) || step === 2 ? <section className="space-y-4">{step !== 1 ? <ProposalReadView quote={quote} /> : null}<ProposalWorkflowCard quote={quote} onChange={() => { void lease.release(); saved(); }} /><button type="button" onClick={() => downloadQuotePdf(reference).catch(() => setError('Não foi possível descarregar a proposta.'))} className="rounded-xl border bg-white px-4 py-3 text-sm">Exportar PDF</button>{quote.proposal_workflow?.stage === 'legacy' ? <p className="text-sm">Proposta do fluxo anterior: acompanhe a decisão do cliente nas mensagens.</p> : null}</section> : null}
+        {step === 2 ? <section className="space-y-4"><ProposalReadView quote={quote} /><ProposalWorkflowCard quote={quote} onChange={() => { void lease.release(); saved(); }} /><button type="button" onClick={() => downloadQuotePdf(reference).catch(() => setError('Não foi possível descarregar a proposta.'))} className="rounded-xl border bg-white px-4 py-3 text-sm">Exportar PDF</button>{quote.proposal_workflow?.stage === 'legacy' ? <p className="text-sm">Proposta do fluxo anterior: acompanhe a decisão do cliente nas mensagens.</p> : null}</section> : null}
         {step === 3 ? quote.order_reference ? <OperationalDelivery key={quote.order_reference} reference={quote.order_reference} onSaved={() => setDirty(false)} /> : quote.price_approved_at && can('orders.manage_status') ? <button type="button" disabled={busy} onClick={createOrder} className="rounded-xl bg-brand-800 px-5 py-3 text-white">Criar ordem de produção</button> : <p className="rounded-xl border bg-white p-5">A ordem de produção estará disponível após a aceitação do cliente.</p> : null}
       </div>}</fieldset></>}</section></>}
     </section></div>;

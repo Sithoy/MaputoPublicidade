@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, FilePlus2 } from 'lucide-react';
 import { DocumentItemsEditor, newDocumentLine, type EditableDocumentLine } from '@/components/admin/DocumentItemsEditor';
 import { ProposalAssistant } from '@/components/admin/ProposalAssistant';
-import type { ProposalPreparation } from '@/lib/admin-api';
+import type { AdminQuote, ProposalPreparation } from '@/lib/admin-api';
+import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
+import { fetchWithAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -18,7 +20,10 @@ import type { ClientOption, Product } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { formatMZN } from '@/lib/utils';
 
-export default function RequestForm({ reference, onSaved, onClose }: { reference?: string; onSaved?: (reference: string) => void; onClose?: () => void }) {
+export default function RequestForm({ reference, onSaved, onClose, focused = false, initialQuote, onBusyChange, onDirtyChange }: {
+  reference?: string; onSaved?: (reference: string, intent?: 'save' | 'send') => void; onClose?: () => void;
+  focused?: boolean; initialQuote?: AdminQuote; onBusyChange?: (busy: boolean) => void; onDirtyChange?: (dirty: boolean) => void;
+}) {
   const router = useRouter();
   const { loading: authLoading, can } = useAdminAuth();
   const canManage = can('quotes.manage');
@@ -83,7 +88,7 @@ export default function RequestForm({ reference, onSaved, onClose }: { reference
   useEffect(() => {
     if (authLoading || !canCreate || (reference && !canManage)) return;
     let active = true;
-    Promise.all([getClientOptions(), getProducts(), reference ? getQuote(reference) : Promise.resolve(null)])
+    Promise.all([focused ? Promise.resolve([]) : getClientOptions(), getProducts(), reference ? initialQuote ? Promise.resolve(initialQuote) : getQuote(reference) : Promise.resolve(null)])
       .then(([clientData, productData, quote]) => {
         if (!active) return;
         setClients(clientData);
@@ -118,7 +123,7 @@ export default function RequestForm({ reference, onSaved, onClose }: { reference
       })
       .catch((err) => { if (active) setError(getApiErrorMessage(err, 'Erro ao carregar dados do formulário')); });
     return () => { active = false; };
-  }, [authLoading, canCreate, canManage, reference]);
+  }, [authLoading, canCreate, canManage, reference, focused, initialQuote]);
 
   function selectClient(value: string) {
     setClientId(value);
@@ -134,6 +139,7 @@ export default function RequestForm({ reference, onSaved, onClose }: { reference
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!loaded || saving) return;
+    const intent = focused && (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'send' ? 'send' : 'save';
     setError('');
     if (preparationId && !reviewed) {
       setError('Confirme a revisão dos dados, quantidades, preços e condições antes de criar a proposta.');
@@ -148,7 +154,7 @@ export default function RequestForm({ reference, onSaved, onClose }: { reference
         !Number.isFinite(Number(line.unit_price)) ||
         Number(line.unit_price) < 0
     );
-    if (invalidLine) {
+    if (!lines.length || invalidLine) {
       setError('Preencha a descrição, uma quantidade inteira e o preço de cada item.');
       return;
     }
@@ -161,7 +167,9 @@ export default function RequestForm({ reference, onSaved, onClose }: { reference
       setError('Indique um prazo estimado entre 1 e 365 dias úteis.');
       return;
     }
-    setSaving(true);
+    if (intent === 'send' && !window.confirm('Guardar as condições atuais e disponibilizar a proposta no BrandDesk? Para clientes sem conta, envie também o PDF pelo canal acordado. Não são enviadas mensagens por email ou WhatsApp automaticamente.')) return;
+    setSaving(true); onBusyChange?.(true);
+    let persisted = false;
     try {
       const data = {
         preparation_id: preparationId,
@@ -206,12 +214,29 @@ export default function RequestForm({ reference, onSaved, onClose }: { reference
         return;
       }
       const quote = reference ? await prepareExistingQuote(reference, data) : await createManualQuote(data);
-      if (onSaved) { onSaved(quote.reference); setSaving(false); }
+      persisted = true;
+      if (focused) {
+        if (!quote.proposal_workflow) throw new Error('Atualize a proposta antes de continuar.');
+        await fetchWithAuth(`/api/quotes/${quote.reference}/proposal-workflow/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: intent, version: quote.proposal_workflow.version, comment: '' }) });
+      }
+      if (onSaved) { onSaved(quote.reference, intent); setSaving(false); }
       else router.push(`/admin/orcamentos/${quote.reference}`);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Não foi possível criar o orçamento.'));
+      if (persisted && focused && reference) {
+        try {
+          const current = await getQuote(reference);
+          // A lost response must not turn a completed send into a second publication.
+          if (current?.proposal_workflow?.stage === (intent === 'send' ? 'sent' : 'approved')) {
+            setSaving(false);
+            if (onSaved) onSaved(reference, intent); else router.push(`/admin/orcamentos/${reference}`);
+            return;
+          }
+        } catch { /* Keep the editor intact when completion cannot be confirmed. */ }
+      }
+      const message = getApiErrorMessage(err, 'Não foi possível guardar a proposta.');
+      setError(persisted && focused ? `Os dados foram guardados, mas não foi possível confirmar a conclusão desta ação. ${message}` : message);
       setSaving(false);
-    }
+    } finally { onBusyChange?.(false); }
   }
 
   if (authLoading) {
@@ -228,6 +253,59 @@ export default function RequestForm({ reference, onSaved, onClose }: { reference
     );
   }
 
+  if (focused) {
+    const subtotal = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unit_price) || 0), 0);
+    const deduction = discountType === 'percentage' ? Math.round(subtotal * (Number(discount) || 0)) / 100 : Number(discount) || 0;
+    const tax = Math.round(Math.max(0, subtotal - deduction) * (Number(taxRate) || 0)) / 100;
+    const total = Math.max(0, subtotal - deduction) + tax;
+    return <form aria-label="Preparar proposta" onSubmit={handleSubmit} className="space-y-5">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[#dce3d3] pb-5">
+        <div><p className="text-xs font-semibold uppercase tracking-widest text-brand-700">Proposta · {reference}</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-brand-900">{clientName || initialQuote?.client_company || initialQuote?.client_name || 'Preparar proposta'}</h2><p className="mt-1 text-xs text-slate-500">Artigos, preços e condições para o cliente.</p></div>
+        <span className="rounded-full border border-[#d8c38e] bg-[#faf6e9] px-3 py-1.5 text-xs font-medium text-[#765c2b]">{saving ? 'A guardar…' : 'Em preparação'}</span>
+      </header>
+      {error ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
+      {!loaded && !error ? <p role="status" className="text-sm text-slate-500">A carregar os artigos da proposta…</p> : null}
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_290px]">
+        <fieldset disabled={saving || !loaded} className="min-w-0 space-y-5">
+          <section className="rounded-2xl border border-[#dce3d3] bg-white p-4 sm:p-5"><DocumentItemsEditor lines={lines} onChange={(value) => { setLines(value); onDirtyChange?.(true); }} products={products} /></section>
+          <section className="space-y-4 rounded-2xl border border-[#dce3d3] bg-white p-4 sm:p-5">
+            <h3 className="text-sm font-semibold text-brand-900">Entrega e pagamento</h3>
+            <div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="estimated-delivery">Prazo de entrega (dias úteis) *</Label><Input id="estimated-delivery" type="number" min="1" max="365" step="1" required value={estimatedDeliveryDays} onChange={(event) => setEstimatedDeliveryDays(event.target.value)} /><p className="mt-1 text-xs text-slate-500">Após a adjudicação da proposta.</p></div>
+              <div><Label htmlFor="payment-option">Condição de pagamento</Label><Select id="payment-option" value={paymentOption} onChange={(event) => setPaymentOption(event.target.value as 'deposit_50' | 'on_delivery')}><option value="deposit_50">50% adiantado + 50% na entrega</option><option value="on_delivery">100% na entrega</option></Select></div>
+              <div><Label htmlFor="proposal-valid-until">Válida até</Label><Input id="proposal-valid-until" type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} /></div></div>
+            <div><Label htmlFor="proposal-terms">Condições e exclusões</Label><Textarea id="proposal-terms" maxLength={10000} value={terms} onChange={(event) => setTerms(event.target.value)} rows={3} /></div>
+            <div><Label htmlFor="notes">Observações para o cliente</Label><Textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} /></div>
+          </section>
+          <details className="rounded-2xl border border-[#dce3d3] bg-white p-4 sm:p-5"><summary className="cursor-pointer text-sm font-semibold text-brand-900">Dados do cliente e faturação{!clientNuit ? ' · NUIT por preencher' : ''}</summary><div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div><Label htmlFor="client-name">Nome do cliente ou empresa *</Label><Input id="client-name" required value={clientName} onChange={(event) => setClientName(event.target.value)} /></div>
+            <div><Label htmlFor="client-nuit">NUIT</Label><Input id="client-nuit" maxLength={50} value={clientNuit} onChange={(event) => setClientNuit(event.target.value)} /></div>
+            <div><Label htmlFor="client-email">E-mail</Label><Input id="client-email" type="email" value={clientEmail} onChange={(event) => setClientEmail(event.target.value)} /></div>
+            <div><Label htmlFor="client-phone">Telefone</Label><Input id="client-phone" value={clientPhone} onChange={(event) => setClientPhone(event.target.value)} /></div>
+            <div className="sm:col-span-2"><Label htmlFor="proposal-billing-address">Morada de faturação</Label><Textarea id="proposal-billing-address" maxLength={2000} value={billingAddress} onChange={(event) => setBillingAddress(event.target.value)} rows={2} /></div>
+          </div></details>
+          {initialQuote ? <details className="rounded-2xl border border-[#dce3d3] bg-white p-4 sm:p-5"><summary className="cursor-pointer text-sm font-semibold text-brand-900">Consultar briefing e referências</summary><div className="mt-4 space-y-3"><p className="whitespace-pre-wrap text-sm text-slate-600">{initialQuote.reception?.briefing?.description || initialQuote.briefing?.notes || 'Consulte os materiais e anexos do pedido.'}</p><QuoteRequestEvidence quote={initialQuote} /></div></details> : null}
+          <details className="rounded-2xl border border-[#dce3d3] bg-white p-4 sm:p-5"><summary className="cursor-pointer text-sm font-semibold text-brand-900">Nota interna da proposta</summary><div className="mt-4"><Label htmlFor="internal-notes">Não será apresentada ao cliente</Label><Textarea id="internal-notes" value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} rows={2} /></div></details>
+        </fieldset>
+        <aside aria-label="Resumo comercial" className="rounded-2xl border border-[#dce3d3] border-t-[3px] border-t-[#c7aa68] bg-[#f5f7ee] p-5 xl:sticky xl:top-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-brand-700">Resumo da proposta</p><p className="mt-2 text-xs text-slate-500">{lines.length} {lines.length === 1 ? 'artigo' : 'artigos'} · MZN</p>
+          <dl className="mt-5 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt>Subtotal</dt><dd className="tabular-nums">{formatMZN(subtotal)}</dd></div><div className="flex justify-between gap-3"><dt>Desconto</dt><dd className="tabular-nums">−{formatMZN(deduction)}</dd></div><div className="flex justify-between gap-3"><dt>IVA ({taxRate || 0}%)</dt><dd className="tabular-nums">{formatMZN(tax)}</dd></div><div className="border-t border-[#dce3d3] pt-4"><dt className="text-xs text-slate-500">Total estimado</dt><dd className="mt-1 text-2xl font-semibold tabular-nums text-brand-900">{formatMZN(total)}</dd></div></dl>
+          <fieldset disabled={saving || !loaded} className="mt-5 space-y-3 border-t border-[#dce3d3] pt-4"><legend className="sr-only">Ajustes comerciais</legend>
+            <div><Label htmlFor="proposal-discount-type">Desconto</Label><Select id="proposal-discount-type" value={discountType} onChange={(event) => { setDiscountType(event.target.value as 'fixed' | 'percentage'); setDiscount('0'); }}><option value="fixed">Valor fixo (MZN)</option><option value="percentage">Percentagem (%)</option></Select></div>
+            <div><Label htmlFor="proposal-discount">Valor do desconto ({discountType === 'percentage' ? '%' : 'MZN'})</Label><Input id="proposal-discount" type="number" min="0" max={discountType === 'percentage' ? 100 : subtotal} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} /></div>
+            <div><Label htmlFor="proposal-tax-rate">IVA (%)</Label><Input id="proposal-tax-rate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} /></div>
+          </fieldset><p className="mt-4 text-xs leading-5 text-slate-500">O servidor valida os valores finais ao guardar.</p>
+        </aside>
+      </div>
+      <footer className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#dce3d3] bg-[#fffefb] p-4 shadow-[0_-4px_20px_rgb(19_60_46/5%)]">
+        <p className="text-xs text-slate-500">Guardar mantém a proposta privada.</p><div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <Button type="button" className="min-h-11 text-sm" variant="ghost" disabled={saving} onClick={onClose}>Cancelar</Button>
+          <Button type="submit" className="min-h-11 text-sm" name="intent" value="save" variant="outline" disabled={saving || !loaded}>Guardar proposta</Button>
+          <Button type="submit" className="min-h-11 text-sm" name="intent" value="send" disabled={saving || !loaded}>Guardar e enviar</Button>
+        </div>
+      </footer>
+    </form>;
+  }
+
   return (
     <form onSubmit={handleSubmit} onChangeCapture={(event) => {
       if (preparationId && (event.target as HTMLElement).id !== 'ai-reviewed') setReviewed(false);
@@ -240,7 +318,7 @@ export default function RequestForm({ reference, onSaved, onClose }: { reference
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-dark">{reference ? `Preparar proposta · ${reference}` : 'Novo pedido'}</h1>
-            <p className="text-sm text-gray-500">Pedido → proposta → aprovação → produção → entrega. Uma referência, um histórico.</p>
+            <p className="text-sm text-gray-500">Pedido → proposta → aceitação do cliente → produção → entrega. Uma referência, um histórico.</p>
           </div>
         </div>
         <Button type="submit" disabled={saving || !loaded} className="gap-2">
