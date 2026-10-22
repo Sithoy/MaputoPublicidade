@@ -29,7 +29,7 @@ ruff==0.9.6
 # Production hardening / performance
 django-csp==3.8
 django-redis==5.4.0
-sentry-sdk[django]==2.22.0
+sentry-sdk[django]==2.72.0
 
 # PDF document generation
 reportlab==4.4.3
