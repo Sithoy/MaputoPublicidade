@@ -200,7 +200,9 @@ def send_reply(conversation, sender, body, request_id, *, subject=None, rendered
                 return previous
             raise ValidationError('Envio não confirmado. Verifique a caixa Zoho antes de tentar novamente.')
         original = conversation.messages.filter(source='email', is_staff=False, email_id__isnull=False).order_by('-created_at', '-id').first()
-        if not original or not original.email_id.startswith(config.oauth_account_id + ':'):
+        from apps.quotes.client_proposal import validate_proposal_email
+        proposal_email = validate_proposal_email(conversation, files or [])
+        if (original and not original.email_id.startswith(config.oauth_account_id + ':')) or (not original and not proposal_email):
             raise ValidationError('Email original indisponível nesta ligação.')
         from django.contrib.auth.models import User
         preparer = User.objects.filter(pk=prepared_by or sender.pk).first()
@@ -213,14 +215,14 @@ def send_reply(conversation, sender, body, request_id, *, subject=None, rendered
             file.save(update_fields=['message'])
     if rendered_body is None:
         rendered_body = body + '\n\n' + '\n'.join(signature[key] for key in ['staff_name', 'staff_title', 'name', 'email', 'phone', 'address'])
-    send(config, subject, rendered_body, [conversation.contact_email], reply_id=original.email_id.split(':')[1], mail_format=mail_format, files=files)
+    send(config, subject, rendered_body, [conversation.contact_email], reply_id=original.email_id.split(':')[1] if original else None, mail_format=mail_format, files=files)
     message.delivery_status = 'accepted'
     message.save(update_fields=['delivery_status'])
     # Do not turn a new incoming email into "waiting" if it arrived during sending.
     with transaction.atomic():
         conversation = SupportConversation.objects.select_for_update().get(pk=conversation.pk)
         incoming = conversation.messages.filter(source='email', is_staff=False).order_by('-created_at', '-id').first()
-        conversation.status = 'awaiting_team' if incoming and incoming.pk != original.pk else 'awaiting_client'
+        conversation.status = 'awaiting_team' if incoming and (not original or incoming.pk != original.pk) else 'awaiting_client'
         conversation.email_stage = 'new' if conversation.status == 'awaiting_team' else 'waiting'
         conversation.save(update_fields=['status', 'email_stage', 'updated_at'])
     return message

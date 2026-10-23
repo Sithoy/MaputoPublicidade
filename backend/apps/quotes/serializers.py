@@ -199,6 +199,11 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
 
 
 class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    client_review_available = serializers.SerializerMethodField()
+
+    def get_client_review_available(self, obj):
+        return obj.proposal_stage in {'sent', 'returned'} and bool(obj.proposal_sent_at)
+
     vat_exemption = serializers.SerializerMethodField()
 
     def get_vat_exemption(self, obj):
@@ -258,6 +263,7 @@ class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSeria
             "id",
             "reference",
             "proposal_workflow",
+            "client_review_available",
             "user",
             "client_name",
             "client_email",

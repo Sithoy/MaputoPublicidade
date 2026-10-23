@@ -33,6 +33,20 @@ class TestProposalWorkflow:
         quote.refresh_from_db()
         assert quote.proposal_stage == "draft" and quote.status == "reviewing"
 
+    def accept_current(self, api, quote):
+        url = f"/api/quotes/{quote.reference}/client-review/"
+        current = api.get(url)
+        assert current.status_code == 200
+        # Modern proposals cannot bypass explicit, version-bound confirmation.
+        assert api.post(f"/api/quotes/{quote.reference}/approve-price/", {}, format="json").status_code == 400
+        payload = {"action": "accept", "version": current.data["version"],
+                   "snapshot": current.data["snapshot"], "contact_name": "Cliente autorizado", "confirmed": False}
+        assert api.post(url, payload, format="json").status_code == 400
+        response = api.post(url, {**payload, "confirmed": True}, format="json")
+        assert response.status_code == 200, response.data
+        assert response.data["decision"]["client_decision"] == "accept"
+        assert response.data["decision"]["channel"] == "branddesk"
+
     def test_reception_sends_directly_and_client_accepts_only_after_send(self, reception, quote, authenticated_client):
         api, owner = reception
         self.draft(reception, quote)
@@ -44,7 +58,7 @@ class TestProposalWorkflow:
         assert quote.proposal_reviewed_by_id is None and quote.price_approved_at is None
         assert quote.proposal_history[-1]["snapshot"]["final_price"] == "1000.00"
         assert quote.proposal_history[-1]["actor_id"] == owner.pk
-        assert authenticated_client.post(f"/api/quotes/{quote.reference}/approve-price/", {}, format="json").status_code == 200
+        self.accept_current(authenticated_client, quote)
 
     def test_save_is_private_and_can_be_sent_later_without_another_reviewer(self, reception, quote, authenticated_client):
         api, _ = reception
@@ -114,7 +128,7 @@ class TestProposalWorkflow:
         self.draft(reception, quote)
         self.command(api, quote, "send")
         assert self.command(api, quote, "send", 1).status_code == 400
-        assert authenticated_client.post(f"/api/quotes/{quote.reference}/approve-price/", {}, format="json").status_code == 200
+        self.accept_current(authenticated_client, quote)
         assert self.command(api, quote, "save", 1).status_code == 400
         assert api.patch(f"/api/quotes/{quote.reference}/", {"final_price": "2000"}, format="json").status_code == 400
 

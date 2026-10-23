@@ -8,7 +8,14 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.roles import StaffRole
-from apps.core.models import EmailDraft, SupportConversation, SupportFile
+from apps.core.models import (
+    EmailConnection,
+    EmailDraft,
+    StaffEmailSignature,
+    SupportConversation,
+    SupportFile,
+    SupportMessage,
+)
 from apps.orders.models import Order
 
 from .client_proposal import MAX_AGE, SALT, review_link
@@ -43,6 +50,123 @@ def respond(client, **values):
 
 @pytest.mark.django_db
 class TestClientProposal:
+    @pytest.mark.parametrize('action', ['accept', 'changes', 'decline'])
+    def test_branddesk_decision_uses_current_snapshot_and_shared_audit(self, sent_proposal, authenticated_client, action):
+        url = f'/api/quotes/{sent_proposal.reference}/client-review/'
+        current = authenticated_client.get(url)
+        assert current.status_code == 200
+        assert 'snapshot' in current.data
+        result = authenticated_client.post(url, {'action': action, 'version': 1,
+            'snapshot': current.data['snapshot'], 'contact_name': 'Director', 'confirmed': True,
+            'comment': 'Condições revistas'}, format='json')
+        assert result.status_code == 200, result.data
+        sent_proposal.refresh_from_db()
+        assert result.data['decision']['channel'] == 'branddesk'
+        assert sent_proposal.proposal_history[-1]['actor_id'] == sent_proposal.user_id
+        assert not Order.objects.filter(quote=sent_proposal).exists()
+        assert authenticated_client.post(url, {'action': action, 'version': 1,
+            'snapshot': current.data['snapshot'], 'contact_name': 'Director', 'confirmed': True,
+            'comment': 'Repetição'}, format='json').status_code == 400
+
+    def test_branddesk_rejects_stale_snapshot_and_legacy_approval_bypass(self, sent_proposal, authenticated_client, staff_client):
+        url = f'/api/quotes/{sent_proposal.reference}/client-review/'
+        current = authenticated_client.get(url).data
+        sent_proposal.items.update(unit_price=200)
+        result = authenticated_client.post(url, {'action': 'accept', 'version': 1,
+            'snapshot': current['snapshot'], 'contact_name': 'Director', 'confirmed': True}, format='json')
+        assert result.status_code == 400
+        assert staff_client.get(url).status_code == 403
+        assert authenticated_client.post(f'/api/quotes/{sent_proposal.reference}/approve-price/').status_code == 400
+        sent_proposal.refresh_from_db()
+        assert not sent_proposal.price_approved_at
+
+    def test_availability_and_draft_are_not_mistaken_for_actual_delivery(self, sent_proposal, staff_client):
+        sent_proposal.user = None
+        sent_proposal.save()
+        url = f'/api/quotes/{sent_proposal.reference}/client-workspace/'
+        initial = staff_client.get(url).data
+        assert initial['state'] == 'not_sent'
+        prepared = staff_client.post(url, {'action': 'email', 'version': 1}, format='json')
+        assert prepared.status_code == 200
+        current = staff_client.get(url).data
+        assert current['state'] == 'not_sent'
+        assert current['channels']['email']['state'] == 'draft'
+        SupportMessage.objects.create(conversation_id=prepared.data['conversation_id'], source='email', is_staff=True,
+                                      delivery_status='accepted', body='Synthetic provider acknowledgement')
+        assert staff_client.get(url).data['state'] == 'awaiting_response'
+
+    def test_confirmed_whatsapp_and_followup_are_logged_without_sending(self, sent_proposal, staff_client, staff_user, mailoutbox):
+        sent_proposal.client_phone = '841234567'
+        sent_proposal.save()
+        url = f'/api/quotes/{sent_proposal.reference}/client-workspace/'
+        assert staff_client.get(url).data['whatsapp_number'] == '258841234567'
+        assert staff_client.post(url, {'action': 'whatsapp', 'version': 1}, format='json').status_code == 400
+        result = staff_client.post(url, {'action': 'whatsapp', 'version': 1, 'confirmed': True,
+                                        'comment': 'PDF e link enviados ao contacto confirmado'}, format='json')
+        assert result.status_code == 200, result.data
+        assert result.data['channels']['whatsapp']['state'] == 'confirmed'
+        sent_proposal.refresh_from_db()
+        assert sent_proposal.proposal_history[-1]['actor_id'] == staff_user.pk
+        next_date = str(timezone.localdate() + timedelta(days=1))
+        response = staff_client.post(url, {'action': 'follow_up', 'version': 1, 'date': next_date,
+                                          'comment': 'Confirmar decisão com compras'}, format='json')
+        assert response.status_code == 200, response.data
+        assert str(response.data['follow_up']['date']) == next_date
+        assert not mailoutbox
+        assert not Order.objects.filter(quote=sent_proposal).exists()
+        sent_proposal.valid_until = timezone.localdate() - timedelta(days=1)
+        sent_proposal.save(update_fields=['valid_until'])
+        assert staff_client.post(url, {'action': 'whatsapp', 'version': 1, 'confirmed': True,
+                                      'comment': 'Tentativa depois de expirar'}, format='json').status_code == 400
+
+    @pytest.mark.parametrize('stale', [False, True])
+    def test_first_outbound_email_can_send_with_signature_but_stale_pdf_cannot(self, sent_proposal, staff_client, staff_user, authenticated_client, stale):
+        StaffEmailSignature.objects.create(user=staff_user, display_name='Recepção MP', title='Atendimento', approved=True)
+        EmailConnection.objects.create(pk=1, oauth_account_id='12345', sending_enabled=True)
+        prepared = staff_client.post(f'/api/quotes/{sent_proposal.reference}/client-workspace/',
+                                    {'action': 'email', 'version': 1}, format='json')
+        base = f'/api/support-conversations/{prepared.data["conversation_id"]}/'
+        draft = EmailDraft.objects.get(conversation_id=prepared.data['conversation_id'])
+        preview = staff_client.post(base + 'email-preview/', {'version': draft.version}, format='json')
+        assert preview.status_code == 200, preview.data
+        assert not SupportMessage.objects.filter(conversation_id=draft.conversation_id).exists()
+        if stale:
+            sent_proposal.items.update(unit_price=999)
+        with patch('apps.core.zoho_mail.send') as transport:
+            result = staff_client.post(base + 'email-send/', {'version': draft.version, 'confirmed': True,
+                'preview_hash': preview.data['hash']}, format='json')
+        if stale:
+            assert result.status_code == 400, result.data
+            transport.assert_not_called()
+            draft.refresh_from_db()
+            assert draft.send_state == 'idle'
+        else:
+            assert result.status_code == 200, result.data
+            assert transport.call_args.kwargs['reply_id'] is None
+            assert transport.call_args.kwargs['files']
+            message = SupportMessage.objects.get(conversation_id=draft.conversation_id)
+            assert message.delivery_status == 'accepted'
+            assert message.sender == staff_user
+            assert message.email_headers['signature']['staff_name'] == 'Recepção MP'
+            summary = staff_client.get(f'/api/quotes/{sent_proposal.reference}/client-workspace/').data
+            assert summary['channels']['email']['state'] == 'accepted'
+            review_url = f'/api/quotes/{sent_proposal.reference}/client-review/'
+            reviewed = authenticated_client.get(review_url).data
+            accepted = authenticated_client.post(review_url, {'action': 'accept', 'version': reviewed['version'],
+                'snapshot': reviewed['snapshot'], 'contact_name': 'Director', 'confirmed': True}, format='json')
+            assert accepted.status_code == 200, accepted.data
+            after = staff_client.get(f'/api/quotes/{sent_proposal.reference}/client-workspace/').data
+            assert after['state'] == 'accepted'
+            assert after['decision']['channel'] == 'branddesk'
+            assert not Order.objects.filter(quote=sent_proposal).exists()
+
+    def test_branddesk_review_is_owner_only(self, sent_proposal, authenticated_client):
+        url = f'/api/quotes/{sent_proposal.reference}/client-review/'
+        assert APIClient().get(url).status_code in {401, 403}
+        sent_proposal.user = None
+        sent_proposal.save()
+        assert authenticated_client.get(url).status_code in {403, 404}
+
     def test_private_projection_and_pdf(self, sent_proposal):
         client = guest(sent_proposal)
         response = respond(client, action='view')

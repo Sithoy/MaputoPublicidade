@@ -16,6 +16,7 @@ import { WorkflowJourney } from '@/components/workflow/WorkflowJourney';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { ProofVersionHistory } from '@/components/ProofVersionHistory';
 import { PrivateArtPreview } from '@/components/PrivateArtPreview';
+import { ClientProposalReview } from '@/components/ClientProposalReview';
 import {
   approveArtwork,
   approveQuotePrice,
@@ -82,7 +83,7 @@ export default function ClientQuoteDetailPage() {
     );
   }
 
-  const awaitingPriceApproval = quote.status === 'quoted';
+  const awaitingPriceApproval = quote.status === 'quoted' && !quote.client_review_available;
   const artworkPending = quote.artwork?.status === 'pending';
 
   return (
@@ -94,7 +95,7 @@ export default function ClientQuoteDetailPage() {
             Orçamento {quote.reference}
           </h1>
           <p className="mt-1 text-sm text-[#718078]">
-            Reveja a proposta, aprove o valor e acompanhe a arte até à produção.
+            Reveja as condições, partilhe a sua decisão e acompanhe os próximos passos com a MP.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
@@ -130,7 +131,7 @@ export default function ClientQuoteDetailPage() {
       </Card>
 
       <QuoteRequestEvidence quote={quote} />
-      <Card>
+      {quote.client_review_available ? <ClientProposalReview reference={quote.reference} /> : <Card>
         <CardContent className="p-5">
           <h2 className="mb-4 text-lg font-semibold text-dark">Itens do pedido</h2>
           {!quote.items.length ? <p className="mb-4 text-sm text-gray-500">A equipa MP ajudará a definir os materiais e quantidades a partir do briefing.</p> : null}
@@ -188,7 +189,7 @@ export default function ClientQuoteDetailPage() {
             </p>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {awaitingPriceApproval && (
         <Card className="border-amber-200 bg-amber-50/40">
@@ -198,8 +199,8 @@ export default function ClientQuoteDetailPage() {
               {quote.final_price ? (
                 <>
                   O valor final desta proposta é de{' '}
-                  <strong>{formatMZN(quote.final_price)}</strong>. Aprove para avançarmos
-                  para a produção, ou fale connosco se tiver dúvidas.
+                  <strong>{formatMZN(quote.final_price)}</strong>. A aceitação confirma as condições comerciais,
+                  não o pagamento nem o início da produção. Fale connosco se tiver dúvidas.
                 </>
               ) : (
                 'A equipa ainda está a finalizar o valor desta proposta.'
@@ -223,7 +224,7 @@ export default function ClientQuoteDetailPage() {
         </Card>
       )}
 
-      {quote.price_approved_at && (
+      {quote.price_approved_at && !quote.client_review_available && (
         <Card className="border-brand-200 bg-brand-50/40">
           <CardContent className="flex items-start gap-3 p-5">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />

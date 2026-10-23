@@ -2,6 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClientProposalReview } from './ClientProposalReview';
 import { proposalRequest, type ClientProposal } from '@/lib/proposal-review';
+import { fetchWithAuth } from '@/lib/auth';
+
+vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn(), fetchBlobWithAuth: vi.fn() }));
 
 vi.mock('@/lib/proposal-review', async (load) => ({ ...await load<typeof import('@/lib/proposal-review')>(), proposalRequest: vi.fn() }));
 const proposal: ClientProposal = {
@@ -12,10 +15,29 @@ const proposal: ClientProposal = {
 };
 function reply(data: unknown) { return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }); }
 beforeEach(() => {
+  vi.mocked(fetchWithAuth).mockReset();
   window.history.replaceState({}, '', '/proposta#token=synthetic-review-link');
   vi.mocked(proposalRequest).mockReset().mockResolvedValue(reply(proposal));
 });
 describe('Client proposal review', () => {
+  it.each(['accept', 'changes', 'decline'] as const)('uses the same explicit %s decision in BrandDesk with the viewed snapshot', async (action) => {
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ...proposal, snapshot: 'synthetic-commercial-snapshot' });
+    render(<ClientProposalReview reference={proposal.reference} />);
+    await screen.findByText('Empresa Horizonte');
+    expect(screen.queryByRole('link', { name: 'Criar a minha conta' })).not.toBeInTheDocument();
+    expect(proposalRequest).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('radio', { name: { accept: 'Aceitar proposta', changes: 'Pedir alterações', decline: 'Recusar proposta' }[action] }));
+    fireEvent.change(screen.getByLabelText('O seu nome'), { target: { value: 'Director' } });
+    fireEvent.change(screen.getByLabelText(action === 'accept' ? 'Comentário (opcional)' : 'O que pretende alterar ou qual é o motivo?'), { target: { value: 'Condições revistas' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({ ...proposal, decision: { client_decision: action, channel: 'branddesk', at: '2026-10-23' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar decisão' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirmar decisão' })).not.toBeInTheDocument());
+    expect(JSON.parse(String(vi.mocked(fetchWithAuth).mock.calls.at(-1)?.[1]?.body))).toMatchObject({
+      action, version: 2, snapshot: 'synthetic-commercial-snapshot', contact_name: 'Director', confirmed: true,
+    });
+  });
+
   it('opens only for reading and offers optional registration without accepting', async () => {
     render(<ClientProposalReview />);
     expect(await screen.findByText('Empresa Horizonte')).toBeInTheDocument();
