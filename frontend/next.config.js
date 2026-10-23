@@ -41,6 +41,9 @@ const nextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }, { source: '/arte/:path*', headers: [
       { key: 'Referrer-Policy', value: 'no-referrer' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+    ] }, { source: '/proposta', headers: [
+      { key: 'Referrer-Policy', value: 'no-referrer' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+      { key: 'Cache-Control', value: 'private, no-store' },
     ] }];
   },
   images: {

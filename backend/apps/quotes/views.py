@@ -146,7 +146,7 @@ class QuoteRequestViewSet(
             return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
         if self.action == "destroy":
             return [HasStaffCapability(StaffCapability.REVIEW_PROPOSALS)]
-        if self.action in {"proposal_workflow", "vat_evidence"}:
+        if self.action in {"proposal_workflow", "vat_evidence", "client_workspace"}:
             return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
         if self.action == "brand_request":
             return [IsAuthenticated()]
@@ -586,8 +586,49 @@ class QuoteRequestViewSet(
 
             ReceptionEditLease.objects.filter(quote=quote, editor=request.user).delete()
         if command == "send":
-            notify_quote_ready(quote)
+            from .client_proposal import publish_notice
+            publish_notice(quote)
         return Response(QuoteRequestDetailSerializer(quote, context={"request": request}).data)
+
+    @action(detail=True, methods=['get', 'post'], url_path='client-workspace')
+    @transaction.atomic
+    def client_workspace(self, request, reference=None):
+        from .client_proposal import (
+            DecisionInput,
+            decision,
+            prepare_email,
+            record_decision,
+            review_link,
+        )
+
+        quote = self.get_object()
+        if request.method == 'POST':
+            version = serializers.IntegerField(min_value=0).run_validation(request.data.get('version'))
+            if version != quote.proposal_version:
+                raise ValidationError('A versão mudou. Atualize a proposta.')
+            command = request.data.get('action')
+            if command == 'publish':
+                transition(quote, request.user, 'send', version, 'Disponibilizada na etapa Cliente.')
+                from .client_proposal import publish_notice
+                publish_notice(quote)
+                from apps.core.models import ReceptionEditLease
+                ReceptionEditLease.objects.filter(quote=quote, editor=request.user).delete()
+                return Response({'published': True, 'version': quote.proposal_version})
+            if command == 'email':
+                return Response({'conversation_id': prepare_email(quote, request.user)})
+            if command == 'phone':
+                values = DecisionInput(data={**request.data, 'action': request.data.get('decision')})
+                values.is_valid(raise_exception=True)
+                if not values.validated_data['comment'].strip():
+                    raise ValidationError('Registe o contexto e a confirmação obtida por telefone.')
+                record_decision(quote, values.validated_data, actor=request.user, channel='phone')
+            else:
+                raise ValidationError('Ação inválida.')
+        published = quote.proposal_stage in {'sent', 'returned'} and bool(quote.proposal_sent_at)
+        return Response({'version': quote.proposal_version, 'published': published,
+            'registered': bool(quote.user_id), 'email': quote.client_email, 'phone': quote.client_phone,
+            'link': review_link(quote) if published else None, 'decision': decision(quote)},
+            headers={'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer'})
 
     @action(detail=True, methods=["get"], url_path="pdf")
     def pdf(self, request, reference=None):

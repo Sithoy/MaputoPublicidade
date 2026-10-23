@@ -9,7 +9,7 @@ vi.mock('@/hooks/useReceptionEdit', () => ({ useReceptionEdit: () => ({ editable
 vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ user: { id: 1 }, loading: auth.loading, can: () => auth.allowed }) }));
 vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('@/lib/admin-api', () => ({ getQuote: vi.fn(), convertQuoteToOrder: vi.fn(), downloadQuotePdf: vi.fn() }));
-vi.mock('@/components/admin/ProposalWorkflowCard', () => ({ ProposalWorkflowCard: () => <p>Revisão da mesma proposta</p> }));
+vi.mock('@/components/admin/ClientProposalWorkspace', () => ({ ClientProposalWorkspace: ({ quote, editable, onMessages }: { quote: { client_name: string }; editable: boolean; onMessages: () => void }) => <section aria-label="Espaço do cliente"><h2>{quote.client_name}</h2><button disabled={!editable}>Preparar email com PDF</button><button onClick={onMessages}>Mensagens do pedido</button></section> }));
 vi.mock('@/components/admin/RequestForm', () => ({ default: ({ onSaved }: { onSaved: (ref: string) => void }) => <><input aria-label="Detalhe do rascunho" /><button onClick={() => onSaved('MP-0001-2026')}>Guardar proposta no espaço</button></> }));
 vi.mock('@/components/admin/ReceptionRequestPanel', () => ({ ReceptionRequestPanel: ({ onChange }: { onChange: (value: null) => void }) => <button onClick={() => onChange(null)}>Concluir triagem</button> }));
 const quote = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'reviewing', reception: { completed_at: '2026-10-12', owner_name: 'Dário' }, proposal_workflow: { stage: 'review', prepared_by: 'Dário', prepared_by_id: 1 }, items: [] };
@@ -67,8 +67,9 @@ describe('Reception workspace', () => {
     expect(screen.getByRole('region', { name: 'Resumo do pedido' })).toBeInTheDocument();
     expect(auth.acquire).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Trabalho' }));
-    expect(screen.getByText('Revisão da mesma proposta').closest('fieldset')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Mensagens' })).toBeEnabled();
+    expect(await screen.findByRole('region', { name: 'Espaço do cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Mensagens do pedido' })).toBeEnabled();
     expect(screen.queryByLabelText('Responsável')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'O meu trabalho' })).not.toBeInTheDocument();
   });
