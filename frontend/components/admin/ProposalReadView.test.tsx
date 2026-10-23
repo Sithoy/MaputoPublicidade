@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { AdminQuote } from '@/lib/admin-api';
 import { ProposalReadView } from './ProposalReadView';
-vi.mock('./ProposalDocument', () => ({ ProposalDocument: () => <p>Documento completo no espaço</p> }));
+vi.mock('./ProposalPdfDocument', () => ({ ProposalPdfDocument: () => <p>Documento completo no espaço</p> }));
 
 const quote = { reference: 'MP-0001-2026', status: 'reviewing', items: [{ id: 1, description: 'Cadernos personalizados', quantity: 200, unit_price: 100 }], subtotal: 20000, final_price: 18000, discount_type: 'percentage', discount_percentage: 10, discount_amount: 2000, tax_rate: 0, tax_amount: 0, estimated_delivery_days: 10, payment_option: 'deposit_50', terms: 'Após confirmação da arte', proposal_workflow: { stage_display: 'Devolvida para ajustes', version: 2, comment: 'Confirmar o acabamento' } } as AdminQuote;
 describe('Proposal read view', () => {

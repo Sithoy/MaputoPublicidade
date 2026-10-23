@@ -7,7 +7,7 @@ import type { AdminQuote } from '@/lib/admin-api';
 import { formatMZN } from '@/lib/utils';
 import { MaterialBriefingSummary } from '@/components/MaterialBriefingSummary';
 
-const FullDocument = dynamic(() => import('./ProposalDocument').then((module) => module.ProposalDocument), { loading: () => <p>A preparar o documento…</p> });
+const FullDocument = dynamic(() => import('./ProposalPdfDocument').then((module) => module.ProposalPdfDocument), { loading: () => <p>A preparar o documento…</p> });
 
 export function ProposalReadView({ quote }: { quote: AdminQuote }) {
   const [showDocument, setShowDocument] = useState(false);
