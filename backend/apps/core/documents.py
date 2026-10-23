@@ -17,6 +17,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     BaseDocTemplate,
+    Flowable,
     Frame,
     Image,
     PageTemplate,
@@ -433,7 +434,7 @@ def _client_block(styles, title, lines):
     return content
 
 
-def _items_table(styles, rows):
+def _items_table(styles, rows, *, split_in_row=False):
     data = [["Nº", "Descrição", "Qtd.", "Preço unit.", "Total"]]
     for row in rows:
         data.append(row)
@@ -441,6 +442,7 @@ def _items_table(styles, rows):
         data,
         colWidths=[12 * mm, 80 * mm, 18 * mm, 34 * mm, 34 * mm],
         repeatRows=1,
+        splitInRow=int(split_in_row),
     )
     table.setStyle(
         TableStyle(
@@ -467,7 +469,7 @@ def _items_table(styles, rows):
     return table
 
 
-def _totals_table(rows, emphasize=-1):
+def _totals_table(rows, emphasize=-1, *, compact=False):
     rows = [list(row) for row in rows]
     emphasize = emphasize if emphasize >= 0 else len(rows) + emphasize
     label, amount = rows[emphasize]
@@ -480,7 +482,7 @@ def _totals_table(rows, emphasize=-1):
                 "total_display",
                 fontName="Helvetica-Bold",
                 fontSize=amount_size,
-                leading=25,
+                leading=22 if compact else 25,
                 textColor=colors.white,
                 alignment=TA_RIGHT,
             ),
@@ -494,8 +496,8 @@ def _totals_table(rows, emphasize=-1):
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
         ("TEXTCOLOR", (0, 0), (0, -1), GREY_TEXT),
         ("BACKGROUND", (0, 0), (-1, -1), PAPER_TINT),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2 if compact else 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2 if compact else 3),
     ]
     # Emphasise the grand total row.
     style += [
@@ -505,8 +507,8 @@ def _totals_table(rows, emphasize=-1):
         ("TEXTCOLOR", (0, emphasize), (-1, emphasize), colors.white),
         ("BACKGROUND", (0, emphasize), (-1, emphasize), BRAND_DARK),
         ("LINEBEFORE", (0, emphasize), (0, emphasize), 3, ACCENT),
-        ("TOPPADDING", (0, emphasize), (-1, emphasize), 6),
-        ("BOTTOMPADDING", (0, emphasize), (-1, emphasize), 10),
+        ("TOPPADDING", (0, emphasize), (-1, emphasize), 5 if compact else 6),
+        ("BOTTOMPADDING", (0, emphasize), (-1, emphasize), 8 if compact else 10),
     ]
     table.setStyle(TableStyle(style))
     return table
@@ -584,6 +586,97 @@ def _invoice_summary_block(
         )
     )
     return table
+
+
+def _proposal_summary_block(styles, document, totals_rows, company):
+    """Notes beside the totals; conditions and payment details below them."""
+    label = ParagraphStyle("closing_label", parent=styles["label"], textColor=BRAND, fontSize=7, leading=10)
+    small = styles["small"]
+    left = []
+    if document.notes:
+        left.extend([
+            Paragraph("OBSERVAÇÕES", label),
+            Spacer(1, 2 * mm),
+            Paragraph(escape(document.notes).replace("\n", "<br/>"), small),
+        ])
+    right = [_totals_table(totals_rows, compact=True)]
+    upper = Table([[left, "", right]], colWidths=[92 * mm, 6 * mm, 80 * mm])
+    upper.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LINEABOVE", (0, 0), (-1, 0), 1, ACCENT),
+    ]))
+    upper_height = max(44 * mm, upper.wrap(178 * mm, A4[1])[1])
+    upper = Table([[upper]], colWidths=[178 * mm], rowHeights=[upper_height], style=TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    bank_text = ParagraphStyle("bank_text", parent=small, fontSize=7, leading=9)
+
+    conditions = [
+        Paragraph("CONDIÇÕES COMERCIAIS", label),
+        Spacer(1, 2 * mm),
+        Paragraph(escape(document.terms).replace("\n", "<br/>"), small),
+    ]
+    bank = [Paragraph("DADOS BANCÁRIOS", label), Spacer(1, 2 * mm)]
+    bank.append(Paragraph(escape(str(company.get("legal_name") or "-")), bank_text))
+    for title, key in [("Banco", "bank_name"), ("N.º de conta", "bank_account"), ("NIB", "bank_nib")]:
+        bank.append(Paragraph(f"<b>{title}:</b> {escape(str(company.get(key) or '-'))}", bank_text))
+    bank.extend([
+        Spacer(1, 2 * mm),
+        Paragraph(f"Referência: <b>{escape(document.reference)}</b><br/>Envie o comprovativo à MP.", bank_text),
+    ])
+    lower = Table([[conditions, "", bank]], colWidths=[92 * mm, 6 * mm, 80 * mm])
+    lower.setStyle(TableStyle([
+        ("BACKGROUND", (2, 0), (2, 0), PAPER_TINT),
+        ("BOX", (2, 0), (2, 0), 0.5, GREY_LINE),
+        ("LINEABOVE", (0, 0), (0, 0), 0.5, GREY_LINE),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("LEFTPADDING", (2, 0), (2, 0), 9),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+    panel = Table([
+        [upper], [lower],
+    ], colWidths=[178 * mm])
+    panel.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return panel
+
+
+class _ProposalClosing(Flowable):
+    """Reserve a final-page closing zone, consuming unused item space above it.
+
+    Returning the required height when it does not fit lets Platypus move the
+    entire closing section to the next page instead of splitting financials.
+    """
+
+    def __init__(self, content, zone_height):
+        super().__init__()
+        self.content = content
+        self.zone_height = zone_height
+
+    def wrap(self, available_width, available_height):
+        self.width, self.content_height = self.content.wrap(available_width, available_height)
+        required = max(self.zone_height, self.content_height)
+        self.height = max(required, available_height)
+        return self.width, self.height
+
+    def draw(self):
+        self.content.drawOn(self.canv, 0, self.zone_height - self.content_height)
 
 
 def _build(
@@ -727,7 +820,7 @@ def build_quote_pdf(quote) -> bytes:
                 _money(Decimal(str(unit)) * item.quantity) if unit is not None else "—",
             ]
         )
-    story.append(_items_table(styles, rows))
+    story.append(_items_table(styles, rows, split_in_row=True))
     for item in quote.items.all():
         apparel = (item.material_briefing or {}).get('apparel')
         if not apparel or not apparel.get('rows'):
@@ -787,20 +880,33 @@ def build_quote_pdf(quote) -> bytes:
             if quote.payment_option == "on_delivery"
             else f"Adiantamento previsto (50%): {_money(Decimal(str(total)) / 2)}."
         )
-    commercial_terms.extend(
-        ["Condições sujeitas à aprovação do cliente. Não constitui uma cobrança.", terms]
-    )
+    commercial_terms.append("Condições sujeitas à aprovação do cliente. Não constitui uma cobrança.")
+    core_terms = "\n".join(commercial_terms)
+    commercial_terms.append(terms)
     document.terms = "\n".join(commercial_terms)
-    story.append(
-        _invoice_summary_block(
-            styles,
-            document,
-            totals_rows,
-            len(totals_rows) - 1,
-            company,
-            terms_title="CONDIÇÕES COMERCIAIS",
-        )
-    )
+    closing_height = 85 * mm
+
+    def closing_block():
+        return _proposal_summary_block(styles, document, totals_rows, company)
+
+    closing = closing_block()
+    # Free-form terms and observations may be thousands of characters long.
+    # Flow these normally when necessary; keep the operational payment/bank
+    # information and totals together in the same fixed closing zone.
+    if closing.wrap(178 * mm, A4[1])[1] > closing_height:
+        story.extend([
+            Paragraph("CONDIÇÕES COMPLEMENTARES", styles["section"]),
+            Paragraph(escape(terms).replace("\n", "<br/>"), styles["small"]),
+        ])
+        if document.notes:
+            story.extend([
+                Paragraph("OBSERVAÇÕES", styles["section"]),
+                Paragraph(escape(document.notes).replace("\n", "<br/>"), styles["small"]),
+            ])
+        document.terms = core_terms
+        document.notes = ""
+        closing = closing_block()
+    story.append(_ProposalClosing(closing, max(closing_height, closing.wrap(178 * mm, A4[1])[1])))
     return _build(
         f"Proposta-{quote.reference}",
         company,
