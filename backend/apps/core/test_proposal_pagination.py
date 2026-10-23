@@ -27,7 +27,10 @@ def test_proposal_final_zone_and_content(quote, tmp_path, count, description_wor
     for index in range(count):
         QuoteItem.objects.create(
             quote=quote,
-            description=f"ARTIGO{index:03d} " + "acabamento premium " * description_words + f" FIMARTIGO{index:03d}",
+            description=f"ARTIGO{index:03d} - Personalização com acabamento premium",
+            # Detail belongs in the supported TextField, not the 255-character
+            # title. PostgreSQL enforces that limit even though SQLite does not.
+            notes="acabamento premium " * description_words + f" FIMARTIGO{index:03d}",
             quantity=2,
             unit_price=Decimal("100"),
         )
