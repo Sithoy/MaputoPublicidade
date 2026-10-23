@@ -1,6 +1,7 @@
 """Version-scoped proposal review; never grants account or production access."""
 import hashlib
 import json
+import re
 
 from django.conf import settings
 from django.core import signing
@@ -38,7 +39,7 @@ def fingerprint(quote):
 def decision(quote):
     for row in reversed(quote.proposal_history):
         if row.get('version') == quote.proposal_version and row.get('client_decision'):
-            return {key: row.get(key) for key in ['client_decision', 'at', 'contact_name', 'channel', 'comment']}
+            return {key: row.get(key) for key in ['client_decision', 'at', 'contact_name', 'channel', 'comment', 'actor']}
     if quote.price_approved_at:
         return {'client_decision': 'accept', 'at': quote.price_approved_at, 'channel': 'branddesk', 'comment': quote.price_approval_comment}
     return None
@@ -141,7 +142,7 @@ def prepare_email(quote, user):
     if not quote.client_email:
         raise ValidationError('Confirme o email do cliente no pedido.')
     require_published(quote)
-    key = hashlib.sha256(f'proposal:{quote.pk}:{quote.proposal_version}:{fingerprint(quote)}'.encode()).hexdigest()
+    key = email_key(quote)
     conversation, _ = SupportConversation.objects.get_or_create(email_thread_key=key, defaults={
         'channel': 'email', 'client': quote.user, 'quote': quote, 'contact_email': quote.client_email,
         'contact_name': quote.client_name[:160], 'subject': f'Proposta {quote.reference}',
@@ -153,7 +154,7 @@ def prepare_email(quote, user):
     name, mime = validate_file(f'Proposta-{quote.reference}-v{quote.proposal_version}.pdf', content)
     file = SupportFile.objects.create(conversation=conversation, uploaded_by=user, name=name, mime_type=mime,
         size=len(content), sha256=hashlib.sha256(content).hexdigest(), content=content,
-        document_source={'kind': 'proposal', 'quote_id': quote.pk, 'version': quote.proposal_version})
+        document_source={'kind': 'proposal', 'quote_id': quote.pk, 'version': quote.proposal_version, 'fingerprint': fingerprint(quote)})
     body = (f'Olá {quote.client_company or quote.client_name},\n\n'
         f'Partilhamos em anexo a proposta {quote.reference}, versão {quote.proposal_version}.\n\n'
         f'Reveja os artigos e condições, aceite, peça alterações ou recuse através do link privado:\n{review_link(quote)}\n\n'
@@ -164,6 +165,82 @@ def prepare_email(quote, user):
     record_activity(action='reception_updated', quote=quote, actor=user, is_internal=True,
                     comment=f'Email da proposta v{quote.proposal_version} preparado com PDF; envio ainda não efetuado.')
     return conversation.pk
+
+
+def email_key(quote):
+    return hashlib.sha256(f'proposal:{quote.pk}:{quote.proposal_version}:{fingerprint(quote)}'.encode()).hexdigest()
+
+
+def validate_proposal_email(conversation, files):
+    """Bind outgoing proposal attachments to the published commercial version."""
+    proposals = [file for file in files if file.document_source.get('kind') == 'proposal']
+    if not proposals:
+        return False
+    quote = QuoteRequest.objects.filter(pk=conversation.quote_id).first()
+    if not quote:
+        raise ValidationError('A proposta deste anexo já não está disponível.')
+    require_published(quote)
+    if conversation.email_thread_key != email_key(quote):
+        raise ValidationError('A proposta mudou. Prepare o email da versão atual na etapa Cliente.')
+    if quote.valid_until and quote.valid_until < timezone.localdate():
+        raise ValidationError('A proposta expirou. Atualize as condições antes de enviar.')
+    for file in proposals:
+        source = file.document_source
+        if source.get('quote_id') != quote.pk or source.get('version') != quote.proposal_version or (
+            source.get('fingerprint') and source['fingerprint'] != fingerprint(quote)
+        ):
+            raise ValidationError('O PDF pertence a uma versão anterior. Prepare novamente o email.')
+    return True
+
+
+def whatsapp_number(phone):
+    if not re.fullmatch(r'\+?[\d\s()-]+', phone or ''):
+        return ''
+    digits = re.sub(r'\D', '', phone)
+    if len(digits) == 9 and digits[:2] in {'82', '83', '84', '85', '86', '87'}:
+        digits = '258' + digits
+    return digits if 10 <= len(digits) <= 15 and not digits.startswith('0') else ''
+
+
+def workspace_data(quote):
+    from apps.core.models import EmailDraft, SupportConversation, SupportMessage
+
+    published = quote.proposal_stage in {'sent', 'returned'} and bool(quote.proposal_sent_at)
+    registered = bool(quote.user_id and quote.user.is_active and not quote.user.is_staff)
+    current_decision = decision(quote)
+    history = quote.proposal_history or []
+    current = [row for row in history if row.get('version') == quote.proposal_version]
+    outbound = next((row for row in reversed(current) if row.get('channel') == 'whatsapp' and row.get('delivery') == 'confirmed'), None)
+    thread = SupportConversation.objects.filter(email_thread_key=email_key(quote)).first() if published else None
+    draft = EmailDraft.objects.filter(conversation=thread).first() if thread else None
+    message = SupportMessage.objects.filter(conversation=thread, source='email', is_staff=True).select_related('sender').first() if thread else None
+    email_state = 'not_prepared'
+    if draft and draft.send_state != 'idle':
+        email_state = 'unconfirmed'
+    elif message:
+        email_state = message.delivery_status or 'unconfirmed'
+    elif draft and draft.body.strip():
+        email_state = 'draft'
+    expired = bool(quote.valid_until and quote.valid_until < timezone.localdate())
+    state = ('accepted' if current_decision['client_decision'] == 'accept' else current_decision['client_decision']) if current_decision else (
+        'expired' if expired else 'draft' if not published else 'awaiting_response' if registered or outbound or email_state == 'accepted' else 'not_sent')
+    return {
+        'reference': quote.reference, 'version': quote.proposal_version, 'published': published,
+        'registered': registered, 'email': quote.client_email, 'phone': quote.client_phone,
+        'whatsapp_number': whatsapp_number(quote.client_phone),
+        'link': review_link(quote) if published else None, 'decision': current_decision, 'state': state,
+        'published_at': quote.proposal_sent_at, 'expired': expired,
+        'follow_up': {'date': quote.reception_follow_up_date, 'note': quote.reception_follow_up_note},
+        'channels': {
+            'branddesk': {'state': 'available' if registered and published else 'not_available'},
+            'email': {'state': email_state, 'conversation_id': thread.pk if thread else None,
+                      'at': message.created_at if message else draft.updated_at if draft else None,
+                      'actor': (message.sender.get_full_name() or message.sender.username) if message and message.sender else None},
+            'whatsapp': {'state': 'confirmed' if outbound else 'not_sent', 'at': outbound.get('at') if outbound else None,
+                         'actor': outbound.get('actor') if outbound else None},
+        },
+        'history': [{key: row.get(key) for key in ['action', 'version', 'at', 'actor', 'channel', 'client_decision', 'comment']} for row in history[-12:]],
+    }
 
 
 class ReviewThrottle(AnonRateThrottle):

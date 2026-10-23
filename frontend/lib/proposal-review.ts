@@ -1,5 +1,6 @@
 export type ProposalDecision = { client_decision: 'accept' | 'changes' | 'decline'; at: string; contact_name?: string; channel: string; comment?: string };
 export type ClientProposal = {
+  snapshot?: string;
   reference: string; version: number; client_name: string; valid_until: string | null;
   total: string; subtotal: string; discount: string; tax_rate: string; tax_amount: string;
   vat_exempt: boolean; delivery_days: number | null; payment: string; terms: string; notes: string;

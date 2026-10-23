@@ -11,7 +11,7 @@ from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -158,7 +158,7 @@ class QuoteRequestViewSet(
             return [AllowAny()]
         if self.action in ["manual", "prepare", "source", "proposal"]:
             return [HasStaffCapability(StaffCapability.MANAGE_QUOTES)]
-        if self.action in ["approve", "request_change", "approve_price"]:
+        if self.action in ["approve", "request_change", "approve_price", "client_review"]:
             return [
                 IsAuthenticated(),
                 IsOwnerOrStaff(
@@ -598,7 +598,7 @@ class QuoteRequestViewSet(
             decision,
             prepare_email,
             record_decision,
-            review_link,
+            workspace_data,
         )
 
         quote = self.get_object()
@@ -616,7 +616,25 @@ class QuoteRequestViewSet(
                 return Response({'published': True, 'version': quote.proposal_version})
             if command == 'email':
                 return Response({'conversation_id': prepare_email(quote, request.user)})
-            if command == 'phone':
+            if command == 'whatsapp':
+                from .client_proposal import require_published, whatsapp_number
+                from .proposal_workflow import event
+                require_published(quote)
+                if quote.valid_until and quote.valid_until < timezone.localdate():
+                    raise ValidationError('A proposta expirou. Atualize as condições antes de registar um novo envio.')
+                if decision(quote) or not whatsapp_number(quote.client_phone) or request.data.get('confirmed') is not True:
+                    raise ValidationError('Confirme o número e o envio efetivo da proposta atual antes de registar.')
+                comment = serializers.CharField(max_length=500).run_validation(request.data.get('comment'))
+                event(quote, request.user, 'Envio WhatsApp confirmado pela Recepção', comment)
+                quote.proposal_history[-1].update(channel='whatsapp', delivery='confirmed')
+                quote.save(update_fields=['proposal_history', 'updated_at'])
+            elif command == 'follow_up':
+                from .proposal_workflow import event
+                quote.reception_follow_up_date = serializers.DateField(allow_null=True).run_validation(request.data.get('date'))
+                quote.reception_follow_up_note = serializers.CharField(max_length=500, allow_blank=True).run_validation(request.data.get('comment', ''))
+                event(quote, request.user, 'Seguimento do cliente agendado', f'{quote.reception_follow_up_date or "Sem data"}: {quote.reception_follow_up_note}')
+                quote.save(update_fields=['reception_follow_up_date', 'reception_follow_up_note', 'proposal_history', 'updated_at'])
+            elif command == 'phone':
                 values = DecisionInput(data={**request.data, 'action': request.data.get('decision')})
                 values.is_valid(raise_exception=True)
                 if not values.validated_data['comment'].strip():
@@ -624,11 +642,35 @@ class QuoteRequestViewSet(
                 record_decision(quote, values.validated_data, actor=request.user, channel='phone')
             else:
                 raise ValidationError('Ação inválida.')
-        published = quote.proposal_stage in {'sent', 'returned'} and bool(quote.proposal_sent_at)
-        return Response({'version': quote.proposal_version, 'published': published,
-            'registered': bool(quote.user_id), 'email': quote.client_email, 'phone': quote.client_phone,
-            'link': review_link(quote) if published else None, 'decision': decision(quote)},
+        return Response(workspace_data(quote),
             headers={'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer'})
+
+    @action(detail=True, methods=['get', 'post'], url_path='client-review')
+    @transaction.atomic
+    def client_review(self, request, reference=None):
+        from django.utils.crypto import constant_time_compare
+
+        from .client_proposal import (
+            DecisionInput,
+            fingerprint,
+            record_decision,
+            require_published,
+            review_data,
+        )
+
+        quote = self.get_object()
+        if request.user.is_staff or quote.user_id != request.user.pk:
+            raise PermissionDenied()
+        quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
+        require_published(quote)
+        if request.method == 'POST':
+            snapshot = serializers.CharField(max_length=64).run_validation(request.data.get('snapshot'))
+            if not constant_time_compare(snapshot, fingerprint(quote)):
+                raise ValidationError('As condições mudaram. Atualize e reveja a proposta antes de decidir.')
+            values = DecisionInput(data=request.data)
+            values.is_valid(raise_exception=True)
+            record_decision(quote, values.validated_data, actor=request.user, channel='branddesk')
+        return Response({**review_data(quote), 'snapshot': fingerprint(quote)}, headers={'Cache-Control': 'private, no-store'})
 
     @action(detail=True, methods=["get"], url_path="pdf")
     def pdf(self, request, reference=None):
@@ -926,6 +968,8 @@ class QuoteRequestViewSet(
         quote = self.get_object()
         quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
         require_sent(quote)
+        if quote.proposal_stage != 'legacy':
+            raise ValidationError('Reveja e confirme a versão atual na página da proposta no BrandDesk.')
         serializer = QuoteApprovalSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

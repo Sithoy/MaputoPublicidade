@@ -371,6 +371,7 @@ export type QuoteItem = {  id: number;
 };
 
 export type Quote = {
+  client_review_available?: boolean;
   proposal_workflow?: {
     stage: 'legacy' | 'draft' | 'review' | 'returned' | 'approved' | 'sent'; stage_display: string;
     version: number; owner_id: number | null; prepared_by: string; prepared_by_id: number | null; can_review: boolean;

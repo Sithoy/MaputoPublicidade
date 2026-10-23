@@ -115,6 +115,8 @@ class EmailWorkspaceMixin:
             if request.data.get('version') != draft.version or draft.send_state != 'idle':
                 raise DraftConflict('Rascunho alterado ou envio em curso. Reabra o email antes de continuar.')
             files = selected_files(conversation, draft.attachment_ids)
+            from apps.quotes.client_proposal import validate_proposal_email
+            validate_proposal_email(conversation, files)
             rendered = preview(draft.subject, draft.body, staff_signature(request.user, required=True), [metadata(row) for row in files])
             if not draft.body.strip() or rendered['missing']:
                 raise serializers.ValidationError('Complete o texto e todos os campos assinalados antes de enviar.')
