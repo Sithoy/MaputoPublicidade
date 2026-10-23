@@ -588,17 +588,33 @@ def _invoice_summary_block(
     return table
 
 
-def _proposal_summary_block(styles, document, totals_rows, company):
-    """Notes beside the totals; conditions and payment details below them."""
+def _proposal_text_region(text, style, width, height):
+    """Fit readable text in its reserved zone, returning any annex overflow."""
+    paragraph = Paragraph(escape(text or "-").replace("\n", "<br/>"), style)
+    if paragraph.wrap(width, A4[1])[1] <= height:
+        return [paragraph], []
+    hint = Paragraph("Continua no anexo desta proposta.", style)
+    hint_height = hint.wrap(width, height)[1]
+    parts = paragraph.split(width, height - hint_height - 3)
+    if not parts:
+        return [hint], [paragraph]
+    return [parts[0], Spacer(1, 3), hint], parts[1:]
+
+
+def _proposal_summary_block(styles, document, totals_rows, company, notes, supplementary):
+    """Fixed notes/complementary terms beside totals; conditions/bank below."""
     label = ParagraphStyle("closing_label", parent=styles["label"], textColor=BRAND, fontSize=7, leading=10)
     small = styles["small"]
-    left = []
-    if document.notes:
-        left.extend([
-            Paragraph("OBSERVAÇÕES", label),
-            Spacer(1, 2 * mm),
-            Paragraph(escape(document.notes).replace("\n", "<br/>"), small),
-        ])
+    left = Table([
+        [[Paragraph("OBSERVAÇÕES", label), Spacer(1, 2 * mm), *notes]],
+        [[Paragraph("CONDIÇÕES COMPLEMENTARES", label), Spacer(1, 2 * mm), *supplementary]],
+    ], colWidths=[92 * mm], rowHeights=[20 * mm, 19 * mm], style=TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
     right = [_totals_table(totals_rows, compact=True)]
     upper = Table([[left, "", right]], colWidths=[92 * mm, 6 * mm, 80 * mm])
     upper.setStyle(TableStyle([
@@ -609,7 +625,7 @@ def _proposal_summary_block(styles, document, totals_rows, company):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ("LINEABOVE", (0, 0), (-1, 0), 1, ACCENT),
     ]))
-    upper_height = max(44 * mm, upper.wrap(178 * mm, A4[1])[1])
+    upper_height = 44 * mm
     upper = Table([[upper]], colWidths=[178 * mm], rowHeights=[upper_height], style=TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -633,7 +649,7 @@ def _proposal_summary_block(styles, document, totals_rows, company):
         Spacer(1, 2 * mm),
         Paragraph(f"Referência: <b>{escape(document.reference)}</b><br/>Envie o comprovativo à MP.", bank_text),
     ])
-    lower = Table([[conditions, "", bank]], colWidths=[92 * mm, 6 * mm, 80 * mm])
+    lower = Table([[conditions, "", bank]], colWidths=[92 * mm, 6 * mm, 80 * mm], rowHeights=[41 * mm])
     lower.setStyle(TableStyle([
         ("BACKGROUND", (2, 0), (2, 0), PAPER_TINT),
         ("BOX", (2, 0), (2, 0), 0.5, GREY_LINE),
@@ -881,32 +897,18 @@ def build_quote_pdf(quote) -> bytes:
             else f"Adiantamento previsto (50%): {_money(Decimal(str(total)) / 2)}."
         )
     commercial_terms.append("Condições sujeitas à aprovação do cliente. Não constitui uma cobrança.")
-    core_terms = "\n".join(commercial_terms)
-    commercial_terms.append(terms)
     document.terms = "\n".join(commercial_terms)
-    closing_height = 85 * mm
-
-    def closing_block():
-        return _proposal_summary_block(styles, document, totals_rows, company)
-
-    closing = closing_block()
-    # Free-form terms and observations may be thousands of characters long.
-    # Flow these normally when necessary; keep the operational payment/bank
-    # information and totals together in the same fixed closing zone.
-    if closing.wrap(178 * mm, A4[1])[1] > closing_height:
-        story.extend([
-            Paragraph("CONDIÇÕES COMPLEMENTARES", styles["section"]),
-            Paragraph(escape(terms).replace("\n", "<br/>"), styles["small"]),
-        ])
-        if document.notes:
-            story.extend([
-                Paragraph("OBSERVAÇÕES", styles["section"]),
-                Paragraph(escape(document.notes).replace("\n", "<br/>"), styles["small"]),
-            ])
-        document.terms = core_terms
-        document.notes = ""
-        closing = closing_block()
-    story.append(_ProposalClosing(closing, max(closing_height, closing.wrap(178 * mm, A4[1])[1])))
+    # Keep all closing fields at invariant coordinates. Only exceptionally
+    # long free text continues in an explicit annex, never across these zones.
+    supplementary, extra_terms = _proposal_text_region(terms, styles["small"], 92 * mm, 19 * mm - 10 - 2 * mm)
+    notes, extra_notes = _proposal_text_region(document.notes, styles["small"], 92 * mm, 20 * mm - 10 - 2 * mm)
+    if extra_terms or extra_notes:
+        story.append(Paragraph("ANEXO À PROPOSTA", styles["section"]))
+        for title, overflow in [("Condições complementares - continuação", extra_terms), ("Observações - continuação", extra_notes)]:
+            if overflow:
+                story.extend([Paragraph(title, styles["section"]), *overflow, Spacer(1, 4 * mm)])
+    closing = _proposal_summary_block(styles, document, totals_rows, company, notes, supplementary)
+    story.append(_ProposalClosing(closing, 85 * mm))
     return _build(
         f"Proposta-{quote.reference}",
         company,

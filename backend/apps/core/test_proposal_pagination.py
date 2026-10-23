@@ -43,6 +43,7 @@ def test_proposal_final_zone_and_content(quote, tmp_path, count, description_wor
         assert "TOTAL DA PROPOSTA" in texts[-1]
         assert "CONDIÇÕES COMERCIAIS" in texts[-1]
         assert "DADOS BANCÁRIOS" in texts[-1]
+        assert "CONDIÇÕES COMPLEMENTARES" in texts[-1]
         assert "FIMTERMOS" in combined
         assert "FIMNOTAS" in combined
         for index in range(count):
@@ -57,11 +58,15 @@ def test_proposal_final_zone_and_content(quote, tmp_path, count, description_wor
         assert abs(bank_heading.y0 - (expected_top + 44 * mm + 7)) < 5
         assert bank_heading.y0 == pytest.approx(heading.y0, abs=1)
         assert heading.x0 < bank_heading.x0
-        if not long_terms:
-            notes_heading = document[-1].search_for("OBSERVAÇÕES")[0]
-            assert notes_heading.x0 < subtotal.x0
-            assert abs(notes_heading.y0 - subtotal.y0) < 5
-            assert notes_heading.y0 < heading.y0
+        supplementary = document[-1].search_for("CONDIÇÕES COMPLEMENTARES")[0]
+        assert abs(supplementary.y0 - (expected_top + 8 + 20 * mm)) < 5
+        notes_heading = document[-1].search_for("OBSERVAÇÕES")[0]
+        assert notes_heading.x0 < subtotal.x0
+        assert abs(notes_heading.y0 - subtotal.y0) < 5
+        assert notes_heading.y0 < heading.y0
+        if long_terms:
+            assert "ANEXO À PROPOSTA" in combined
+            assert "Continua no anexo desta proposta." in texts[-1]
         for page in document:
             for word in page.get_text("words"):
                 assert word[0] >= 0 and word[2] <= A4[0] + 1
