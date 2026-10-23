@@ -1,0 +1,231 @@
+"""Version-scoped proposal review; never grants account or production access."""
+import hashlib
+import json
+
+from django.conf import settings
+from django.core import signing
+from django.db import transaction
+from django.http import HttpResponse
+from django.utils import timezone
+from django.utils.crypto import constant_time_compare, salted_hmac
+from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
+from rest_framework.views import APIView
+
+from apps.core.activity import record_activity
+from apps.core.documents import build_quote_pdf
+
+from .models import QuoteRequest
+from .proposal_workflow import document_snapshot
+
+SALT = 'mp-commercial-review-v1'
+MAX_AGE = 7 * 24 * 3600
+
+
+def fingerprint(quote):
+    # Hash persisted values consistently (e.g. Decimal('232') vs database
+    # Decimal('232.00')); unsaved Python representations are not a revision.
+    quote = QuoteRequest.objects.get(pk=quote.pk)
+    snapshot = document_snapshot(quote)
+    snapshot['sent_at'] = str(quote.proposal_sent_at)
+    snapshot['details'] = list(quote.items.values('size', 'material', 'colors', 'material_briefing', 'position'))
+    return salted_hmac(SALT, json.dumps(snapshot, sort_keys=True, default=str)).hexdigest()
+
+
+def decision(quote):
+    for row in reversed(quote.proposal_history):
+        if row.get('version') == quote.proposal_version and row.get('client_decision'):
+            return {key: row.get(key) for key in ['client_decision', 'at', 'contact_name', 'channel', 'comment']}
+    if quote.price_approved_at:
+        return {'client_decision': 'accept', 'at': quote.price_approved_at, 'channel': 'branddesk', 'comment': quote.price_approval_comment}
+    return None
+
+
+def require_published(quote):
+    if quote.proposal_stage not in {'sent', 'returned'} or not quote.proposal_sent_at or not quote.proposal_version:
+        raise ValidationError('Disponibilize a versão atual ao cliente antes de partilhar o link.')
+
+
+def review_link(quote):
+    require_published(quote)
+    token = signing.dumps({'q': quote.pk, 'v': quote.proposal_version, 'f': fingerprint(quote)}, salt=SALT)
+    origin = getattr(settings, 'TRACKING_SITE_URL', 'https://maputopublicidade.com').rstrip('/')
+    return f'{origin}/proposta#token={token}'
+
+
+def publish_notice(quote):
+    from apps.core.models import PortalNotification
+
+    if quote.user_id and not quote.user.is_staff:
+        PortalNotification.objects.get_or_create(recipient=quote.user,
+            title=f'{quote.reference}: proposta v{quote.proposal_version} disponível',
+            href=f'/area-cliente/orcamentos/{quote.reference}')
+
+
+def review_data(quote):
+    recorded = decision(quote)
+    # Phone-call context and legacy approval comments can contain internal
+    # staff notes. A link holder only needs the decision and its provenance.
+    public_decision = {key: recorded[key] for key in ['client_decision', 'at', 'contact_name', 'channel'] if key in recorded} if recorded else None
+    return {
+        'reference': quote.reference, 'version': quote.proposal_version,
+        'client_name': quote.client_company or quote.client_name,
+        'valid_until': quote.valid_until, 'total': quote.final_price,
+        'subtotal': quote.subtotal, 'discount': quote.discount_amount,
+        'tax_rate': quote.tax_rate, 'tax_amount': quote.tax_amount, 'vat_exempt': quote.vat_exempt,
+        'delivery_days': quote.estimated_delivery_days, 'payment': quote.get_payment_option_display(),
+        'terms': quote.terms, 'notes': quote.notes, 'decision': public_decision,
+        'expired': bool(quote.valid_until and quote.valid_until < timezone.localdate()),
+        'items': [{'description': item.description, 'quantity': item.quantity,
+                   'unit_price': item.unit_price, 'notes': item.notes,
+                   'specifications': ' · '.join(filter(None, [item.size, item.material, item.colors])),
+                   'configuration': (item.material_briefing or {}).get('catalogue_configuration', {}),
+                   'apparel': (item.material_briefing or {}).get('apparel')}
+                  for item in quote.items.all()],
+    }
+
+
+class DecisionInput(serializers.Serializer):
+    action = serializers.ChoiceField(choices=['accept', 'changes', 'decline'])
+    version = serializers.IntegerField(min_value=1)
+    contact_name = serializers.CharField(max_length=160)
+    comment = serializers.CharField(max_length=3000, allow_blank=True, default='')
+    confirmed = serializers.BooleanField()
+
+
+def record_decision(quote, values, *, actor=None, channel='link'):
+    require_published(quote)
+    if values['version'] != quote.proposal_version or decision(quote) or hasattr(quote, 'order') or quote.status == 'cancelled':
+        raise ValidationError('Esta versão já tem uma decisão ou foi alterada. Atualize a página.')
+    if quote.valid_until and quote.valid_until < timezone.localdate():
+        raise ValidationError('A proposta expirou. Peça à Recepção uma versão atualizada.')
+    if not values['confirmed']:
+        raise ValidationError('Confirme explicitamente a sua decisão.')
+    if values['action'] != 'accept' and not values['comment'].strip():
+        raise ValidationError('Indique o motivo ou as alterações pretendidas.')
+    now = timezone.now()
+    action = values['action']
+    quote.proposal_history = [*quote.proposal_history, {
+        'action': {'accept': 'Proposta aceite', 'changes': 'Alterações pedidas', 'decline': 'Proposta recusada'}[action],
+        'version': quote.proposal_version, 'at': now.isoformat(),
+        'actor_id': actor.pk if actor else None,
+        'actor': (actor.get_full_name() or actor.username) if actor else 'Cliente por link privado',
+        'contact_name': values['contact_name'], 'channel': channel,
+        'client_decision': action, 'comment': values['comment'],
+    }]
+    if action == 'accept':
+        quote.status = 'approved'
+        quote.price_approved_at = now
+        quote.price_approved_by = actor
+        quote.price_approval_comment = f"{values['contact_name']} ({channel}): {values['comment']}"
+    else:
+        quote.status = 'reviewing'
+        quote.proposal_stage = 'returned'
+    quote.save()
+    record_activity(action='price_approved' if action == 'accept' else 'status_changed',
+                    quote=quote, actor=actor, is_internal=True,
+                    comment=f"Decisão da proposta v{quote.proposal_version}: {action}. Contacto: {values['contact_name']}. Canal: {channel}. {values['comment']}")
+    # Deliberately no order creation, payment clearance or production transition.
+
+
+def prepare_email(quote, user):
+    from apps.accounts.roles import has_staff_capability
+    from apps.core.models import EmailDraft, SupportConversation, SupportFile
+    from apps.core.support_files import validate_file
+
+    if not has_staff_capability(user, 'support.manage') or not has_staff_capability(user, 'quotes.export'):
+        raise PermissionDenied()
+    if not quote.client_email:
+        raise ValidationError('Confirme o email do cliente no pedido.')
+    require_published(quote)
+    key = hashlib.sha256(f'proposal:{quote.pk}:{quote.proposal_version}:{fingerprint(quote)}'.encode()).hexdigest()
+    conversation, _ = SupportConversation.objects.get_or_create(email_thread_key=key, defaults={
+        'channel': 'email', 'client': quote.user, 'quote': quote, 'contact_email': quote.client_email,
+        'contact_name': quote.client_name[:160], 'subject': f'Proposta {quote.reference}',
+    })
+    draft = EmailDraft.objects.select_for_update().filter(conversation=conversation).first()
+    if draft:
+        return conversation.pk  # Never overwrite a colleague's draft or repeat a sent email.
+    content = build_quote_pdf(quote)
+    name, mime = validate_file(f'Proposta-{quote.reference}-v{quote.proposal_version}.pdf', content)
+    file = SupportFile.objects.create(conversation=conversation, uploaded_by=user, name=name, mime_type=mime,
+        size=len(content), sha256=hashlib.sha256(content).hexdigest(), content=content,
+        document_source={'kind': 'proposal', 'quote_id': quote.pk, 'version': quote.proposal_version})
+    body = (f'Olá {quote.client_company or quote.client_name},\n\n'
+        f'Partilhamos em anexo a proposta {quote.reference}, versão {quote.proposal_version}.\n\n'
+        f'Reveja os artigos e condições, aceite, peça alterações ou recuse através do link privado:\n{review_link(quote)}\n\n'
+        f'Validade: {quote.valid_until or "conforme proposta"}.\nPagamento: {quote.get_payment_option_display()}.\n\n'
+        'Pode responder diretamente a este email. A aceitação da proposta não confirma o início da produção.')
+    EmailDraft.objects.create(conversation=conversation, subject=f'Proposta comercial - {quote.reference}',
+        body=body, template_key='proposal', attachment_ids=[file.pk], updated_by=user)
+    record_activity(action='reception_updated', quote=quote, actor=user, is_internal=True,
+                    comment=f'Email da proposta v{quote.proposal_version} preparado com PDF; envio ainda não efetuado.')
+    return conversation.pk
+
+
+class ReviewThrottle(AnonRateThrottle):
+    scope = 'proposal_review'
+    rate = '30/min'
+
+
+class PublicProposalReview(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ReviewThrottle]
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response['Cache-Control'] = 'private, no-store'
+        response['Referrer-Policy'] = 'no-referrer'
+        response['X-Content-Type-Options'] = 'nosniff'
+        return response
+
+    @transaction.atomic
+    def post(self, request):
+        token = request.headers.get('X-MP-Proposal-Token', '')
+        try:
+            if len(token) > 1024:
+                raise ValueError
+            payload = signing.loads(token, salt=SALT, max_age=MAX_AGE)
+            quote = QuoteRequest.objects.select_for_update().get(pk=payload['q'])
+            require_published(quote)
+            if payload['v'] != quote.proposal_version or not constant_time_compare(payload['f'], fingerprint(quote)):
+                raise ValueError
+            if quote.status == 'cancelled':
+                raise ValueError
+        except (signing.BadSignature, QuoteRequest.DoesNotExist, KeyError, TypeError, ValueError, ValidationError):
+            raise PermissionDenied('Link inválido, expirado ou substituído. Contacte a Recepção.') from None
+        command = request.data.get('action', 'view')
+        if command == 'question':
+            from apps.core.models import SupportConversation, SupportMessage
+            from apps.core.support_views import notify_message
+
+            body = serializers.CharField(max_length=4000).run_validation(request.data.get('body'))
+            # Reuse guest tracking: reception replies already email the client
+            # a private continuation link, rather than disappearing in a chat
+            # which a guest cannot reopen from their account.
+            conversation = SupportConversation.objects.filter(quote=quote, channel='tracking').first()
+            if not conversation:
+                conversation = SupportConversation.objects.create(quote=quote, client=quote.user,
+                    contact_email=quote.client_email, contact_name=quote.client_name[:160],
+                    subject=f'Proposta {quote.reference}', channel='tracking')
+            SupportMessage.objects.create(conversation=conversation, sender=None, is_staff=False,
+                source='proposal', body=f'Proposta v{quote.proposal_version} (link privado):\n{body}')
+            conversation.status = 'awaiting_team'
+            conversation.updated_at = timezone.now()
+            conversation.last_inbound_at = timezone.now()
+            conversation.save(update_fields=['status', 'updated_at', 'last_inbound_at'])
+            notify_message(conversation, None)
+            return Response({'detail': 'Pergunta enviada à Recepção com esta proposta associada.'})
+        if command == 'pdf':
+            response = HttpResponse(build_quote_pdf(quote), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="Proposta-{quote.reference}.pdf"'
+            return response
+        if command != 'view':
+            data = DecisionInput(data=request.data)
+            data.is_valid(raise_exception=True)
+            record_decision(quote, data.validated_data)
+        return Response(review_data(quote))

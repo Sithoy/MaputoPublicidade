@@ -4,7 +4,7 @@ import { Suspense, useEffect, useEffectEvent, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { fetchWithAuth } from '@/lib/auth';
-import { getQuote, convertQuoteToOrder, downloadQuotePdf, type AdminQuote } from '@/lib/admin-api';
+import { getQuote, convertQuoteToOrder, type AdminQuote } from '@/lib/admin-api';
 import type { ReceptionRequest } from '@/lib/reception-api';
 import { receptionStage } from '@/lib/operational-workflow';
 import { ReceptionQueue, type QueueQuote } from './ReceptionQueue';
@@ -14,7 +14,6 @@ import { ReceptionOrderSummary } from './ReceptionOrderSummary';
 import { ReceptionCaseContext } from './ReceptionCaseContext';
 import { ReceptionOrderHeader, type ReceptionTab } from './ReceptionOrderHeader';
 import { ReceptionRequestPanel } from './ReceptionRequestPanel';
-import { ProposalWorkflowCard } from './ProposalWorkflowCard';
 import { OperationalDelivery } from './OperationalDelivery';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
@@ -24,6 +23,7 @@ import { ArrowLeft, Plus, LayoutDashboard } from 'lucide-react';
 import { useReceptionEdit } from '@/hooks/useReceptionEdit';
 
 const RequestForm = dynamic(() => import('./RequestForm'));
+const ClientProposalWorkspace = dynamic(() => import('./ClientProposalWorkspace').then((module) => module.ClientProposalWorkspace));
 const CommunicationWorkspace = dynamic(() => import('@/components/admin/CommunicationWorkspace').then((module) => module.CommunicationWorkspace));
 type Page = { results: QueueQuote[]; next: string | null; count: number };
 const QUEUE_PAGE_SIZE = 10;
@@ -140,6 +140,7 @@ export function ReceptionWorkspace() {
   const current = quote ? receptionStage(quote) : null;
   const closed = quote?.status === 'cancelled' || quote?.status === 'delivered' || ['cancelled', 'delivered'].includes(quote?.operational_order_status || '');
   const focusedProposal = Boolean(quote && step === 1 && tab === 'work');
+  const focusedClient = Boolean(quote && step === 2 && tab === 'work');
   async function enterProposal(value: AdminQuote, resumeOwn = false) {
     setStep(1); setTab('work'); setEditing(false);
     if (!canQuoteEdit || value.price_approved_at || value.order_reference || ['cancelled', 'delivered'].includes(value.status) || receptionStage(value).index === 0) return;
@@ -154,7 +155,13 @@ export function ReceptionWorkspace() {
     finally { setBusy(false); }
   }
   function proposalSaved(value: string, intent?: 'save' | 'send') {
-    void lease.release(); setTab(intent === 'send' ? 'work' : 'summary'); saved(value);
+    void intent;
+    void lease.release(); setTab('work'); saved(value);
+  }
+  function clientChanged() {
+    setDirty(false); void lease.release();
+    getQuote(reference).then(setQuote).catch(() => setError('Atualize o pedido para ver a decisão.'));
+    setTick((value) => value + 1);
   }
   function chooseTask(value: string) { if (!busy) { setTask(value); setState('active'); setTick((previous) => previous + 1); } }
   function openCase(value: string) { navigate(() => { setInbox(false); setNewRequest(false); setReference(value); setTab('summary'); }); }
@@ -198,7 +205,7 @@ export function ReceptionWorkspace() {
         {!lease.session && canQuoteEdit ? <button type="button" onClick={() => void enterProposal(quote)} className="rounded-xl border px-4 py-3 text-sm font-semibold">Tentar novamente</button> : null}
       </>}
       {!editing ? <button type="button" disabled={busy || lease.pending} onClick={() => navigate(() => setTab('summary'))} className="rounded-xl border px-4 py-3 text-sm">Voltar ao pedido</button> : null}
-    </section> : <>
+    </section> : focusedClient ? <>{resumeOwnControl}<ClientProposalWorkspace key={`${reference}:${quote.proposal_workflow?.stage}:${quote.proposal_workflow?.version}:${quote.price_approved_at}`} quote={quote} editable={lease.editable && canQuoteEdit} onAcquire={() => void beginEditing()} onChanged={clientChanged} onBack={() => navigate(() => { void enterProposal(quote); })} onMessages={() => navigate(() => setTab('messages'))} onBusyChange={setBusy} onDirtyChange={setDirty} /></> : <>
       {resumeOwnControl}
       <ReceptionOrderHeader quote={quote} step={step} tab={tab} busy={busy || lease.pending} editControls={<section aria-label="Reserva de edição" className="desk-edit-status border-t pt-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-brand-900">{lease.editable ? 'Está a editar este pedido' : lease.session ? `Em edição por ${lease.session.editor_name}` : 'Disponível para toda a Recepção'}</p><p className="mt-1 text-xs text-slate-500">Consulta partilhada. A reserva protege apenas a edição.</p></div><div className="flex gap-2">{!closed ? lease.editable ? <button disabled={busy || lease.pending} type="button" onClick={finishEditing} className="rounded-lg border px-3 py-2 text-xs font-semibold">Terminar edição</button> : <button disabled={busy || lease.pending || Boolean(lease.session)} type="button" onClick={() => void beginEditing()} className="desk-primary rounded-lg px-3 py-2 text-xs font-semibold text-white">Iniciar edição</button> : null}{!closed && lease.session && !lease.editable && can('quotes.review') ? <button type="button" disabled={busy || lease.pending} onClick={() => { const reason = window.prompt('Motivo para retomar esta edição ativa:'); if (reason?.trim()) void beginEditing(reason.trim()); }} className="rounded-lg border px-3 py-2 text-xs">Retomar com motivo</button> : null}</div></div>{lease.error ? <p role="alert" className="mt-3 text-xs text-amber-900">{lease.error}</p> : null}</section>}
         onStep={(index) => navigate(() => { if (index === 1) { void enterProposal(quote); return; } setStep(index); setTab('work'); })}
@@ -211,7 +218,6 @@ export function ReceptionWorkspace() {
       <fieldset disabled={followUpDirty || busy || (tab === 'work' && !lease.editable)} className="min-w-0">
       {tab === 'summary' ? <ReceptionOrderSummary quote={quote} /> : tab === 'proposal' ? <ProposalReadView quote={quote} /> : tab === 'messages' ? can('support.manage') ? <Suspense fallback={<p>A carregar mensagens…</p>}><CommunicationWorkspace key={reference} quoteReference={reference} onDirtyChange={setDirty} onBusyChange={setBusy} /></Suspense> : <p>Sem permissão para consultar mensagens.</p> : tab === 'history' ? <section className="space-y-5 rounded-2xl border bg-white p-5"><QuoteRequestEvidence quote={quote} /><ActivityTimeline events={quote.activity || []} /></section> : <div id="reception-work-panel" className="scroll-mt-24" onChangeCapture={() => setDirty(true)}>
         {step === 0 ? triage && user ? <ReceptionRequestPanel embedded editingAllowed={lease.editable} request={triage} userId={user.id} canReleaseOthers={can('quotes.review')} onChange={(value) => { setDirty(false); if (value) setTriage(value); else saved(); }} onClose={() => { setDirty(false); setReference(''); }} /> : <section className="rounded-2xl border bg-white p-5"><h3 className="font-semibold">Briefing confirmado</h3><p className="mt-3 whitespace-pre-wrap text-sm">{quote.reception?.briefing?.description || quote.notes || 'Consulte os materiais e anexos.'}</p><QuoteRequestEvidence quote={quote} /></section> : null}
-        {step === 2 ? <section className="space-y-4"><ProposalReadView quote={quote} /><ProposalWorkflowCard quote={quote} onChange={() => { void lease.release(); saved(); }} /><button type="button" onClick={() => downloadQuotePdf(reference).catch(() => setError('Não foi possível descarregar a proposta.'))} className="rounded-xl border bg-white px-4 py-3 text-sm">Exportar PDF</button>{quote.proposal_workflow?.stage === 'legacy' ? <p className="text-sm">Proposta do fluxo anterior: acompanhe a decisão do cliente nas mensagens.</p> : null}</section> : null}
         {step === 3 ? quote.order_reference ? <OperationalDelivery key={quote.order_reference} reference={quote.order_reference} onSaved={() => setDirty(false)} /> : quote.price_approved_at && can('orders.manage_status') ? <button type="button" disabled={busy} onClick={createOrder} className="rounded-xl bg-brand-800 px-5 py-3 text-white">Criar ordem de produção</button> : <p className="rounded-xl border bg-white p-5">A ordem de produção estará disponível após a aceitação do cliente.</p> : null}
       </div>}</fieldset></>}</section></>}
     </section></div>;
