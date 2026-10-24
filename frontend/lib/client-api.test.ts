@@ -1,10 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createBrandRequest } from './client-api';
+import { createBrandRequest, createQuoteFromCart, previewRequestAttachment } from './client-api';
+import { fetchBlobWithAuth } from './auth';
 
 const { fetchWithAuthMock } = vi.hoisted(() => ({ fetchWithAuthMock: vi.fn() }));
-vi.mock('./auth', () => ({ fetchWithAuth: fetchWithAuthMock, downloadWithAuth: vi.fn() }));
+vi.mock('./auth', () => ({ fetchWithAuth: fetchWithAuthMock, downloadWithAuth: vi.fn(), fetchBlobWithAuth: vi.fn() }));
 
 describe('createBrandRequest', () => {
+  it('sends checkout references with the same private multipart contract', async () => {
+    const logo = new File(['png'], 'logo.png');
+    await createQuoteFromCart({} as Parameters<typeof createQuoteFromCart>[0], { client_name: 'Empresa', client_email: 'compras@example.test' }, [logo]);
+    const [path, options] = fetchWithAuthMock.mock.calls[0];
+    expect(path).toBe('/api/cart/convert-to-quote/');
+    expect(options.body.getAll('files')).toEqual([logo]);
+    expect(JSON.parse(options.body.get('payload'))).toMatchObject({ client_name: 'Empresa' });
+    expect(options.headers).toBeUndefined();
+  });
+  it('previews Studio references through the technical API, never commercial quote details', async () => {
+    vi.mocked(fetchBlobWithAuth).mockResolvedValue(new Blob(['png'], { type: 'image/png' }));
+    await previewRequestAttachment('MP-0001-2026', 7, undefined, 'production');
+    expect(fetchBlobWithAuth).toHaveBeenCalledWith('/api/production/MP-0001-2026/references/7/?preview=1', { signal: undefined });
+  });
   beforeEach(() => { fetchWithAuthMock.mockReset(); fetchWithAuthMock.mockResolvedValue({ reference: 'MP-0008-2026' }); });
   it('sends independent materials and files without pricing or client ownership fields', async () => {
     const file = new File(['%PDF-1.4'], 'brief.pdf', { type: 'application/pdf' });

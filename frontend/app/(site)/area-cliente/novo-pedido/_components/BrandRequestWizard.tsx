@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { BriefingDisclosure } from '@/components/BriefingDisclosure';
+import { RequestReferenceUpload } from '@/components/RequestReferenceUpload';
 import { MaterialBriefingFields } from '@/components/MaterialBriefingFields';
 import { materialBriefingLines, type MaterialBriefing } from '@/lib/material-briefing';
 import { createBrandRequest, getMe, fulfilmentLabels, type BrandRequestIntent } from '@/lib/client-api';
@@ -61,16 +62,6 @@ export function BrandRequestWizard() {
 
   function updateItem(key: number, patch: Partial<Material>) {
     setItems((current) => current.map((item) => item.key === key ? { ...item, ...patch } : item));
-  }
-  function selectFiles(selectedFiles: FileList | null) {
-    const next = [...files, ...Array.from(selectedFiles || [])];
-    if (next.length > 5 || next.reduce((total, file) => total + file.size, 0) > 3 * 1024 * 1024 || next.some((file) => file.size > 2 * 1024 * 1024)) {
-      setError('Use até 5 anexos: 2 MB por ficheiro e 3 MB no total.'); return;
-    }
-    if (next.some((file) => !/\.(pdf|png|jpe?g|webp|csv|xlsx|docx)$/i.test(file.name))) {
-      setError('Use PDF, JPG, PNG, WebP, CSV, XLSX ou DOCX.'); return;
-    }
-    setFiles(next); setError('');
   }
   function validate() {
     if (!projectName.trim()) return 'Dê um nome ao pedido.';
@@ -144,11 +135,7 @@ export function BrandRequestWizard() {
           </BriefingDisclosure>
           <label className="flex items-start gap-3 rounded-xl bg-brand-50 p-4 text-sm"><input type="checkbox" checked={needsDesign} onChange={(event) => setNeedsDesign(event.target.checked)} className="mt-1" />Preciso de apoio com design ou arte final</label>
           {needsDesign ? <p className="text-sm text-brand-800">Descreva o que pretende no contexto do pedido e, se tiver, junte o logótipo ou exemplos nas referências.</p> : null}
-          <BriefingDisclosure title="Juntar anexos e referências" hint={files.length ? `${files.length} ficheiro(s) selecionado(s)` : 'Opcional: imagens, documentos ou exemplos para a equipa.'} defaultOpen={files.length > 0}>
-          <div><Label htmlFor="request-files">Anexos e referências</Label><Input id="request-files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.csv,.xlsx,.docx" onChange={(event) => { selectFiles(event.target.files); event.target.value = ''; }} className={fieldClass} /><p className="mt-2 text-xs text-gray-500">PDF, imagens, tabelas ou documentos. Até 5 ficheiros, 2 MB cada e 3 MB no total. Os anexos ficam privados.</p>
-            <ul className="mt-3 space-y-2">{files.map((file, index) => <li key={`${index}-${file.name}`} className="flex items-center justify-between gap-3 text-sm"><span className="break-all">{file.name} · {Math.ceil(file.size / 1024)} KB</span><Button type="button" variant="ghost" aria-label={`Remover anexo ${file.name}`} onClick={() => setFiles((current) => current.filter((_, position) => position !== index))}><Trash2 className="h-4 w-4" /></Button></li>)}</ul>
-          </div>
-          </BriefingDisclosure>
+          <RequestReferenceUpload files={files} onChange={setFiles} />
         </> : <>
           <h3 className="font-semibold">{projectName}</h3><p className="whitespace-pre-wrap text-sm text-gray-600">{notes || 'Sem observações adicionais.'}</p>
           {items.length ? <ul className="divide-y">{items.map((item) => <li key={item.key} className="py-4"><p className="font-medium">{item.description} · {item.quantity} unidades</p><p className="mt-1 whitespace-pre-wrap text-sm text-gray-500">{item.specifications || 'Especificações a confirmar pela MP.'}</p>{materialBriefingLines(item.material_briefing).map((line) => <p key={line} className="mt-1 whitespace-pre-wrap text-sm text-gray-600">{line}</p>)}</li>)}</ul> : <p className="rounded-xl bg-brand-50 p-4 text-sm">A equipa ajudará a definir os materiais e quantidades. Não serão assumidos valores.</p>}

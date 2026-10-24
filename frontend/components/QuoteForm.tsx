@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { post } from '@/lib/api';
+import { RequestReferenceUpload } from './RequestReferenceUpload';
 
 const products = [
   { slug: 'rollups', name: 'Rollups' },
@@ -38,6 +39,7 @@ export function QuoteForm() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ reference: string; estimated_price?: number; tracking_token?: string } | null>(null);
   const [error, setError] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (productParam) {
@@ -78,9 +80,13 @@ export function QuoteForm() {
     };
 
     try {
-      const data = await post('/api/quotes/', payload);
+      const body = new FormData();
+      body.append('payload', JSON.stringify(payload));
+      files.forEach((file) => body.append('files', file));
+      const data = await post('/api/quotes/', files.length ? body : payload);
       setResult(data as { reference: string; estimated_price?: number; tracking_token?: string });
       form.reset();
+      setFiles([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao enviar pedido');
     } finally {
@@ -195,6 +201,7 @@ export function QuoteForm() {
             <Textarea id="notes" name="notes" rows={4} placeholder="Descreva o projeto, referências ou dúvidas..." />
           </div>
 
+          <RequestReferenceUpload files={files} onChange={setFiles} disabled={loading} />
           <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <Button type="submit" disabled={loading} className="flex-1 gap-2">
               <Send className="h-4 w-4" />

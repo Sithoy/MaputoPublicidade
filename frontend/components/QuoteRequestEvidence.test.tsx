@@ -27,7 +27,7 @@ describe('QuoteRequestEvidence previews', () => {
     fireEvent.click(opener);
     expect(await screen.findByRole('img', { name: 'logo.png' })).toHaveAttribute('src', 'blob:private-image');
     expect(downloadRequestAttachment).not.toHaveBeenCalled();
-    expect(previewRequestAttachment).toHaveBeenCalledWith('MP-0001-2026', 1, expect.any(AbortSignal));
+    expect(previewRequestAttachment).toHaveBeenCalledWith('MP-0001-2026', 1, expect.any(AbortSignal), 'quotes');
     fireEvent.click(screen.getByRole('button', { name: 'Aumentar zoom' }));
     expect(screen.getByText('150%')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Imagem seguinte' }));

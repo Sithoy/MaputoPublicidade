@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/Button';
 type ImageAttachment = { id: number; name: string };
 export const isImageAttachment = (name: string) => /\.(jpe?g|png|webp)$/i.test(name);
 
-export function AttachmentImageViewer({ reference, files, initialId, onClose }: {
-  reference: string; files: ImageAttachment[]; initialId: number; onClose: () => void;
+export function AttachmentImageViewer({ reference, files, initialId, onClose, scope = 'quotes' }: {
+  reference: string; files: ImageAttachment[]; initialId: number; onClose: () => void; scope?: 'quotes' | 'production';
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [index, setIndex] = useState(() => Math.max(0, files.findIndex((file) => file.id === initialId)));
@@ -35,14 +35,14 @@ export function AttachmentImageViewer({ reference, files, initialId, onClose }: 
     let objectUrl = '';
     setUrl(''); setError(''); setLoading(true); setZoom(100);
     if (fileId === undefined) { setLoading(false); return; }
-    previewRequestAttachment(reference, fileId, controller.signal).then((blob) => {
+    previewRequestAttachment(reference, fileId, controller.signal, scope).then((blob) => {
       if (controller.signal.aborted) return;
       objectUrl = URL.createObjectURL(blob); setUrl(objectUrl);
     }).catch(() => {
       if (!controller.signal.aborted) setError('Não foi possível abrir a imagem. Verifique o acesso e tente novamente.');
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [reference, fileId, retry]);
+  }, [reference, fileId, retry, scope]);
 
   async function fullscreen() {
     try {

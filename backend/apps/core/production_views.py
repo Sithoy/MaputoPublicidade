@@ -19,10 +19,17 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.roles import StaffCapability, has_staff_capability
-from apps.quotes.models import ArtworkApproval, ArtworkProofVersion, QuoteRequest
+from apps.quotes.models import (
+    ArtworkApproval,
+    ArtworkProofVersion,
+    QuoteRequest,
+    QuoteRequestAttachment,
+)
 
 from .activity import record_activity
 from .permissions import HasStaffCapability
+from .reception_briefing import reception_briefing
+from .request_files import reference_response
 from .studio import (
     current_proof,
     ensure_studio_editable,
@@ -73,10 +80,12 @@ def job_data(quote):
         "order_reference": order.reference if order else None,
         "scheduled_date": order.scheduled_date if order else None,
         "production_notes": quote.production_notes,
+        "briefing": reception_briefing(quote),
+        "references": [{'id': file.pk, 'name': file.name, 'size': file.size} for file in quote.request_attachments.all() if not file.is_internal],
         "operation": readiness(quote),
         "items": list(
             quote.items.values(
-                "id", "description", "quantity", "size", "material", "colors", "needs_design", "material_briefing"
+                "id", "description", "quantity", "size", "material", "colors", "needs_design", "material_briefing", "notes"
             )
         ),
         "artwork_routes": [{'item_id': item.pk, 'requirement': requirement(item)} for item in quote.items.all()],
@@ -121,6 +130,7 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
             .select_related("order")
             .prefetch_related(
                 "items",
+                Prefetch('request_attachments', queryset=QuoteRequestAttachment.objects.defer('content')),
                 Prefetch(
                     "proof_versions", queryset=ArtworkProofVersion.objects.defer("private_content")
                 ),
@@ -134,6 +144,12 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
 
     def retrieve(self, request, reference=None):
         return Response(job_data(self.get_object()))
+
+    @action(detail=True, methods=['get'], url_path=r'references/(?P<attachment_id>[0-9]+)')
+    def reference_file(self, request, reference=None, attachment_id=None):
+        quote = self.get_object()
+        file = get_object_or_404(quote.request_attachments, pk=attachment_id, is_internal=False)
+        return reference_response(file, request.query_params.get('preview') == '1')
 
     @action(detail=True, methods=['post'], url_path=r'email/(?P<version_id>[0-9]+)')
     @transaction.atomic

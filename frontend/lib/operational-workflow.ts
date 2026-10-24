@@ -18,5 +18,5 @@ export function productionStage(status: string, needsArt: boolean, version?: { p
   if (status === 'in_production') return { key: 'production', waiting: false, next: 'Executar e conferir o trabalho antes de o marcar pronto.' };
   if (needsArt && (!version || !version.published_at || version.client_decision === 'changes_requested')) return { key: 'art', waiting: false, next: 'Preparar ou ajustar a arte e submeter para apreciação.' };
   if (needsArt && version?.client_decision === 'pending') return { key: 'art', waiting: true, next: 'Aguardar a apreciação do cliente. Não iniciar com arte pendente.' };
-  return { key: 'production', waiting: !['approved'].includes(status), next: status === 'approved' ? 'Confirmar o briefing técnico e iniciar a produção.' : 'Aguardar a ordem de produção; pode preparar o trabalho técnico.' };
+  return { key: 'production', waiting: !['approved'].includes(status), next: status === 'approved' ? 'Consultar o briefing do pedido e iniciar a produção.' : 'Aguardar a ordem de produção; pode preparar o trabalho técnico.' };
 }

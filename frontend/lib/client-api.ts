@@ -150,11 +150,13 @@ export async function createQuoteFromCart(_cart: Cart, contact: {
   client_company?: string;
   urgency?: string;
   notes?: string;
-}): Promise<Quote> {
+}, files: File[] = []): Promise<Quote> {
+  const form = new FormData();
+  form.append('payload', JSON.stringify(contact));
+  files.forEach((file) => form.append('files', file));
   return fetchWithAuth('/api/cart/convert-to-quote/', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(contact),
+    ...(files.length ? { body: form } : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(contact) }),
   }) as Promise<Quote>;
 }
 
@@ -230,12 +232,17 @@ export async function createBrandRequest(data: BrandRequestData): Promise<Quote>
   }) as Promise<Quote>;
 }
 
-export async function downloadRequestAttachment(reference: string, id: number, name: string) {
-  return downloadWithAuth(`/api/quotes/${reference}/attachment/?id=${id}`, name);
+function requestAttachmentPath(reference: string, id: number, scope: 'quotes' | 'production') {
+  return scope === 'production' ? `/api/production/${encodeURIComponent(reference)}/references/${id}/` : `/api/quotes/${encodeURIComponent(reference)}/attachment/?id=${id}`;
 }
 
-export async function previewRequestAttachment(reference: string, id: number, signal?: AbortSignal) {
-  const blob = await fetchBlobWithAuth(`/api/quotes/${encodeURIComponent(reference)}/attachment/?id=${id}&preview=1`, { signal });
+export async function downloadRequestAttachment(reference: string, id: number, name: string, scope: 'quotes' | 'production' = 'quotes') {
+  return downloadWithAuth(requestAttachmentPath(reference, id, scope), name);
+}
+
+export async function previewRequestAttachment(reference: string, id: number, signal?: AbortSignal, scope: 'quotes' | 'production' = 'quotes') {
+  const path = requestAttachmentPath(reference, id, scope);
+  const blob = await fetchBlobWithAuth(`${path}${path.includes('?') ? '&' : '?'}preview=1`, { signal });
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(blob.type)) {
     throw new Error('Este anexo não é uma imagem compatível. Use Descarregar.');
   }
