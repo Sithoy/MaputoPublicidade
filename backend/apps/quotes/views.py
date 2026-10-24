@@ -235,9 +235,13 @@ class QuoteRequestViewSet(
         return export_response(queryset, field_map, "orcamentos", fmt)
 
     def create(self, request, *args, **kwargs):
-        serializer = QuoteRequestCreateSerializer(data=request.data, context={"request": request})
+        from .brand_requests import request_payload
+        files = validated_attachments(request.FILES.getlist('files'))
+        serializer = QuoteRequestCreateSerializer(data=request_payload(request), context={"request": request})
         serializer.is_valid(raise_exception=True)
         quote = serializer.save()
+        for file in files:
+            QuoteRequestAttachment.objects.create(quote=quote, **file)
         record_activity(
             action=ActivityEvent.ACTION_CREATED,
             quote=quote,
@@ -307,24 +311,8 @@ class QuoteRequestViewSet(
             from rest_framework.exceptions import NotFound
 
             raise NotFound()
-        preview = request.query_params.get("preview") == "1"
-        content = bytes(file.content)
-        content_type = "application/octet-stream"
-        if preview:
-            from PIL import Image
-
-            try:
-                with Image.open(BytesIO(content)) as image:
-                    content_type = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}.get(image.format)
-                    if not content_type or image.width * image.height > 20000000:
-                        raise ValueError()
-                    image.verify()
-            except (ValueError, OSError, SyntaxError, EOFError, Image.DecompressionBombError) as exc:
-                raise ValidationError({"detail": "Pré-visualização disponível apenas para imagens JPG, PNG e WebP válidas."}) from exc
-        response = FileResponse(BytesIO(content), as_attachment=not preview, filename=file.name, content_type=content_type)
-        response["Cache-Control"] = "private, no-store"
-        response["X-Content-Type-Options"] = "nosniff"
-        return response
+        from apps.core.request_files import reference_response
+        return reference_response(file, request.query_params.get('preview') == '1')
 
     @action(detail=False, methods=["post"], url_path="prepare", throttle_classes=[PreparationThrottle])
     def prepare(self, request):

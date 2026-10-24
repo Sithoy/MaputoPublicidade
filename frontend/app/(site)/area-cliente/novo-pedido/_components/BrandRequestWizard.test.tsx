@@ -41,7 +41,7 @@ describe('BrandDesk request wizard', () => {
     await screen.findByText('Empresa Horizonte');
     expect(screen.getByRole('button', { name: 'Adicionar material' })).not.toBeVisible();
     expect(screen.getByLabelText('Prioridade')).not.toBeVisible();
-    expect(screen.getByLabelText('Anexos e referências')).not.toBeVisible();
+    expect(screen.getByLabelText('Juntar ficheiros')).toBeVisible();
     fireEvent.click(screen.getByText('Materiais que já conhece').closest('summary')!);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Adicionar material' })).toBeVisible());
   });
@@ -72,7 +72,7 @@ describe('BrandDesk request wizard', () => {
     fireEvent.change(screen.getByLabelText('Produto ou serviço *'), { target: { value: 'Rollups' } });
     fireEvent.change(screen.getByLabelText('Quantidade *'), { target: { value: '2' } });
     const file = new File(['%PDF-1.4'], 'brief.pdf', { type: 'application/pdf' });
-    fireEvent.change(screen.getByLabelText('Anexos e referências'), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText('Juntar ficheiros'), { target: { files: [file] } });
     fireEvent.click(screen.getByRole('button', { name: 'Alterar objetivo' }));
     fireEvent.click(screen.getByRole('button', { name: /Preciso de um orçamento/ }));
     expect(screen.getByLabelText('Nome do pedido *')).toHaveValue('Conferência');

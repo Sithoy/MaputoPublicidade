@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Send } from 'lucide-react';
 import { MaterialBriefingSummary } from './MaterialBriefingSummary';
+import { RequestReferenceUpload } from './RequestReferenceUpload';
 import { SafeImage } from '@/components/SafeImage';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -29,6 +30,7 @@ export function CartCheckout() {
   const [company, setCompany] = useState('');
   const [urgency, setUrgency] = useState('normal');
   const [notes, setNotes] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
 
   useEffect(() => {
     Promise.all([getCart(), getMe()])
@@ -56,7 +58,7 @@ export function CartCheckout() {
         client_company: company,
         urgency,
         notes,
-      });
+      }, files);
       setResult({ reference: quote.reference, estimated_price: quote.estimated_price });
       await clearCart();
       setCart((prev) => (prev ? { ...prev, items: [], item_count: 0 } : prev));
@@ -163,6 +165,7 @@ export function CartCheckout() {
                     <Label htmlFor="notes">Observações gerais</Label>
                     <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
                   </div>
+                  <RequestReferenceUpload files={files} onChange={setFiles} disabled={submitting} />
                   <Button type="submit" disabled={submitting || !cart?.items.length} className="w-full gap-2">
                     <Send className="h-4 w-4" />
                     {submitting ? 'A enviar...' : 'Enviar pedido de orçamento'}

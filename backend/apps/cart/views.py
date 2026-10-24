@@ -1,11 +1,13 @@
 import os
 
+from django.db import transaction
 from rest_framework import serializers, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.quotes.models import QuoteItem, QuoteRequest
+from apps.quotes.brand_requests import request_payload, validated_attachments
+from apps.quotes.models import QuoteItem, QuoteRequest, QuoteRequestAttachment
 from apps.quotes.serializers import QuoteRequestDetailSerializer
 
 from .models import Cart, CartItem
@@ -45,8 +47,10 @@ class CartDetailView(APIView):
 class CartConvertToQuoteView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request):
-        serializer = CartToQuoteSerializer(data=request.data)
+        files = validated_attachments(request.FILES.getlist('files'))
+        serializer = CartToQuoteSerializer(data=request_payload(request))
         serializer.is_valid(raise_exception=True)
 
         cart, _ = Cart.objects.get_or_create(user=request.user)
@@ -84,6 +88,8 @@ class CartConvertToQuoteView(APIView):
                     save=True,
                 )
 
+        for file in files:
+            QuoteRequestAttachment.objects.create(quote=quote, **file)
         cart.items.all().delete()
         output = QuoteRequestDetailSerializer(quote)
         return Response(output.data, status=status.HTTP_201_CREATED)

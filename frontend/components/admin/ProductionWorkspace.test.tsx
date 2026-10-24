@@ -9,12 +9,27 @@ vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ loading: false, 
 const job = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'approved', order_reference: 'ORD-0001', production_notes: 'Confirmar cores', scheduled_date: null, items: [{ id: 1, description: 'Cartões de visita', quantity: 200, size: '85x55', material: 'Papel mate', colors: 'Verde' }], versions: [] };
 beforeEach(() => { allowed = true; vi.resetAllMocks(); vi.mocked(fetchWithAuth).mockImplementation(async (path) => path === '/api/production/' ? { results: [job], next: null } : job); });
 describe('Production workspace', () => {
+  it('shows the shared Reception briefing and client files without a second briefing step', async () => {
+    const shared = { ...job, briefing: { project_name: 'Campanha', description: 'Logótipo no peito', delivery_address: 'Maputo' }, references: [{ id: 2, name: 'logo.png', size: 100 }], items: [{ ...job.items[0], notes: 'Verde escuro' }] };
+    vi.mocked(fetchWithAuth).mockImplementation(async (path) => path === '/api/production/' ? { results: [shared], next: null } : shared);
+    render(<ProductionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Consultar briefing e referências/ }));
+    expect(screen.getByText('Logótipo no peito')).toBeInTheDocument();
+    expect(screen.getByText('Verde escuro')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Visualizar logo.png' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Briefing técnico/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /Descrição da necessidade/ })).not.toBeInTheDocument();
+  });
   it('has a technical workspace and does not fetch financial APIs', async () => {
     render(<ProductionWorkspace />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026/ }));
     expect(await screen.findByText('Próxima ação')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Briefing técnico/ }));
-    expect(screen.getByLabelText('Notas técnicas da Produção')).toHaveValue('Confirmar cores');
+    expect(screen.queryByRole('button', { name: /Briefing técnico/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Consultar briefing e referências/ }));
+    expect(screen.getByRole('heading', { name: 'Briefing do pedido' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Notas de execução (opcional)'));
+    expect(screen.getByLabelText('Notas de execução')).toHaveValue('Confirmar cores');
     fireEvent.click(screen.getByRole('button', { name: /Produzir e conferir/ }));
     expect(screen.getByRole('button', { name: 'Iniciar produção' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Arte e apreciação/ })).not.toBeInTheDocument();

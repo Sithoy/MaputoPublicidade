@@ -1,5 +1,6 @@
 """Client briefings, without automated pricing or fabricated quantities."""
 
+import json
 from io import BytesIO
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
@@ -9,6 +10,19 @@ from rest_framework import serializers
 from rest_framework.throttling import UserRateThrottle
 
 from .material_briefing import MaterialBriefingSerializer
+
+
+def request_payload(request):
+    """Keep JSON callers compatible while allowing bounded private multipart evidence."""
+    if 'payload' not in request.data:
+        return request.data
+    try:
+        data = json.loads(request.data['payload'])
+        if not isinstance(data, dict):
+            raise ValueError()
+        return data
+    except (TypeError, ValueError) as exc:
+        raise serializers.ValidationError({'detail': 'Pedido inválido.'}) from exc
 
 
 class BrandRequestThrottle(UserRateThrottle):
