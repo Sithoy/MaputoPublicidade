@@ -30,6 +30,7 @@ class BrandAssetSerializer(serializers.ModelSerializer):
             "brand_colors",
             "uploaded_by_name",
             "created_at",
+            "approval_record",
         ]
         read_only_fields = [
             "user",
@@ -38,6 +39,7 @@ class BrandAssetSerializer(serializers.ModelSerializer):
             "file_name",
             "file_mime_type",
             "file_size",
+            "approval_record",
         ]
 
     def validate_file(self, value):

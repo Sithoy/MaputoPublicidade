@@ -389,7 +389,7 @@ export type Quote = {
   vat_exempt?: boolean;
   vat_exemption?: { reason: string; evidence: { id: number; name: string; uploaded_at: string; uploaded_by: string } | null } | null;
   briefing?: { project_name?: string; notes?: string; deadline?: string | null; fulfilment?: string; source_reference?: string; needs_design?: boolean; intent?: string };
-  request_attachments?: Array<{ id: number; name: string; size: number }>;
+  request_attachments?: Array<{ id: number; name: string; size: number; library_origin?: LibraryOrigin }>;
   id: number;
   reference: string;
   user?: number;
@@ -493,7 +493,10 @@ export type Invoice = {
   updated_at?: string;
 };
 
+export type ArtworkApprovalRecord = { quote_reference: string; version: number; source: string; reviewer_name: string; approved_at: string | null; comment: string; sha256: string };
+export type LibraryOrigin = { asset_id: number; name: string; kind: string; sha256: string; approval?: ArtworkApprovalRecord };
 export type BrandAsset = {
+  approval_record?: ArtworkApprovalRecord;
   id: number;
   name: string;
   kind: 'logo' | 'artwork' | 'template' | 'guide' | 'document' | 'other';

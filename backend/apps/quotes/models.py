@@ -276,6 +276,7 @@ class QuoteRequestAttachment(models.Model):
     size = models.PositiveIntegerField()
     is_internal = models.BooleanField(default=False)
     content = models.BinaryField()
+    library_origin = models.JSONField(default=dict, blank=True)
 
 
 class QuoteVatEvidence(models.Model):

@@ -14,7 +14,7 @@ class BrandAsset(models.Model):
     KIND_OTHER = "other"
     KIND_CHOICES = [
         (KIND_LOGO, "Logótipo"),
-        (KIND_ARTWORK, "Arte aprovada"),
+        (KIND_ARTWORK, "Arte / ficheiro gráfico"),
         (KIND_TEMPLATE, "Modelo reutilizável"),
         (KIND_GUIDE, "Guia de marca"),
         (KIND_DOCUMENT, "Documento"),
@@ -35,6 +35,8 @@ class BrandAsset(models.Model):
     file_mime_type = models.CharField(max_length=100, blank=True)
     file_size = models.PositiveIntegerField(default=0)
     description = models.TextField("descrição", blank=True)
+    source_proof = models.OneToOneField('quotes.ArtworkProofVersion', null=True, blank=True, on_delete=models.SET_NULL, related_name='library_asset')
+    approval_record = models.JSONField(default=dict, blank=True, editable=False)
     brand_colors = models.CharField(
         "cores da marca",
         max_length=255,

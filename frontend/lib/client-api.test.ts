@@ -23,7 +23,7 @@ describe('createBrandRequest', () => {
   beforeEach(() => { fetchWithAuthMock.mockReset(); fetchWithAuthMock.mockResolvedValue({ reference: 'MP-0008-2026' }); });
   it('sends independent materials and files without pricing or client ownership fields', async () => {
     const file = new File(['%PDF-1.4'], 'brief.pdf', { type: 'application/pdf' });
-    await createBrandRequest({ intent: 'campaign', projectName: 'Campanha', fulfilment: 'installation', needsDesign: true, urgency: 'urgent',
+    await createBrandRequest({ intent: 'campaign', projectName: 'Campanha', fulfilment: 'installation', needsDesign: true, urgency: 'urgent', libraryAssetIds: [7],
       items: [{ description: 'Rollups', quantity: 2, material_briefing: { work_type: 'signage', needs_visit: true } }, { description: 'Polos', quantity: 50 }], files: [file], deliveryAddress: 'Matola',
       contact: { name: 'Dário', email: 'dario@example.com', company: 'Empresa' }, notes: 'Na sede' });
     const [path, options] = fetchWithAuthMock.mock.calls[0];
@@ -32,6 +32,7 @@ describe('createBrandRequest', () => {
     const payload = JSON.parse(options.body.get('payload'));
     expect(payload.items).toEqual([{ description: 'Rollups', quantity: 2, material_briefing: { work_type: 'signage', needs_visit: true } }, { description: 'Polos', quantity: 50 }]);
     expect(payload.delivery_address).toBe('Matola');
+    expect(payload.library_asset_ids).toEqual([7]);
     expect(payload).not.toHaveProperty('client_name');
     expect(payload).not.toHaveProperty('final_price');
     expect(options.body.getAll('files')).toEqual([file]);

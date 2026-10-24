@@ -183,6 +183,7 @@ export async function getClientQuotes(): Promise<Quote[]> {
 export type BrandRequestIntent = 'quote' | 'catalogue' | 'reorder' | 'campaign' | 'guidance';
 
 export type BrandRequestData = {
+  libraryAssetIds?: number[];
   intent: BrandRequestIntent;
   projectName: string;
   items: Array<{ description: string; quantity: number; specifications?: string; material_briefing?: import('./material-briefing').MaterialBriefing }>;
@@ -223,7 +224,7 @@ export async function createBrandRequest(data: BrandRequestData): Promise<Quote>
     deadline: data.deadline || null, fulfilment: data.fulfilment,
     delivery_address: data.deliveryAddress || '',
     source_reference: data.sourceReference || '', needs_design: data.needsDesign,
-    urgency: data.urgency, notes: data.notes || '',
+    urgency: data.urgency, notes: data.notes || '', library_asset_ids: data.libraryAssetIds || [],
   }));
   data.files?.forEach((file) => form.append('files', file));
   return fetchWithAuth('/api/quotes/brand-request/', {
@@ -279,6 +280,10 @@ export async function uploadBrandAsset(data: {
 
 export async function deleteBrandAsset(id: number) {
   await fetchWithAuth(`/api/brand-assets/${id}/`, { method: 'DELETE' });
+}
+
+export async function saveApprovedArtwork(versionId: number): Promise<BrandAsset> {
+  return fetchWithAuth(`/api/artwork-files/${versionId}/save-to-library/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmed: true }) });
 }
 
 export async function getClientOrder(reference: string): Promise<Order> {

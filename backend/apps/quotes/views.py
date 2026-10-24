@@ -266,6 +266,8 @@ class QuoteRequestViewSet(
         serializer.is_valid(raise_exception=True)
         files = validated_attachments(request.FILES.getlist("files"))
         data = serializer.validated_data
+        from apps.assets.job_library import selected_library_files
+        files.extend(selected_library_files(request.user, data.pop('library_asset_ids')))
         profile = getattr(request.user, "profile", None)
         company = getattr(profile, "company", "")
         briefing = {key: value for key, value in data.items() if key != "items"}

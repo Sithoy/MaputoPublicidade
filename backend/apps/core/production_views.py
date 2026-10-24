@@ -19,6 +19,7 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.roles import StaffCapability, has_staff_capability
+from apps.assets.job_library import reference_data
 from apps.quotes.models import (
     ArtworkApproval,
     ArtworkProofVersion,
@@ -81,7 +82,7 @@ def job_data(quote):
         "scheduled_date": order.scheduled_date if order else None,
         "production_notes": quote.production_notes,
         "briefing": reception_briefing(quote),
-        "references": [{'id': file.pk, 'name': file.name, 'size': file.size} for file in quote.request_attachments.all() if not file.is_internal],
+        "references": [reference_data(file) for file in quote.request_attachments.all() if not file.is_internal],
         "operation": readiness(quote),
         "items": list(
             quote.items.values(
