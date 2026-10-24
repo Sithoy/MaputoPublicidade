@@ -709,6 +709,8 @@ class QuoteRequestViewSet(
         if new_status == 'in_production':
             from apps.catalog.apparel import require_apparel_ready
             require_apparel_ready(quote)
+            from apps.core.studio import require_ready
+            require_ready(quote)
         if new_status in {"quoted", "approved", "in_production", "ready", "delivered"}:
             require_sent(quote)
         if not quote.can_transition_to(new_status):
@@ -857,6 +859,11 @@ class QuoteRequestViewSet(
         quote = self.get_object()
         quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
         current_version = quote.proof_versions.filter(published_at__isnull=False).first()
+        if current_version and current_version.mime_type:
+            from apps.core.studio import current_proof, ensure_studio_editable
+            ensure_studio_editable(quote)
+            if not current_proof(quote, current_version):
+                raise ValidationError('A arte mudou. Peça a versão atual ao Studio.')
         if current_version and current_version.mime_type and (request.data.get('version_id') != current_version.pk or current_version.client_decision != 'pending'):
             raise ValidationError('A versão da arte mudou ou já recebeu uma decisão. Atualize antes de responder.')
         serializer = QuoteApprovalSerializer(data=request.data)
@@ -895,6 +902,11 @@ class QuoteRequestViewSet(
         quote = self.get_object()
         quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
         current_version = quote.proof_versions.filter(published_at__isnull=False).first()
+        if current_version and current_version.mime_type:
+            from apps.core.studio import current_proof, ensure_studio_editable
+            ensure_studio_editable(quote)
+            if not current_proof(quote, current_version):
+                raise ValidationError('A arte mudou. Peça a versão atual ao Studio.')
         if current_version and current_version.mime_type and (request.data.get('version_id') != current_version.pk or current_version.client_decision != 'pending'):
             raise ValidationError('A versão da arte mudou ou já recebeu uma decisão. Atualize antes de responder.')
         serializer = QuoteChangeRequestSerializer(data=request.data)

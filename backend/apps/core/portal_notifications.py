@@ -21,12 +21,13 @@ def notify_activity(event):
         title = f"{target.reference}: {target.get_status_display()}"
     notices = []
     # Client decisions notify the responsible team; staff updates notify the owner.
-    if not event.actor or not event.actor.is_staff:
+    if not event.actor or not event.actor.is_staff or artwork_decision:
         for staff in User.objects.filter(is_staff=True, is_active=True).select_related("profile"):
-            if has_staff_capability(staff, capability) and staff.id != event.actor_id:
+            reception = artwork_decision and has_staff_capability(staff, StaffCapability.MANAGE_RECEPTION)
+            if (has_staff_capability(staff, capability) or reception) and staff.id != event.actor_id:
                 notices.append(PortalNotification(
                     recipient=staff, title=title,
-                    href="/admin/producao" if artwork_decision else f"/admin/{kind}/{target.reference}"
+                    href=f'/admin/recepcao?pedido={target.reference}' if reception else '/admin/studio' if event.action == 'artwork_changes_requested' else "/admin/producao" if artwork_decision else f"/admin/{kind}/{target.reference}"
                 ))
     if not event.is_internal and target.user_id and target.user_id != event.actor_id:
         if not target.user.is_staff:

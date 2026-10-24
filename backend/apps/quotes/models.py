@@ -320,6 +320,7 @@ class QuoteItem(models.Model):
     material = models.CharField("material", max_length=100, blank=True)
     colors = models.CharField("cores", max_length=100, blank=True)
     needs_design = models.BooleanField("necessita de design", default=False)
+    artwork_requirement = models.CharField(max_length=10, choices=[('none', 'Sem arte'), ('client', 'Arte do cliente'), ('studio', 'Criar ou adaptar no Studio')], null=True, blank=True)
     artwork_file = models.FileField(
         "ficheiro de arte", upload_to="uploads/quote_item_files/", blank=True, null=True
     )
@@ -342,6 +343,7 @@ class QuoteItem(models.Model):
 
 
 class ArtworkProofVersion(models.Model):
+    technical_fingerprint = models.CharField(max_length=64, blank=True)
     private_content = models.BinaryField(null=True, blank=True)
     file_name = models.CharField(max_length=160, blank=True)
     mime_type = models.CharField(max_length=100, blank=True)

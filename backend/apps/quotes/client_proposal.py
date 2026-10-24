@@ -170,10 +170,17 @@ def authorise_operation(quote, *, actor=None):
     from django.contrib.auth.models import User
 
     from apps.accounts.roles import has_staff_capability
+    from apps.core.studio import readiness
+    needs_art = readiness(quote)['needs_art']
     for staff in User.objects.filter(is_staff=True, is_active=True).select_related('profile'):
+        if has_staff_capability(staff, 'reception.manage'):
+            PortalNotification.objects.get_or_create(recipient=staff,
+                title=f'{quote.reference}: cliente aprovou; encomenda criada',
+                href=f'/admin/recepcao?pedido={quote.reference}')
         if has_staff_capability(staff, 'production.view'):
             PortalNotification.objects.get_or_create(recipient=staff,
-                title=f'{quote.reference}: novo trabalho autorizado', href='/admin/producao')
+                title=f'{quote.reference}: novo trabalho autorizado' + (' · Studio necessário' if needs_art else ' · pronto para produção'),
+                href='/admin/studio' if needs_art else '/admin/producao')
     from apps.core.notifications import notify_order_created
     transaction.on_commit(lambda: notify_order_created(order), robust=True)
     return order

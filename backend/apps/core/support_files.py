@@ -54,6 +54,9 @@ def selected_files(conversation, ids, user=None):
     if len(rows) != len(ids) or sum(row.size for row in rows) > MAX_TOTAL:
         raise ValidationError('Anexos indisponíveis ou total superior a 6 MB.')
     for row in rows:
+        if row.document_source.get('kind') == 'artwork':
+            from .studio import validate_artwork_file
+            validate_artwork_file(conversation.quote_id, row.document_source)
         if row.document_source.get('kind') == 'proposal':
             from apps.quotes.models import QuoteRequest
             source = row.document_source
