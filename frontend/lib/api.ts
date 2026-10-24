@@ -412,6 +412,7 @@ export type Quote = {
   price_approved_by_name?: string | null;
   price_approval_comment?: string;
   valid_until?: string | null;
+  validity_days?: 7 | 15 | 30 | 60 | null;
   terms?: string;
   estimated_delivery_days?: number | null;
   payment_option?: 'deposit_50' | 'on_delivery';

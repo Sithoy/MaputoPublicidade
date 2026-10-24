@@ -4,6 +4,16 @@ import type { Quote } from '@/lib/api';
 import { ProposalDocument } from './ProposalDocument';
 
 describe('ProposalDocument', () => {
+  it('shows the duration in drafts and the calculated expiry once sent', () => {
+    const quote = { id: 1, reference: 'MP-0001-2026', client_name: 'Empresa', created_at: '2026-10-10T09:00:00Z',
+      status: 'reviewing', validity_days: 30, items: [],
+    } as unknown as Quote;
+    const view = render(<ProposalDocument quote={quote} />);
+    expect(screen.getByText('30 dias após envio')).toBeInTheDocument();
+    view.rerender(<ProposalDocument quote={{ ...quote, valid_until: '2026-11-23' }} />);
+    expect(screen.queryByText('30 dias após envio')).not.toBeInTheDocument();
+    expect(screen.getByText(new Date('2026-11-23T00:00:00').toLocaleDateString('pt-MZ'))).toBeInTheDocument();
+  });
   it('labels an exemption explicitly instead of showing IVA 0%', () => {
     const quote = { id: 3, reference: 'MP-0003-2026', client_name: 'Empresa', created_at: '2026-10-10T09:00:00Z', status: 'quoted',
       vat_exempt: true, tax_rate: 0, tax_amount: 0, final_price: 1000, items: [{ id: 1, description: 'Polos', quantity: 10, unit_price: 100 }],

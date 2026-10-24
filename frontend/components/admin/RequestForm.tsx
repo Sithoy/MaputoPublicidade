@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { ProposalValidity } from './ProposalValidity';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FilePlus2 } from 'lucide-react';
 import { DocumentItemsEditor, newDocumentLine, type EditableDocumentLine } from '@/components/admin/DocumentItemsEditor';
@@ -65,6 +66,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
   const [notes, setNotes] = useState('');
   const [billingAddress, setBillingAddress] = useState('');
   const [validUntil, setValidUntil] = useState('');
+  const [validityDays, setValidityDays] = useState<7 | 15 | 30 | 60 | null>(15);
   const [terms, setTerms] = useState('');
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
   const [discount, setDiscount] = useState('0');
@@ -131,7 +133,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
           setClientEmail(quote.client_email);
           setClientPhone(quote.client_phone || '');
           setClientNuit(quote.client_nuit || '');
-          setBillingAddress(quote.billing_address || ''); setValidUntil(quote.valid_until || ''); setTerms(quote.terms || '');
+          setBillingAddress(quote.billing_address || ''); setValidUntil(quote.validity_days ? '' : quote.valid_until || ''); setValidityDays(quote.validity_days || (quote.valid_until ? null : 15)); setTerms(quote.terms || '');
           setDiscountType(quote.discount_type || 'fixed');
           setDiscount(String(quote.discount_type === 'percentage' ? quote.discount_percentage || 0 : quote.discount_amount || 0));
           // Intake has no commercial terms yet; preserve explicit rates (including 0%) once priced.
@@ -222,7 +224,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
         client_phone: clientPhone.trim(),
         client_company: '',
         client_nuit: clientNuit.trim(),
-        ...(mode === 'proposal' ? { billing_address: billingAddress.trim(), valid_until: validUntil || null, terms: terms.trim(), discount_type: discountType,
+        ...(mode === 'proposal' ? { billing_address: billingAddress.trim(), validity_days: validityDays, valid_until: validityDays ? null : validUntil || null, terms: terms.trim(), discount_type: discountType,
           discount_amount: discountType === 'fixed' ? Number(discount) : 0,
           discount_percentage: discountType === 'percentage' ? Number(discount) : 0, tax_rate: Number(effectiveTaxRate),
           vat_exempt: vatExempt, vat_exemption_reason: vatReason.trim() } : {}),
@@ -349,7 +351,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
             <h3 className="text-sm font-semibold text-brand-900">Entrega e pagamento</h3>
             <div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="estimated-delivery">Prazo de entrega (dias úteis) *</Label><Input id="estimated-delivery" type="number" min="1" max="365" step="1" required value={estimatedDeliveryDays} onChange={(event) => setEstimatedDeliveryDays(event.target.value)} /><p className="mt-1 text-xs text-slate-500">Após a adjudicação da proposta.</p></div>
               <div><Label htmlFor="payment-option">Condição de pagamento</Label><Select id="payment-option" value={paymentOption} onChange={(event) => setPaymentOption(event.target.value as 'deposit_50' | 'on_delivery')}><option value="deposit_50">50% adiantado + 50% na entrega</option><option value="on_delivery">100% na entrega</option></Select></div>
-              <div><Label htmlFor="proposal-valid-until">Válida até</Label><Input id="proposal-valid-until" type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} /></div></div>
+              <div className="sm:col-span-2"><ProposalValidity value={validityDays} legacyDate={validUntil} onChange={(value) => { setValidityDays(value); onDirtyChange?.(true); }} /></div></div>
             <div><Label htmlFor="proposal-terms">Condições e exclusões</Label><Textarea id="proposal-terms" maxLength={10000} value={terms} onChange={(event) => setTerms(event.target.value)} rows={3} /></div>
             <div><Label htmlFor="notes">Observações para o cliente</Label><Textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} /></div>
           </section>
@@ -426,7 +428,7 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
       {mode === 'proposal' ? <Card><CardContent className="space-y-4 p-6">
         <h2 className="text-lg font-semibold">Condições da proposta</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div><Label htmlFor="proposal-valid-until">Válida até</Label><Input id="proposal-valid-until" type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} /></div>
+          <div className="sm:col-span-2"><ProposalValidity value={validityDays} legacyDate={validUntil} onChange={(value) => { setValidityDays(value); onDirtyChange?.(true); }} /></div>
           {discountOptions}
           <div><Label htmlFor="proposal-discount">Desconto ({discountType === 'percentage' ? '%' : 'MZN'})</Label><Input id="proposal-discount" type="number" min="0" max={discountType === 'percentage' ? 100 : undefined} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)} /></div>
           {vatControls}

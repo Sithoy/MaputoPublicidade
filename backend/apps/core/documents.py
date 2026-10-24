@@ -346,11 +346,11 @@ def _invoice_header_block(styles, reference, company, title="FATURA PROFORMA"):
     return table
 
 
-def _invoice_meta_strip(styles, invoice, due_label="VENCIMENTO"):
+def _invoice_meta_strip(styles, invoice, due_label="VENCIMENTO", due_value=None):
     order_reference = invoice.order.reference if invoice.order else invoice.reference
     cells = [
         ("EMISSÃO", _date(invoice.issue_date)),
-        (due_label, _date(invoice.due_date)),
+        (due_label, due_value or _date(invoice.due_date)),
         ("REFERÊNCIA", order_reference),
         ("MOEDA", invoice.currency),
     ]
@@ -794,7 +794,8 @@ def build_quote_pdf(quote) -> bytes:
     story = [
         _invoice_header_block(styles, quote.reference, company, title="PROPOSTA COMERCIAL"),
         Spacer(1, 5 * mm),
-        _invoice_meta_strip(styles, document, due_label="VALIDADE"),
+        _invoice_meta_strip(styles, document, due_label="VALIDADE",
+            due_value=f'{quote.validity_days} dias após envio' if quote.validity_days and not quote.valid_until else None),
         Spacer(1, 5 * mm),
     ]
 

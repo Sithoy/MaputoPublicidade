@@ -45,6 +45,20 @@ async function setup(initialQuote = quote, embedded = false) {
 }
 
 describe('Focused proposal editor', () => {
+  it('offers validity durations and saves days instead of a guessed expiry date', async () => {
+    await setup();
+    expect(screen.getByRole('radio', { name: '15 dias' })).toBeChecked();
+    expect(screen.queryByLabelText('Válida até')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: '30 dias' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar proposta' }));
+    await waitFor(() => expect(prepareExistingQuote).toHaveBeenCalledWith(quote.reference, expect.objectContaining({ validity_days: 30, valid_until: null })));
+  });
+  it('keeps a legacy fixed expiry unless Reception explicitly selects a duration', async () => {
+    await setup({ ...quote, valid_until: '2026-12-01' });
+    expect(screen.getByRole('radio', { name: /Manter data atual/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar proposta' }));
+    await waitFor(() => expect(prepareExistingQuote).toHaveBeenCalledWith(quote.reference, expect.objectContaining({ validity_days: null, valid_until: '2026-12-01' })));
+  });
   it('uses the shared operational identity when embedded without removing editor actions', async () => {
     await setup(quote, true);
     expect(screen.queryByRole('heading', { name: 'Empresa ABC' })).not.toBeInTheDocument();
