@@ -25,9 +25,9 @@ const nextActions: Record<string, [string, string]> = {
 };
 const dateTime = (value: string) => new Date(value).toLocaleString('pt-MZ', { timeZone: 'Africa/Maputo', dateStyle: 'short', timeStyle: 'short' });
 
-function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged, onBack, onMessages, onBusyChange, onDirtyChange: notifyDirtyParent }: {
+function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged, onBack, onMessages, onBusyChange, onDirtyChange: notifyDirtyParent, embedded = false }: {
   quote: AdminQuote; editable: boolean; onAcquire: () => void; onChanged: () => void; onBack: () => void; onMessages: () => void;
-  onBusyChange?: (value: boolean) => void; onDirtyChange?: (value: boolean) => void;
+  onBusyChange?: (value: boolean) => void; onDirtyChange?: (value: boolean) => void; embedded?: boolean;
 }) {
   const [data, setData] = useState<Workspace | null>(null);
   const [error, setError] = useState('');
@@ -78,7 +78,7 @@ function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged,
     try { await navigator.clipboard.writeText(value); setNotice('Copiado.'); } catch { setError('Não foi possível copiar. Selecione e copie o texto manualmente.'); }
   }
   return <section aria-label="Espaço do cliente" className="space-y-5">
-    <header className="rounded-2xl bg-[#173f30] p-6 text-white"><p className="text-xs uppercase tracking-[.2em] text-[#d6bd79]">03 · Cliente · {quote.reference}</p><div className="mt-3 flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-2xl font-semibold">Da proposta à decisão.</h2><p className="mt-2 text-sm text-white/70">Uma versão, vários canais, uma decisão no mesmo pedido.</p></div><button onClick={onBack} disabled={busy} className="rounded-xl border border-white/30 px-4 py-2 text-sm">Voltar à proposta</button></div></header>
+    {!embedded ? <header className="rounded-2xl bg-[#173f30] p-6 text-white"><p className="text-xs uppercase tracking-[.2em] text-[#d6bd79]">03 · Cliente · {quote.reference}</p><div className="mt-3 flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-2xl font-semibold">Da proposta à decisão.</h2><p className="mt-2 text-sm text-white/70">Uma versão, vários canais, uma decisão no mesmo pedido.</p></div><button onClick={onBack} disabled={busy} className="rounded-xl border border-white/30 px-4 py-2 text-sm">Voltar à proposta</button></div></header> : null}
     {error ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
     {notice ? <p role="status" className="rounded-xl bg-[#f8f3e2] p-4 text-sm">{notice}</p> : null}
     {data ? <section aria-label="Próxima ação do cliente" className="rounded-2xl border border-[#d9c58b] bg-[#faf7ec] p-5"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-widest text-[#92763f]">Versão {data.version} · Próxima ação</p><button type="button" disabled={busy} onClick={refreshChannels} className="text-xs font-semibold underline">Atualizar estado</button></div><h3 className="mt-2 text-lg font-semibold text-[#173f30]">{next[0]}</h3><p className="mt-2 text-sm text-slate-600">{next[1]}</p>{data.follow_up?.date ? <p className="mt-3 text-sm font-medium">Seguimento: {new Date(`${data.follow_up.date}T00:00:00`).toLocaleDateString('pt-MZ')} · {data.follow_up.note}</p> : null}</section> : null}

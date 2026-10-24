@@ -9,7 +9,7 @@ vi.mock('@/hooks/useReceptionEdit', () => ({ useReceptionEdit: () => ({ editable
 vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ user: { id: 1 }, loading: auth.loading, can: () => auth.allowed }) }));
 vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('@/lib/admin-api', () => ({ getQuote: vi.fn(), convertQuoteToOrder: vi.fn(), downloadQuotePdf: vi.fn() }));
-vi.mock('@/components/admin/ClientProposalWorkspace', () => ({ ClientProposalWorkspace: ({ quote, editable, onMessages }: { quote: { client_name: string }; editable: boolean; onMessages: () => void }) => <section aria-label="Espaço do cliente"><h2>{quote.client_name}</h2><button disabled={!editable}>Preparar email com PDF</button><button onClick={onMessages}>Mensagens do pedido</button></section> }));
+vi.mock('@/components/admin/ClientProposalWorkspace', () => ({ ClientProposalWorkspace: ({ quote, editable, onMessages, embedded }: { quote: { client_name: string }; editable: boolean; onMessages: () => void; embedded?: boolean }) => <section aria-label="Espaço do cliente">{!embedded ? <h2>{quote.client_name}</h2> : null}<button disabled={!editable}>Preparar email com PDF</button><button onClick={onMessages}>Mensagens do pedido</button></section> }));
 vi.mock('@/components/admin/RequestForm', () => ({ default: ({ onSaved }: { onSaved: (ref: string) => void }) => <><input aria-label="Detalhe do rascunho" /><button onClick={() => onSaved('MP-0001-2026')}>Guardar proposta no espaço</button></> }));
 vi.mock('@/components/admin/ReceptionRequestPanel', () => ({ ReceptionRequestPanel: ({ onChange }: { onChange: (value: null) => void }) => <button onClick={() => onChange(null)}>Concluir triagem</button> }));
 const quote = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'reviewing', reception: { completed_at: '2026-10-12', owner_name: 'Dário' }, proposal_workflow: { stage: 'review', prepared_by: 'Dário', prepared_by_id: 1 }, items: [] };
@@ -63,10 +63,10 @@ describe('Reception workspace', () => {
     auth.editable = false;
     render(<ReceptionPage />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
-    expect(await screen.findByRole('button', { name: 'Iniciar edição' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Gerir envio e decisão' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Resumo do pedido' })).toBeInTheDocument();
     expect(auth.acquire).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Trabalho' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cliente' }));
     expect(await screen.findByRole('region', { name: 'Espaço do cliente' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Mensagens do pedido' })).toBeEnabled();
@@ -78,7 +78,7 @@ describe('Reception workspace', () => {
     expect(await screen.findByRole('heading', { name: /Todos os trabalhos.*30/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     await screen.findByRole('region', { name: 'Resumo do pedido' });
-    expect(screen.getByText('O que acontece a seguir?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Abrir etapa atual' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Aprovação comercial/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /4 Produção e entrega/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Agora' })).not.toBeInTheDocument();
@@ -87,7 +87,7 @@ describe('Reception workspace', () => {
     expect(await screen.findByRole('region', { name: 'Espaço da proposta' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar proposta' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Iniciar edição' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Pedido em foco' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Pedido em foco' })).toContainElement(screen.getByRole('navigation', { name: 'Percurso do pedido' }));
     expect(screen.queryByRole('region', { name: 'Resumo do pedido' })).not.toBeInTheDocument();
     expect(screen.queryByText('Revisão da mesma proposta')).not.toBeInTheDocument();
     fireEvent.click(await screen.findByText('Guardar proposta no espaço'));
@@ -109,7 +109,8 @@ describe('Reception workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     expect(await screen.findByLabelText('Detalhe do rascunho')).toBeInTheDocument();
     expect(auth.acquire).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('region', { name: 'Pedido em foco' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Pedido em foco' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Abrir etapa atual' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Novo atendimento' })).not.toBeInTheDocument();
   });
 
@@ -120,7 +121,7 @@ describe('Reception workspace', () => {
     render(<ReceptionPage />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     await screen.findByRole('region', { name: 'Resumo do pedido' });
-    fireEvent.click(screen.getByRole('button', { name: 'Trabalho' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Briefing' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Concluir triagem' }));
     expect(await screen.findByLabelText('Detalhe do rascunho')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Espaço da proposta' })).toBeInTheDocument();
@@ -157,7 +158,8 @@ describe('Reception workspace', () => {
   it('offers an on-screen proposal without downloading or entering edit mode', async () => {
     render(<ReceptionPage />); fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     await screen.findByRole('region', { name: 'Resumo do pedido' });
-    fireEvent.click(screen.getByRole('button', { name: 'Proposta' }));
+    fireEvent.click(screen.getByText('Documentos e histórico', { selector: 'summary' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Documento' }));
     expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
     expect(screen.queryByText('Guardar proposta no espaço')).not.toBeInTheDocument();
   });

@@ -37,9 +37,9 @@ function ProposalPdfPreview({ url, reference, onClose }: { url: string; referenc
   </dialog>;
 }
 
-export default function RequestForm({ reference, onSaved, onClose, focused = false, initialQuote, onBusyChange, onDirtyChange }: {
+export default function RequestForm({ reference, onSaved, onClose, focused = false, embedded = false, initialQuote, onBusyChange, onDirtyChange }: {
   reference?: string; onSaved?: (reference: string, intent?: 'save' | 'send') => void; onClose?: () => void;
-  focused?: boolean; initialQuote?: AdminQuote; onBusyChange?: (busy: boolean) => void; onDirtyChange?: (dirty: boolean) => void;
+  focused?: boolean; embedded?: boolean; initialQuote?: AdminQuote; onBusyChange?: (busy: boolean) => void; onDirtyChange?: (dirty: boolean) => void;
 }) {
   const router = useRouter();
   const { loading: authLoading, can } = useAdminAuth();
@@ -336,10 +336,10 @@ export default function RequestForm({ reference, onSaved, onClose, focused = fal
     const tax = Math.round(Math.max(0, subtotal - deduction) * (Number(effectiveTaxRate) || 0)) / 100;
     const total = Math.max(0, subtotal - deduction) + tax;
     return <form aria-label="Preparar proposta" onSubmit={handleSubmit} className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[#dce3d3] pb-5">
+      {!embedded ? <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[#dce3d3] pb-5">
         <div><p className="text-xs font-semibold uppercase tracking-widest text-brand-700">Proposta · {reference}</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-brand-900">{clientName || initialQuote?.client_company || initialQuote?.client_name || 'Preparar proposta'}</h2><p className="mt-1 text-xs text-slate-500">Artigos, preços e condições para o cliente.</p></div>
         <span className="rounded-full border border-[#d8c38e] bg-[#faf6e9] px-3 py-1.5 text-xs font-medium text-[#765c2b]">{saving ? 'A guardar…' : 'Em preparação'}</span>
-      </header>
+      </header> : <p className="text-xs text-slate-500">Artigos, preços e condições · {saving ? 'A guardar…' : 'Proposta em preparação'}</p>}
       {error ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
       {!loaded && !error ? <p role="status" className="text-sm text-slate-500">A carregar os artigos da proposta…</p> : null}
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_290px]">
