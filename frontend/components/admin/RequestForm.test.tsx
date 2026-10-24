@@ -37,14 +37,20 @@ beforeEach(() => {
   vi.spyOn(window, 'confirm').mockReturnValue(true);
 });
 
-async function setup(initialQuote = quote) {
+async function setup(initialQuote = quote, embedded = false) {
   const onSaved = vi.fn(), onBusyChange = vi.fn(), onDirtyChange = vi.fn();
-  render(<RequestForm focused initialQuote={initialQuote} reference={initialQuote.reference} onSaved={onSaved} onBusyChange={onBusyChange} onDirtyChange={onDirtyChange} onClose={vi.fn()} />);
+  render(<RequestForm focused embedded={embedded} initialQuote={initialQuote} reference={initialQuote.reference} onSaved={onSaved} onBusyChange={onBusyChange} onDirtyChange={onDirtyChange} onClose={vi.fn()} />);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar proposta' })).toBeEnabled());
   return { onSaved, onBusyChange, onDirtyChange };
 }
 
 describe('Focused proposal editor', () => {
+  it('uses the shared operational identity when embedded without removing editor actions', async () => {
+    await setup(quote, true);
+    expect(screen.queryByRole('heading', { name: 'Empresa ABC' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Proposta em preparação/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar proposta' })).toBeEnabled();
+  });
   it('places PDF preview in the commercial summary, not the bottom action bar', async () => {
     await setup();
     expect(within(screen.getByRole('complementary', { name: 'Resumo comercial' })).getByRole('button', { name: 'Guardar e pré-visualizar PDF' })).toBeInTheDocument();

@@ -12,6 +12,13 @@ const data = { version: 2, published: true, registered: true, email: 'cliente@ex
 const props = { quote, editable: true, onAcquire: vi.fn(), onChanged: vi.fn(), onBack: vi.fn(), onMessages: vi.fn() };
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(fetchWithAuth).mockResolvedValue(data); });
 describe('Client proposal workspace', () => {
+  it('keeps its contextual action but does not repeat the shared identity header when embedded', async () => {
+    render(<ClientProposalWorkspace {...props} embedded />);
+    await screen.findByText('cliente@example.com');
+    expect(screen.queryByRole('heading', { name: 'Da proposta à decisão.' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Próxima ação do cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeEnabled();
+  });
   it('preserves an unsaved follow-up while refreshing channel status', async () => {
     const onDirtyChange = vi.fn();
     render(<ClientProposalWorkspace {...props} onDirtyChange={onDirtyChange} />);

@@ -8,11 +8,27 @@ vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
 const quote = { reference: 'MP-0001-2026', workdesk: { owner_id: 1, owner_name: 'Dário', requested_date: '2026-12-20', confirmed_date: null, last_contact_at: null, follow_up_date: '2026-12-15', follow_up_note: 'Confirmar cores', blocker: 'Aprovação do Comercial', waiting_since: null } } as AdminQuote;
 beforeEach(() => vi.resetAllMocks());
 describe('Order context and follow-up', () => {
-  it('distinguishes requested dates, confirmed commitments and recorded contacts', () => {
-    render(<ReceptionCaseContext quote={quote} canSchedule={false} busy={false} onBusy={vi.fn()} onSaved={vi.fn()} onDirty={vi.fn()} />);
-    expect(screen.getByText('Entrega / levantamento agendado').nextElementSibling).toHaveTextContent('Por confirmar');
+  it('shows only stage-relevant facts without turning requested dates into commitments', () => {
+    const props = { canSchedule: false, busy: false, onBusy: vi.fn(), onSaved: vi.fn(), onDirty: vi.fn() };
+    const customerQuote = { ...quote, valid_until: '2026-12-30', proposal_workflow: { stage: 'sent' } } as AdminQuote;
+    const { rerender } = render(<ReceptionCaseContext {...props} quote={customerQuote} />);
+    expect(screen.getByText('Validade da proposta')).toBeInTheDocument();
+    expect(screen.queryByText('Data pretendida pelo cliente')).not.toBeInTheDocument();
     expect(screen.getByText('Sem envio registado')).toBeInTheDocument();
+    rerender(<ReceptionCaseContext {...props} quote={{ ...customerQuote, order_reference: 'ORD-0001' }} />);
+    expect(screen.getByText('Entrega / levantamento agendado').nextElementSibling).toHaveTextContent('Por confirmar');
+    expect(screen.queryByText('Validade da proposta')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Guardar seguimento' })).not.toBeInTheDocument();
+  });
+  it('keeps one next-action panel and hides it around a focused stage', () => {
+    const props = { quote, canSchedule: false, busy: false, onBusy: vi.fn(), onSaved: vi.fn(), onDirty: vi.fn() };
+    const { rerender } = render(<ReceptionCaseContext {...props} nextAction={<button>Abrir etapa</button>} />);
+    expect(screen.getByRole('region', { name: 'Próxima ação' })).toBeInTheDocument();
+    expect(screen.getByText(/À espera de:/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Abrir etapa' })).toBeInTheDocument();
+    rerender(<ReceptionCaseContext {...props} compact />);
+    expect(screen.queryByRole('region', { name: 'Próxima ação' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Próximo seguimento/)).not.toBeInTheDocument();
   });
   it('saves and clears a follow-up without reloading or discarding the other form', async () => {
     const saved = vi.fn(); const busy = vi.fn();
