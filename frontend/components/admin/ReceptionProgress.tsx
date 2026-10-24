@@ -3,7 +3,7 @@
 import { Check, ChevronRight } from 'lucide-react';
 import { receptionSteps } from '@/lib/operational-workflow';
 
-const labels = ['Briefing', 'Proposta', 'Cliente', 'Produção / entrega'];
+const labels = ['Briefing', 'Proposta', 'Decisão do cliente', 'Produção / entrega'];
 export function ReceptionProgress({ current, selected, busy, onSelect }: {
   current: number; selected: number; busy: boolean; onSelect: (value: number) => void;
 }) {

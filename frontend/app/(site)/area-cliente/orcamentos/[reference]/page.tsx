@@ -200,7 +200,7 @@ export default function ClientQuoteDetailPage() {
                 <>
                   O valor final desta proposta é de{' '}
                   <strong>{formatMZN(quote.final_price)}</strong>. A aceitação confirma as condições comerciais,
-                  não o pagamento nem o início da produção. Fale connosco se tiver dúvidas.
+                  autoriza a operação, mas não confirma o pagamento. A execução respeita as aprovações técnicas necessárias. Fale connosco se tiver dúvidas.
                 </>
               ) : (
                 'A equipa ainda está a finalizar o valor desta proposta.'

@@ -1,6 +1,5 @@
 import base64
 import json
-import os
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
@@ -29,7 +28,8 @@ from apps.core.notifications import (
     notify_quote_status_changed,
 )
 from apps.core.permissions import HasStaffCapability, IsOwnerOrStaff
-from apps.orders.models import Order, OrderItem
+from apps.orders.from_quote import create_order_from_quote
+from apps.orders.models import Order
 
 from .brand_requests import BrandRequestSerializer, BrandRequestThrottle, validated_attachments
 from .models import (
@@ -57,45 +57,6 @@ from .serializers import (
     QuoteStatusSerializer,
     ReceptionIntakeSerializer,
 )
-
-
-def create_order_from_quote(
-    quote,
-    *,
-    delivery_method=Order.DELIVERY_PICKUP,
-    delivery_address="",
-):
-    order = Order.objects.create(
-        user=quote.user,
-        quote=quote,
-        estimated_price=quote.estimated_price,
-        final_price=quote.final_price,
-        status=Order.STATUS_APPROVED,
-        delivery_method=delivery_method,
-        delivery_address=delivery_address,
-    )
-
-    for idx, quote_item in enumerate(quote.items.all()):
-        order_item = OrderItem.objects.create(
-            order=order,
-            product=quote_item.product,
-            product_variant=quote_item.product_variant,
-            description=quote_item.description,
-            quantity=quote_item.quantity,
-            size=quote_item.size,
-            material=quote_item.material,
-            colors=quote_item.colors,
-            needs_design=quote_item.needs_design,
-            notes=quote_item.notes,
-            material_briefing=quote_item.material_briefing,
-            unit_price=quote_item.unit_price,
-            position=idx,
-        )
-        if quote_item.artwork_file:
-            filename = os.path.basename(quote_item.artwork_file.name)
-            order_item.artwork_file.save(filename, quote_item.artwork_file, save=True)
-
-    return order
 
 
 class QuoteRequestViewSet(
@@ -782,6 +743,9 @@ class QuoteRequestViewSet(
             from_status=old_status,
             to_status=new_status,
         )
+        if new_status == QuoteRequest.STATUS_APPROVED:
+            from .client_proposal import authorise_operation
+            authorise_operation(quote, actor=request.user)
         notify_quote_status_changed(quote, old_status)
 
         return Response(
@@ -1000,10 +964,12 @@ class QuoteRequestViewSet(
             to_status=quote.status,
             comment=quote.price_approval_comment,
         )
+        from .client_proposal import authorise_operation
+        authorise_operation(quote, actor=request.user)
         notify_quote_status_changed(quote, old_status)
         return Response(
             {
-                "detail": "Preço aprovado.",
+                "detail": "Preço aprovado; operação autorizada.",
                 "status": quote.status,
                 "status_display": quote.get_status_display(),
             },

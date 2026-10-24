@@ -1,6 +1,6 @@
 import type { AdminQuote } from './admin-api';
 
-export const receptionSteps = ['Atendimento e briefing', 'Preparar proposta', 'Cliente', 'Produção e entrega'];
+export const receptionSteps = ['Atendimento e briefing', 'Preparar proposta', 'Decisão do cliente', 'Produção e entrega'];
 export function receptionStage(quote: AdminQuote & { reception_completed_at?: string | null; operational_order_status?: string | null }) {
   if (quote.operational_order_status === 'delivered') return { index: 3, waiting: false, next: 'Trabalho entregue. Consulte o histórico e o registo da entrega.' };
   if (quote.order_reference || quote.price_approved_at) return { index: 3, waiting: false, next: 'Coordenar o trabalho e a entrega com a Produção.' };

@@ -168,7 +168,7 @@ export function ReceptionWorkspace() {
   }
   function clientChanged() {
     setDirty(false); void lease.release();
-    getQuote(reference).then(setQuote).catch(() => setError('Atualize o pedido para ver a decisão.'));
+    getQuote(reference).then((fresh) => { setQuote(fresh); setStep(receptionStage(fresh).index); }).catch(() => setError('Atualize o pedido para ver a decisão.'));
     setTick((value) => value + 1);
   }
   function chooseTask(value: string) { if (!busy) { setTask(value); setState('active'); setTick((previous) => previous + 1); } }
@@ -224,7 +224,7 @@ export function ReceptionWorkspace() {
         <ProposalReadView quote={quote} />
         {!lease.session && canQuoteEdit ? <button type="button" onClick={() => void enterProposal(quote)} className="rounded-xl border px-4 py-3 text-sm font-semibold">Tentar novamente</button> : null}
       </>}
-    </section> : focusedClient ? <>{orderHeader}<ClientProposalWorkspace key={`${reference}:${quote.proposal_workflow?.stage}:${quote.proposal_workflow?.version}:${quote.price_approved_at}`} embedded quote={quote} editable={lease.editable && canQuoteEdit} onAcquire={() => void beginEditing()} onChanged={clientChanged} onBack={() => navigate(() => { void enterProposal(quote); })} onMessages={() => openPanel('messages')} onBusyChange={setBusy} onDirtyChange={setDirty} /></> : <>
+    </section> : focusedClient ? <>{orderHeader}<ClientProposalWorkspace key={`${reference}:${quote.proposal_workflow?.stage}:${quote.proposal_workflow?.version}:${quote.price_approved_at}`} embedded quote={quote} editable={lease.editable && canQuoteEdit} onAcquire={() => void beginEditing()} onChanged={clientChanged} onBack={() => navigate(() => { void enterProposal(quote); })} onMessages={() => openPanel('messages')} onFollowUps={() => openPanel('followups')} onBusyChange={setBusy} onDirtyChange={setDirty} /></> : <>
       {orderHeader}
       <fieldset disabled={busy || !lease.editable} className="min-w-0">
       <div id="reception-work-panel" className="scroll-mt-24" onChangeCapture={() => setDirty(true)}>
@@ -236,6 +236,7 @@ export function ReceptionWorkspace() {
       {panel === 'summary' ? <>
         <ReceptionCaseContext quote={contextQuote || quote} compact canSchedule={false} busy={busy} onBusy={setBusy} onSaved={() => {}} onDirty={() => {}} />
         <ReceptionOrderSummary quote={quote} />
+        <ClientProposalWorkspace quote={quote} summary editable={false} onAcquire={() => {}} onChanged={() => {}} onBack={() => {}} onMessages={() => openPanel('messages')} />
         <button type="button" onClick={() => openPanel('proposal')} className="desk-primary rounded-xl px-4 py-3 text-sm font-semibold text-white">Ver documento da proposta</button>
         <QuoteRequestEvidence quote={quote} />
       </> : panel === 'proposal' ? <><button type="button" onClick={() => openPanel('summary')} className="text-sm font-semibold text-brand-800">Voltar ao resumo</button><ProposalReadView quote={quote} /></> : panel === 'messages' ? can('support.manage') ? <Suspense fallback={<p>A carregar mensagens…</p>}><CommunicationWorkspace key={reference} quoteReference={reference} onDirtyChange={setPanelDirty} onBusyChange={setBusy} /></Suspense> : <p>Sem permissão para consultar mensagens.</p> : panel === 'history' ? <ActivityTimeline events={quote.activity || []} /> : panel === 'followups' ? <ReceptionCaseContext key={`${reference}:${followUpReset}`} quote={contextQuote || quote} followUpsOnly canSchedule={!closed && lease.editable} busy={busy || lease.pending} onBusy={setBusy} onDirty={setFollowUpDirty} onSaved={(value) => {
