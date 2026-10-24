@@ -6,6 +6,7 @@ import { ArrowRight, CalendarClock, Copy, Download, Mail, MessageCircle, Phone, 
 import { fetchWithAuth } from '@/lib/auth';
 import { downloadQuotePdf, type AdminQuote } from '@/lib/admin-api';
 import { decisionLabels, type ProposalDecision } from '@/lib/proposal-review';
+import { proposalWhatsAppMessage } from '@/lib/proposal-whatsapp';
 
 const EmailDesk = dynamic(() => import('./EmailDesk').then((m) => m.EmailDesk));
 type Channel = { state: string; at?: string | null; actor?: string | null; conversation_id?: number | null };
@@ -72,7 +73,7 @@ function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged,
     finally { setBusy(false); onBusyChange?.(false); }
   }
   const next = nextActions[data?.state || (data?.published ? 'awaiting_response' : 'draft')] || nextActions.draft;
-  const message = data?.link ? `Olá ${quote.client_company || quote.client_name}, partilhamos a proposta ${quote.reference} (v${data.version}). O PDF segue em anexo. Pode rever as condições, aceitar, pedir alterações ou recusar aqui: ${data.link}\nAo aceitar autoriza a operação, sujeita às aprovações técnicas necessárias. O pagamento mantém as condições da proposta.` : '';
+  const message = data?.link ? proposalWhatsAppMessage(quote.client_company || quote.client_name, quote.reference, data.link) : '';
   async function copy(value: string) {
     try { await navigator.clipboard.writeText(value); setNotice('Copiado.'); } catch { setError('Não foi possível copiar. Selecione e copie o texto manualmente.'); }
   }

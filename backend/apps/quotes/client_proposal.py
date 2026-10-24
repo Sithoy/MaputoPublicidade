@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+import time
 
 from django.conf import settings
 from django.core import signing
@@ -9,6 +10,7 @@ from django.db import transaction
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare, salted_hmac
+from django.utils.http import base36_to_int, int_to_base36
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
@@ -25,6 +27,7 @@ from .proposal_workflow import document_snapshot
 SALT = 'mp-commercial-review-v1'
 MAX_AGE = 60 * 24 * 3600
 LEGACY_MAX_AGE = 7 * 24 * 3600
+COMPACT_SALT = 'mp-commercial-review-compact-v1'
 
 
 def fingerprint(quote):
@@ -53,10 +56,25 @@ def require_published(quote):
 
 def review_link(quote):
     require_published(quote)
-    token = signing.dumps({'q': quote.pk, 'v': quote.proposal_version, 'f': fingerprint(quote),
-        'ttl': quote.validity_days * 24 * 3600 if quote.validity_days else LEGACY_MAX_AGE}, salt=SALT)
+    # Standard Django SHA-256 signing; the document fingerprint is part of the
+    # signing namespace rather than repeated as a long JSON field in the URL.
+    payload = '.'.join(int_to_base36(value) for value in (quote.pk, quote.proposal_version, int(time.time())))
+    token = 'p1.' + signing.Signer(salt=f'{COMPACT_SALT}:{fingerprint(quote)}', algorithm='sha256').sign(payload)
     origin = getattr(settings, 'TRACKING_SITE_URL', 'https://maputopublicidade.com').rstrip('/')
     return f'{origin}/proposta#token={token}'
+
+
+def compact_review_quote(token):
+    match = re.fullmatch(r'p1\.([0-9a-z]{1,10})\.([0-9a-z]{1,7})\.([0-9a-z]{1,8}):[A-Za-z0-9_-]{43}', token)
+    if not match:
+        raise ValueError()
+    quote = QuoteRequest.objects.select_for_update().get(pk=base36_to_int(match[1]))
+    signing.Signer(salt=f'{COMPACT_SALT}:{fingerprint(quote)}', algorithm='sha256').unsign(token[3:])
+    ttl = quote.validity_days * 24 * 3600 if quote.validity_days else LEGACY_MAX_AGE
+    age = time.time() - base36_to_int(match[3])
+    if base36_to_int(match[2]) != quote.proposal_version or not 0 <= age <= min(ttl, MAX_AGE):
+        raise ValueError()
+    return quote
 
 
 def publish_notice(quote):
@@ -322,15 +340,19 @@ class PublicProposalReview(APIView):
         try:
             if len(token) > 1024:
                 raise ValueError
-            payload = signing.loads(token, salt=SALT, max_age=MAX_AGE)
-            ttl = payload.get('ttl', LEGACY_MAX_AGE)
-            if type(ttl) is not int or ttl not in {days * 24 * 3600 for days in (7, 15, 30, 60)}:
-                raise ValueError
-            signing.loads(token, salt=SALT, max_age=ttl)
-            quote = QuoteRequest.objects.select_for_update().get(pk=payload['q'])
+            if token.startswith('p1.'):
+                quote = compact_review_quote(token)
+            else:
+                # Existing links remain valid until their original expiry.
+                payload = signing.loads(token, salt=SALT, max_age=MAX_AGE)
+                ttl = payload.get('ttl', LEGACY_MAX_AGE)
+                if type(ttl) is not int or ttl not in {days * 24 * 3600 for days in (7, 15, 30, 60)}:
+                    raise ValueError
+                signing.loads(token, salt=SALT, max_age=ttl)
+                quote = QuoteRequest.objects.select_for_update().get(pk=payload['q'])
+                if payload['v'] != quote.proposal_version or not constant_time_compare(payload['f'], fingerprint(quote)):
+                    raise ValueError
             require_published(quote)
-            if payload['v'] != quote.proposal_version or not constant_time_compare(payload['f'], fingerprint(quote)):
-                raise ValueError
             if quote.status == 'cancelled':
                 raise ValueError
         except (signing.BadSignature, QuoteRequest.DoesNotExist, KeyError, TypeError, ValueError, ValidationError):
