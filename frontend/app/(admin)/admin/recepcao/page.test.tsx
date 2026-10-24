@@ -16,11 +16,74 @@ const quote = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: '
 const hq = { scope: 'mine', unassigned_team: 4, updated_at: '2026-10-12T10:00:00Z', counts: { total: 30, urgent: 2, upcoming: 3, briefing: 5, proposal: 6, send: 2, delivery: 1, review: 4, client: 8, production: 4, handover: 0, messages: 3, messages_general: 2 } };
 beforeEach(() => {
   window.history.replaceState({}, '', '/admin/recepcao');
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  HTMLDialogElement.prototype.close = function () { this.open = false; };
   vi.clearAllMocks(); auth.loading = false; auth.allowed = true; auth.editable = true; auth.session = null; auth.acquire.mockResolvedValue(true);
   vi.mocked(fetchWithAuth).mockImplementation(async (path) => path.startsWith('/api/reception/hq/') ? hq : { results: [quote], next: null, count: 30 });
   vi.mocked(getQuote).mockResolvedValue(quote as never);
 });
 describe('Reception workspace', () => {
+  it('opens and closes context without replacing the stage or discarding a proposal draft', async () => {
+    vi.mocked(getQuote).mockResolvedValue({ ...quote, proposal_workflow: { ...quote.proposal_workflow, stage: 'draft' } } as never);
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    const input = await screen.findByLabelText('Detalhe do rascunho');
+    fireEvent.change(input, { target: { value: 'Proposta por guardar' } });
+    const confirm = vi.spyOn(window, 'confirm');
+    fireEvent.click(screen.getByRole('button', { name: 'Resumo' }));
+    expect(screen.getByRole('dialog', { name: 'Resumo' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Detalhe do rascunho')).toBe(input);
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar painel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(input).toHaveValue('Proposta por guardar');
+    expect(confirm).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Registos' }));
+    expect(screen.getByRole('dialog', { name: 'Registos' })).toBeInTheDocument();
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(input).toHaveValue('Proposta por guardar');
+    confirm.mockRestore();
+  });
+
+  it('protects an unsaved follow-up independently of the proposal draft', async () => {
+    const prepared = { ...quote, proposal_workflow: { ...quote.proposal_workflow, stage: 'draft' }, workdesk: { follow_up_date: null, follow_up_note: '' } };
+    vi.mocked(getQuote).mockResolvedValue(prepared as never);
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    const input = await screen.findByLabelText('Detalhe do rascunho');
+    fireEvent.change(input, { target: { value: 'Manter rascunho' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Seguimentos' }));
+    fireEvent.change(screen.getByLabelText('O que precisa de acompanhar?'), { target: { value: 'Confirmar medidas' } });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }));
+    expect(confirm).toHaveBeenCalled();
+    expect(screen.getByLabelText('O que precisa de acompanhar?')).toHaveValue('Confirmar medidas');
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar painel' }));
+    expect(input).toHaveValue('Manter rascunho');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
+  it('saves a follow-up without reloading the quote or resetting its proposal editor', async () => {
+    vi.mocked(getQuote).mockResolvedValue({ ...quote, proposal_workflow: { ...quote.proposal_workflow, stage: 'draft' }, workdesk: { follow_up_date: null, follow_up_note: '' } } as never);
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    const input = await screen.findByLabelText('Detalhe do rascunho');
+    fireEvent.change(input, { target: { value: 'Proposta em curso' } });
+    const loads = vi.mocked(getQuote).mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Seguimentos' }));
+    fireEvent.change(screen.getByLabelText('Data do seguimento'), { target: { value: '2026-12-20' } });
+    fireEvent.change(screen.getByLabelText('O que precisa de acompanhar?'), { target: { value: 'Confirmar cores' } });
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({ date: '2026-12-20', note: 'Confirmar cores' });
+    fireEvent.submit(screen.getByRole('button', { name: 'Guardar seguimento' }).closest('form')!);
+    expect(await screen.findByRole('status')).toHaveTextContent('Seguimento guardado');
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar painel' }));
+    expect(screen.getByLabelText('Detalhe do rascunho')).toBe(input);
+    expect(input).toHaveValue('Proposta em curso');
+    expect(getQuote).toHaveBeenCalledTimes(loads);
+  });
+
   it('offers a confirmed resume for the current user without requiring a supervisor', async () => {
     auth.editable = false; auth.session = { editor_id: 1, editor_name: 'Dário' };
     render(<ReceptionPage />);
@@ -37,7 +100,7 @@ describe('Reception workspace', () => {
   it('preserves direct links to an order without auto-opening a different task', async () => {
     window.history.replaceState({}, '', '/admin/recepcao?pedido=MP-0001-2026');
     render(<ReceptionPage />);
-    expect(await screen.findByRole('region', { name: 'Resumo do pedido' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Pedido em foco' })).toBeInTheDocument();
     expect(getQuote).toHaveBeenCalledWith('MP-0001-2026');
     expect(screen.queryByRole('region', { name: 'Lista de tarefas' })).not.toBeInTheDocument();
   });
@@ -45,7 +108,7 @@ describe('Reception workspace', () => {
   it('protects an unsaved draft when returning to the list', async () => {
     render(<ReceptionPage />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
-    await screen.findByRole('region', { name: 'Resumo do pedido' });
+    await screen.findByRole('region', { name: 'Pedido em foco' });
     fireEvent.click(screen.getByRole('button', { name: /2 Preparar proposta/ }));
     fireEvent.change(await screen.findByLabelText('Detalhe do rascunho'), { target: { value: 'Por guardar' } });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
@@ -64,9 +127,9 @@ describe('Reception workspace', () => {
     render(<ReceptionPage />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
     expect(await screen.findByRole('button', { name: 'Gerir envio e decisão' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Resumo do pedido' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Pedido em foco' })).toBeInTheDocument();
     expect(auth.acquire).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Cliente' }));
+    fireEvent.click(screen.getByRole('button', { name: /3 Cliente/ }));
     expect(await screen.findByRole('region', { name: 'Espaço do cliente' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Mensagens do pedido' })).toBeEnabled();
@@ -77,8 +140,8 @@ describe('Reception workspace', () => {
     render(<ReceptionPage />);
     expect(await screen.findByRole('heading', { name: /Todos os trabalhos.*30/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
-    await screen.findByRole('region', { name: 'Resumo do pedido' });
-    expect(screen.getByRole('button', { name: 'Abrir etapa atual' })).toBeInTheDocument();
+    await screen.findByRole('region', { name: 'Pedido em foco' });
+    expect(screen.getByRole('navigation', { name: 'Contexto do pedido' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Aprovação comercial/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /4 Produção e entrega/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Agora' })).not.toBeInTheDocument();
@@ -120,8 +183,8 @@ describe('Reception workspace', () => {
     vi.mocked(getQuote).mockResolvedValueOnce(briefing as never).mockResolvedValue(prepared as never);
     render(<ReceptionPage />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
-    await screen.findByRole('region', { name: 'Resumo do pedido' });
-    fireEvent.click(screen.getByRole('button', { name: 'Briefing' }));
+    await screen.findByRole('region', { name: 'Pedido em foco' });
+    fireEvent.click(screen.getByRole('button', { name: /1 Atendimento e briefing/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Concluir triagem' }));
     expect(await screen.findByLabelText('Detalhe do rascunho')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Espaço da proposta' })).toBeInTheDocument();
@@ -157,9 +220,9 @@ describe('Reception workspace', () => {
   });
   it('offers an on-screen proposal without downloading or entering edit mode', async () => {
     render(<ReceptionPage />); fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
-    await screen.findByRole('region', { name: 'Resumo do pedido' });
-    fireEvent.click(screen.getByText('Documentos e histórico', { selector: 'summary' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Documento' }));
+    await screen.findByRole('region', { name: 'Pedido em foco' });
+    fireEvent.click(screen.getByRole('button', { name: 'Resumo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver documento da proposta' }));
     expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
     expect(screen.queryByText('Guardar proposta no espaço')).not.toBeInTheDocument();
   });
@@ -176,7 +239,7 @@ describe('Reception workspace', () => {
     expect(filters).toContainElement(screen.getByLabelText('Mostrar'));
     expect(screen.getByRole('region', { name: 'Lista de tarefas' })).not.toContainElement(filters);
     fireEvent.click(screen.getByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
-    await screen.findByRole('region', { name: 'Resumo do pedido' });
+    await screen.findByRole('region', { name: 'Pedido em foco' });
     expect(getQuote).toHaveBeenCalledWith('MP-0001-2026');
     expect(screen.queryByRole('region', { name: 'Lista de tarefas' })).not.toBeInTheDocument();
     const back = screen.getByRole('button', { name: 'Voltar à lista' });
@@ -219,7 +282,7 @@ describe('Reception workspace', () => {
     expect(screen.queryByRole('button', { name: /MP-0001-2026 Empresa ABC/ })).not.toBeInTheDocument();
     expect(screen.getByText('11–11 de 11 pedidos')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /MP-0002-2026 Outra empresa/ }));
-    await screen.findByRole('region', { name: 'Resumo do pedido' });
+    await screen.findByRole('region', { name: 'Pedido em foco' });
     fireEvent.click(screen.getByRole('button', { name: 'Voltar à lista' }));
     expect(await screen.findByText('11–11 de 11 pedidos')).toBeInTheDocument();
     expect(getQuote).toHaveBeenCalledTimes(1);

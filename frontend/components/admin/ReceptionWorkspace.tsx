@@ -13,6 +13,7 @@ import { ReceptionPagination } from './ReceptionPagination';
 import { ReceptionOrderSummary } from './ReceptionOrderSummary';
 import { ReceptionCaseContext } from './ReceptionCaseContext';
 import { ReceptionOrderHeader, type ReceptionTab } from './ReceptionOrderHeader';
+import { ReceptionContextPanel } from './ReceptionContextPanel';
 import { ReceptionRequestPanel } from './ReceptionRequestPanel';
 import { OperationalDelivery } from './OperationalDelivery';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
@@ -54,7 +55,9 @@ export function ReceptionWorkspace() {
   const [newRequest, setNewRequest] = useState(false);
   const [revision, setRevision] = useState(0);
   const [step, setStep] = useState(0);
-  const [tab, setTab] = useState<ReceptionTab>('summary');
+  const [panel, setPanel] = useState<ReceptionTab | null>(null);
+  const [panelDirty, setPanelDirty] = useState(false);
+  const [followUpOverride, setFollowUpOverride] = useState<{ reference: string; date: string | null; note: string } | null>(null);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
   const [followUpDirty, setFollowUpDirty] = useState(false);
@@ -112,22 +115,26 @@ export function ReceptionWorkspace() {
     return () => { active = false; };
   }, [reference, revision, loading, allowed, canQuoteEdit]);
   useEffect(() => {
-    if (!dirty && !followUpDirty) return;
+    if (!dirty && !followUpDirty && !panelDirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, followUpDirty]);
+  }, [dirty, followUpDirty, panelDirty]);
   useEffect(() => {
-    if (loading || !allowed || dirty || followUpDirty || busy) return;
+    if (loading || !allowed || dirty || followUpDirty || panelDirty || busy) return;
     const refresh = () => { if (document.visibilityState === 'visible') setAgendaTick((value) => value + 1); };
     const timer = window.setInterval(refresh, 60000);
     document.addEventListener('visibilitychange', refresh);
     return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
-  }, [loading, allowed, dirty, followUpDirty, busy]);
+  }, [loading, allowed, dirty, followUpDirty, panelDirty, busy]);
   function navigate(action: () => void) {
-    if (busy || lease.pending || ((dirty || followUpDirty) && !window.confirm('Existem alterações por guardar. Deseja sair sem guardar?'))) return;
+    if (busy || lease.pending || ((dirty || followUpDirty || panelDirty) && !window.confirm('Existem alterações por guardar. Deseja sair sem guardar?'))) return;
     if (followUpDirty) setFollowUpReset((value) => value + 1);
-    setDirty(false); setFollowUpDirty(false); setError(''); action();
+    setDirty(false); setFollowUpDirty(false); setPanelDirty(false); setPanel(null); setError(''); action();
+  }
+  function openPanel(value: ReceptionTab | null) {
+    if (busy || lease.pending || ((followUpDirty || panelDirty) && !window.confirm('Existem alterações por guardar neste painel. Deseja fechá-lo sem guardar?'))) return;
+    setFollowUpDirty(false); setPanelDirty(false); setFollowUpReset((previous) => previous + 1); setPanel(value);
   }
   function saved(value = reference) { setDirty(false); setEditing(false); setNewRequest(false); setReference(value); setRevision((previous) => previous + 1); }
   async function createOrder() {
@@ -139,10 +146,11 @@ export function ReceptionWorkspace() {
   if (!allowed) return <p role="alert">A sua função não tem acesso à Recepção.</p>;
   const current = quote ? receptionStage(quote) : null;
   const closed = quote?.status === 'cancelled' || quote?.status === 'delivered' || ['cancelled', 'delivered'].includes(quote?.operational_order_status || '');
-  const focusedProposal = Boolean(quote && step === 1 && tab === 'work');
-  const focusedClient = Boolean(quote && step === 2 && tab === 'work');
+  const focusedProposal = Boolean(quote && step === 1);
+  const focusedClient = Boolean(quote && step === 2);
+  const contextQuote = quote && followUpOverride?.reference === quote.reference && quote.workdesk ? { ...quote, workdesk: { ...quote.workdesk, follow_up_date: followUpOverride.date, follow_up_note: followUpOverride.note } } : quote;
   async function enterProposal(value: AdminQuote, resumeOwn = false) {
-    setStep(1); setTab('work'); setEditing(false);
+    setStep(1); setEditing(false);
     if (!canQuoteEdit || value.price_approved_at || value.order_reference || ['cancelled', 'delivered'].includes(value.status) || receptionStage(value).index === 0) return;
     setBusy(true); setError('');
     try {
@@ -156,7 +164,7 @@ export function ReceptionWorkspace() {
   }
   function proposalSaved(value: string, intent?: 'save' | 'send') {
     void intent;
-    void lease.release(); setTab('work'); saved(value);
+    void lease.release(); saved(value);
   }
   function clientChanged() {
     setDirty(false); void lease.release();
@@ -164,7 +172,7 @@ export function ReceptionWorkspace() {
     setTick((value) => value + 1);
   }
   function chooseTask(value: string) { if (!busy) { setTask(value); setState('active'); setTick((previous) => previous + 1); } }
-  function openCase(value: string) { navigate(() => { setInbox(false); setNewRequest(false); setReference(value); setTab('summary'); }); }
+  function openCase(value: string) { navigate(() => { setInbox(false); setNewRequest(false); setReference(value); }); }
   function backToList() { navigate(() => {
     setBusy(true);
     void Promise.resolve(lease.release()).finally(() => {
@@ -174,7 +182,7 @@ export function ReceptionWorkspace() {
   }); }
   async function beginEditing(reason = '', resumeOwn = false) {
     if (busy || lease.pending || ((dirty || followUpDirty) && !window.confirm('A edição será retomada com os dados atuais. Descartar este rascunho?'))) return;
-    if (await (resumeOwn ? lease.acquire('', true) : lease.acquire(reason))) { editAfterLoad.current = current?.index === 1; setDirty(false); setFollowUpDirty(false); setFollowUpReset((value) => value + 1); setRevision((value) => value + 1); setTab('work'); }
+    if (await (resumeOwn ? lease.acquire('', true) : lease.acquire(reason))) { editAfterLoad.current = current?.index === 1; setDirty(false); setFollowUpDirty(false); setFollowUpReset((value) => value + 1); setPanel(null); setRevision((value) => value + 1); }
   }
   const ownReservation = Boolean(lease.session && lease.session.editor_id === user?.id && !lease.editable);
   const resumeOwnControl = !closed && ownReservation ? <button type="button" disabled={busy || lease.pending} onClick={() => {
@@ -183,19 +191,17 @@ export function ReceptionWorkspace() {
   }} className="rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-brand-800">Retomar a minha edição</button> : null;
   function finishEditing() { navigate(() => { void lease.release(); setEditing(false); }); }
   const workLabels = ['Editar briefing', 'Editar proposta', 'Gerir envio e decisão', 'Atualizar entrega'];
-  const orderHeader = quote && current ? <ReceptionOrderHeader quote={quote} step={step} tab={tab} focused={tab === 'work'} busy={busy || lease.pending}
+  const orderHeader = quote && current ? <ReceptionOrderHeader quote={contextQuote || quote} step={step} tab={panel || 'work'} focused busy={busy || lease.pending}
     editControls={<section aria-label="Reserva de edição" className="flex max-w-full flex-wrap items-center gap-2 text-xs">
       <span className={`inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 ${lease.session ? 'bg-[#f8f2e2] text-[#806329]' : 'bg-[#eff3e9] text-[#4f6b53]'}`}><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" /><span className="min-w-0 [overflow-wrap:anywhere]">{lease.editable ? 'Em edição por si' : lease.session ? `Em edição por ${lease.session.editor_name}` : 'Consulta partilhada'}</span></span>
-      {!closed && tab !== 'work' ? lease.editable ? <button disabled={busy || lease.pending} type="button" onClick={finishEditing} className="rounded-lg border px-3 py-2 font-medium">Terminar edição</button> : <button disabled={busy || lease.pending || Boolean(lease.session)} type="button" onClick={() => void beginEditing()} className="rounded-lg border bg-white px-3 py-2 font-medium text-brand-800 disabled:opacity-50">{workLabels[step]}</button> : null}
+      {!closed && !focusedProposal ? lease.editable ? <button disabled={busy || lease.pending} type="button" onClick={finishEditing} className="rounded-lg border px-3 py-2 font-medium">Terminar edição</button> : <button disabled={busy || lease.pending || Boolean(lease.session)} type="button" onClick={() => void beginEditing()} className="rounded-lg border bg-white px-3 py-2 font-medium text-brand-800 disabled:opacity-50">{workLabels[step]}</button> : null}
       {resumeOwnControl}
       {!closed && lease.session && !lease.editable && !ownReservation && can('quotes.review') ? <button type="button" disabled={busy || lease.pending} onClick={() => { const reason = window.prompt('Motivo para retomar esta edição ativa:'); if (reason?.trim()) void beginEditing(reason.trim()); }} className="rounded-lg border px-3 py-2">Retomar com motivo</button> : null}
       {lease.error ? <p role="alert" className="w-full text-xs text-amber-900">{lease.error}</p> : null}
     </section>}
-    onStep={(index) => navigate(() => { if (index === 1) { void enterProposal(quote); return; } setStep(index); setTab('work'); })}
-    onTab={(value) => navigate(() => { if (value === 'work' && step === 1) { void enterProposal(quote); return; } setTab(value); })}
-    onAction={() => { if (current.index === 1) { navigate(() => { void enterProposal(quote); }); return; } if (!lease.editable && !current.waiting && !closed && current.index !== 3) { void beginEditing(); return; } navigate(() => { setStep(current.index); setTab(closed ? 'history' : 'work'); window.requestAnimationFrame(() => document.getElementById('reception-work-panel')?.scrollIntoView({ block: 'start' })); }); }}>
-    {(action) => <ReceptionCaseContext key={`${reference}:${followUpReset}`} quote={quote} compact={tab === 'work'} nextAction={action} canSchedule={!closed && !dirty && lease.editable} busy={busy || lease.pending} onBusy={setBusy} onDirty={setFollowUpDirty}
-      onSaved={(value) => { setFollowUpDirty(false); setQuote((previous) => previous?.workdesk ? { ...previous, workdesk: { ...previous.workdesk, follow_up_date: value.date, follow_up_note: value.note } } : previous); setTick((previous) => previous + 1); getQuote(quote.reference).then((fresh) => setQuote((previous) => previous?.reference === fresh.reference ? fresh : previous)).catch(() => {}); }} />}
+    onStep={(index) => navigate(() => { if (index === 1) { void enterProposal(quote); return; } setStep(index); })}
+    onTab={openPanel}
+    onAction={() => { if (closed) openPanel('history'); else navigate(() => setStep(current.index)); }}>
   </ReceptionOrderHeader> : null;
   return <div className="desk-hq space-y-6">{!detailOpen ? <header className="desk-toolbar flex flex-wrap items-center justify-between gap-3 border-b pb-4"><div><p className="text-xs uppercase tracking-widest text-brand-700">Recepção · Caixa partilhada</p><p className="mt-1 text-xs text-slate-500">Uma fila para toda a equipa. Cada ação fica registada por quem a realizou.</p></div><div className="flex gap-2">{!detailOpen ? <button type="button" onClick={() => setShowOverview(!showOverview)} aria-expanded={showOverview} className="flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm"><LayoutDashboard className="h-4 w-4" />Agenda do dia</button> : null}<button disabled={busy || lease.pending} type="button" onClick={() => navigate(() => { setInbox(false); setNewRequest(true); setReference(''); })} className="desk-primary flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" />Novo atendimento</button></div></header> : null}
     {hqError ? <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{hqError}</p> : null}
@@ -213,18 +219,30 @@ export function ReceptionWorkspace() {
       </div>
     <section aria-label="Espaço do pedido" className="desk-reception-detail min-h-0 min-w-0 space-y-5 overflow-y-auto p-4 lg:p-5">{inbox ? <Suspense fallback={<p>A carregar a caixa de entrada…</p>}><CommunicationWorkspace onDirtyChange={setDirty} onBusyChange={setBusy} /></Suspense> : newRequest ? <div onChangeCapture={() => setDirty(true)}><RequestForm onSaved={saved} onClose={() => navigate(() => setNewRequest(false))} /></div> : !quote || !current ? <p role="status">A abrir o pedido…</p> : focusedProposal ? <section aria-label="Espaço da proposta" className="space-y-4" onChangeCapture={() => setDirty(true)}>
       {orderHeader}
-      {current.index === 0 ? <p className="rounded-xl border bg-white p-5">Conclua o briefing antes de preparar a proposta.</p> : closed || quote.price_approved_at || quote.order_reference ? <p className="rounded-xl border bg-white p-5">Esta proposta já não pode ser alterada. Consulte a versão no pedido.</p> : editing ? <fieldset disabled={!lease.editable || lease.pending} className="min-w-0"><RequestForm key={reference} focused embedded initialQuote={quote} reference={reference} onBusyChange={setBusy} onDirtyChange={setDirty} onSaved={proposalSaved} onClose={() => navigate(() => { setTab('summary'); setEditing(false); void lease.release(); })} /></fieldset> : busy || lease.pending ? <p role="status">A abrir a proposta…</p> : <>
+      {current.index === 0 ? <p className="rounded-xl border bg-white p-5">Conclua o briefing antes de preparar a proposta.</p> : closed || quote.price_approved_at || quote.order_reference ? <p className="rounded-xl border bg-white p-5">Esta proposta já não pode ser alterada. Consulte a versão no pedido.</p> : editing ? <fieldset disabled={!lease.editable || lease.pending} className="min-w-0"><RequestForm key={reference} focused embedded initialQuote={quote} reference={reference} onBusyChange={setBusy} onDirtyChange={setDirty} onSaved={proposalSaved} onClose={() => navigate(() => { setEditing(false); void lease.release(); })} /></fieldset> : busy || lease.pending ? <p role="status">A abrir a proposta…</p> : <>
         <p role="status" className="rounded-xl border bg-[#f5f7ee] p-4 text-sm">{lease.session ? `Em edição por ${lease.session.editor_name}. Pode consultar a proposta sem alterar o trabalho em curso.` : !canQuoteEdit ? 'A sua função permite apenas consultar esta proposta.' : 'A proposta está em modo de consulta.'}</p>
         <ProposalReadView quote={quote} />
         {!lease.session && canQuoteEdit ? <button type="button" onClick={() => void enterProposal(quote)} className="rounded-xl border px-4 py-3 text-sm font-semibold">Tentar novamente</button> : null}
       </>}
-      {!editing ? <button type="button" disabled={busy || lease.pending} onClick={() => navigate(() => setTab('summary'))} className="rounded-xl border px-4 py-3 text-sm">Voltar ao pedido</button> : null}
-    </section> : focusedClient ? <>{orderHeader}<ClientProposalWorkspace key={`${reference}:${quote.proposal_workflow?.stage}:${quote.proposal_workflow?.version}:${quote.price_approved_at}`} embedded quote={quote} editable={lease.editable && canQuoteEdit} onAcquire={() => void beginEditing()} onChanged={clientChanged} onBack={() => navigate(() => { void enterProposal(quote); })} onMessages={() => navigate(() => setTab('messages'))} onBusyChange={setBusy} onDirtyChange={setDirty} /></> : <>
+    </section> : focusedClient ? <>{orderHeader}<ClientProposalWorkspace key={`${reference}:${quote.proposal_workflow?.stage}:${quote.proposal_workflow?.version}:${quote.price_approved_at}`} embedded quote={quote} editable={lease.editable && canQuoteEdit} onAcquire={() => void beginEditing()} onChanged={clientChanged} onBack={() => navigate(() => { void enterProposal(quote); })} onMessages={() => openPanel('messages')} onBusyChange={setBusy} onDirtyChange={setDirty} /></> : <>
       {orderHeader}
-      <fieldset disabled={followUpDirty || busy || (tab === 'work' && !lease.editable)} className="min-w-0">
-      {tab === 'summary' ? <ReceptionOrderSummary quote={quote} /> : tab === 'proposal' ? <ProposalReadView quote={quote} /> : tab === 'messages' ? can('support.manage') ? <Suspense fallback={<p>A carregar mensagens…</p>}><CommunicationWorkspace key={reference} quoteReference={reference} onDirtyChange={setDirty} onBusyChange={setBusy} /></Suspense> : <p>Sem permissão para consultar mensagens.</p> : tab === 'history' ? <section className="space-y-5 rounded-2xl border bg-white p-5"><QuoteRequestEvidence quote={quote} /><ActivityTimeline events={quote.activity || []} /></section> : <div id="reception-work-panel" className="scroll-mt-24" onChangeCapture={() => setDirty(true)}>
+      <fieldset disabled={busy || !lease.editable} className="min-w-0">
+      <div id="reception-work-panel" className="scroll-mt-24" onChangeCapture={() => setDirty(true)}>
         {step === 0 ? triage && user ? <ReceptionRequestPanel embedded editingAllowed={lease.editable} request={triage} userId={user.id} canReleaseOthers={can('quotes.review')} onChange={(value) => { setDirty(false); if (value) setTriage(value); else saved(); }} onClose={() => { setDirty(false); setReference(''); }} /> : <section className="rounded-2xl border bg-white p-5"><h3 className="font-semibold">Briefing confirmado</h3><p className="mt-3 whitespace-pre-wrap text-sm">{quote.reception?.briefing?.description || quote.notes || 'Consulte os materiais e anexos.'}</p><QuoteRequestEvidence quote={quote} /></section> : null}
         {step === 3 ? quote.order_reference ? <OperationalDelivery key={quote.order_reference} reference={quote.order_reference} onSaved={() => setDirty(false)} /> : quote.price_approved_at && can('orders.manage_status') ? <button type="button" disabled={busy} onClick={createOrder} className="rounded-xl bg-brand-800 px-5 py-3 text-white">Criar ordem de produção</button> : <p className="rounded-xl border bg-white p-5">A ordem de produção estará disponível após a aceitação do cliente.</p> : null}
-      </div>}</fieldset></>}</section></>}
-    </section></div>;
+      </div></fieldset></>}</section></>}
+    </section>
+    {panel && quote ? <ReceptionContextPanel title={{ summary: 'Resumo', messages: 'Mensagens', history: 'Registos', followups: 'Seguimentos', proposal: 'Documento da proposta', work: 'Etapa' }[panel]} reference={quote.reference} onClose={() => openPanel(null)}>
+      {panel === 'summary' ? <>
+        <ReceptionCaseContext quote={contextQuote || quote} compact canSchedule={false} busy={busy} onBusy={setBusy} onSaved={() => {}} onDirty={() => {}} />
+        <ReceptionOrderSummary quote={quote} />
+        <button type="button" onClick={() => openPanel('proposal')} className="desk-primary rounded-xl px-4 py-3 text-sm font-semibold text-white">Ver documento da proposta</button>
+        <QuoteRequestEvidence quote={quote} />
+      </> : panel === 'proposal' ? <><button type="button" onClick={() => openPanel('summary')} className="text-sm font-semibold text-brand-800">Voltar ao resumo</button><ProposalReadView quote={quote} /></> : panel === 'messages' ? can('support.manage') ? <Suspense fallback={<p>A carregar mensagens…</p>}><CommunicationWorkspace key={reference} quoteReference={reference} onDirtyChange={setPanelDirty} onBusyChange={setBusy} /></Suspense> : <p>Sem permissão para consultar mensagens.</p> : panel === 'history' ? <ActivityTimeline events={quote.activity || []} /> : panel === 'followups' ? <ReceptionCaseContext key={`${reference}:${followUpReset}`} quote={contextQuote || quote} followUpsOnly canSchedule={!closed && lease.editable} busy={busy || lease.pending} onBusy={setBusy} onDirty={setFollowUpDirty} onSaved={(value) => {
+        setFollowUpDirty(false);
+        setFollowUpOverride({ reference: quote.reference, ...value });
+        setAgendaTick((previous) => previous + 1);
+      }} /> : null}
+    </ReceptionContextPanel> : null}
+    </div>;
 }

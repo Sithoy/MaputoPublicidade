@@ -31,16 +31,19 @@ describe('Compact operational frame', () => {
     expect(onAction).toHaveBeenCalledOnce();
   });
 
-  it('preserves stage navigation while moving documents and history to a secondary menu', () => {
+  it('keeps four accessible context tools alongside stage navigation', () => {
     const { onStep, onTab } = setup();
     fireEvent.click(screen.getByRole('button', { name: '2 Preparar proposta' }));
     expect(onStep).toHaveBeenCalledWith(1);
     const tabs = within(screen.getByRole('navigation', { name: 'Contexto do pedido' }));
-    fireEvent.click(tabs.getByRole('button', { name: /^Cliente$/ }));
-    expect(onTab).toHaveBeenCalledWith('work');
-    fireEvent.click(screen.getByText('Documentos e histórico'));
-    fireEvent.click(tabs.getByRole('button', { name: 'Histórico e anexos' }));
+    expect(tabs.getAllByRole('button')).toHaveLength(4);
+    fireEvent.click(tabs.getByRole('button', { name: 'Resumo' }));
+    expect(onTab).toHaveBeenCalledWith('summary');
+    fireEvent.click(tabs.getByRole('button', { name: 'Registos' }));
     expect(onTab).toHaveBeenCalledWith('history');
+    fireEvent.click(tabs.getByRole('button', { name: 'Seguimentos' }));
+    expect(onTab).toHaveBeenCalledWith('followups');
+    expect(tabs.getByRole('button', { name: 'Mensagens' })).toHaveAttribute('aria-haspopup', 'dialog');
   });
 
   it('does not repeat the generic action panel around a focused workspace', () => {
