@@ -248,9 +248,10 @@ class TestQuoteApi:
             {"comment": "Aprovado por telefone"},
             format="json",
         )
+        assert Order.objects.filter(quote=quoted_quote).count() == 1
         response = staff_client.post(url)
-        assert response.status_code == 201
-        assert Order.objects.filter(quote=quoted_quote).exists()
+        assert response.status_code == 400  # Already created automatically by acceptance.
+        assert Order.objects.filter(quote=quoted_quote).count() == 1
         quoted_quote.refresh_from_db()
         assert quoted_quote.status == QuoteRequest.STATUS_APPROVED
 
@@ -300,8 +301,9 @@ class TestQuoteApi:
             format="json",
         )
         url = reverse("quote-convert-to-order", kwargs={"reference": quote.reference})
+        assert Order.objects.filter(quote=quote).count() == 1
         response = staff_client.post(url)
-        assert response.status_code == 201
+        assert response.status_code == 400
         order = Order.objects.get(quote=quote)
         assert order.user is None
         assert order.client_name_display == "Cliente Anónimo"

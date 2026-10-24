@@ -50,6 +50,71 @@ def respond(client, **values):
 
 @pytest.mark.django_db
 class TestClientProposal:
+    @pytest.mark.django_db(transaction=True)
+    def test_concurrent_acceptance_creates_exactly_one_order(self, sent_proposal):
+        from concurrent.futures import ThreadPoolExecutor
+
+        from django.db import close_old_connections, connection
+        if connection.vendor != 'postgresql':
+            pytest.skip('Row-lock concurrency regression runs on PostgreSQL in CI.')
+        token = review_link(sent_proposal).split('#token=')[1]
+        def accept():
+            close_old_connections()
+            try:
+                client = APIClient()
+                client.credentials(HTTP_X_MP_PROPOSAL_TOKEN=token)
+                return respond(client).status_code
+            finally:
+                close_old_connections()
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            statuses = list(executor.map(lambda _: accept(), range(2)))
+        assert sorted(statuses) == [200, 400]
+        assert Order.objects.filter(quote=sent_proposal).count() == 1
+
+    def test_acceptance_copies_specifications_and_queues_without_marking_paid(self, sent_proposal, staff_client, staff_user):
+        sent_proposal.reception_briefing = {'fulfilment': 'installation', 'delivery_address': 'Escritório do cliente'}
+        sent_proposal.items.update(material_briefing={'apparel': {'rows': [{'model': 'Unissexo', 'color': 'Verde', 'size': 'M', 'quantity': 2}]}}, needs_design=True)
+        sent_proposal.save()
+        client = guest(sent_proposal)
+        assert respond(client).status_code == 200
+        order = Order.objects.get(quote=sent_proposal)
+        assert order.status == Order.STATUS_APPROVED
+        assert order.payment_status == Order.PAYMENT_PENDING
+        assert not order.amount_paid
+        assert order.installation_required and order.delivery_method == Order.DELIVERY_DELIVERY
+        assert order.delivery_address == 'Escritório do cliente'
+        assert not order.scheduled_date  # Requested deadline is not a promised delivery.
+        item = order.items.get()
+        assert item.quantity == sent_proposal.items.get().quantity
+        assert item.material_briefing == sent_proposal.items.get().material_briefing
+        assert item.needs_design
+        url = f'/api/quotes/{sent_proposal.reference}/client-workspace/'
+        assert staff_client.get(url).data['order_reference'] == order.reference
+        assert respond(client).status_code == 400
+        assert staff_client.post(url, {'action': 'phone', 'version': 1, 'decision': 'accept', 'contact_name': 'Director', 'comment': 'Repetição', 'confirmed': True}, format='json').status_code == 400
+        assert Order.objects.filter(quote=sent_proposal).count() == 1
+        assert sent_proposal.activity_events.filter(action='converted_to_order').count() == 1
+        staff_user.profile.staff_role = StaffRole.PRODUCTION
+        staff_user.profile.save()
+        technical = staff_client.get(f'/api/production/{sent_proposal.reference}/')
+        assert technical.status_code == 200
+        assert technical.data['order_reference'] == order.reference
+        assert 'final_price' not in technical.data and 'payment_status' not in technical.data
+        assert 'unit_price' not in technical.data['items'][0]
+
+    def test_failed_order_creation_rolls_back_the_client_acceptance(self, sent_proposal):
+        from apps.quotes.models import QuoteRequest
+
+        from .client_proposal import record_decision
+        with patch('apps.orders.from_quote.create_order_from_quote', side_effect=RuntimeError('Synthetic failure')):
+            with pytest.raises(RuntimeError):
+                record_decision(sent_proposal, {'action': 'accept', 'version': 1, 'contact_name': 'Director', 'comment': '', 'confirmed': True})
+        persisted = QuoteRequest.objects.get(pk=sent_proposal.pk)
+        assert not persisted.price_approved_at
+        assert persisted.status == 'quoted'
+        assert not persisted.proposal_history
+        assert not Order.objects.filter(quote=persisted).exists()
+
     @pytest.mark.parametrize('action', ['accept', 'changes', 'decline'])
     def test_branddesk_decision_uses_current_snapshot_and_shared_audit(self, sent_proposal, authenticated_client, action):
         url = f'/api/quotes/{sent_proposal.reference}/client-review/'
@@ -63,7 +128,7 @@ class TestClientProposal:
         sent_proposal.refresh_from_db()
         assert result.data['decision']['channel'] == 'branddesk'
         assert sent_proposal.proposal_history[-1]['actor_id'] == sent_proposal.user_id
-        assert not Order.objects.filter(quote=sent_proposal).exists()
+        assert Order.objects.filter(quote=sent_proposal).count() == (1 if action == 'accept' else 0)
         assert authenticated_client.post(url, {'action': action, 'version': 1,
             'snapshot': current.data['snapshot'], 'contact_name': 'Director', 'confirmed': True,
             'comment': 'Repetição'}, format='json').status_code == 400
@@ -158,7 +223,7 @@ class TestClientProposal:
             after = staff_client.get(f'/api/quotes/{sent_proposal.reference}/client-workspace/').data
             assert after['state'] == 'accepted'
             assert after['decision']['channel'] == 'branddesk'
-            assert not Order.objects.filter(quote=sent_proposal).exists()
+            assert Order.objects.filter(quote=sent_proposal).count() == 1
 
     def test_branddesk_review_is_owner_only(self, sent_proposal, authenticated_client):
         url = f'/api/quotes/{sent_proposal.reference}/client-review/'
@@ -181,7 +246,7 @@ class TestClientProposal:
         assert client.get('/api/proposal-review/').status_code == 405
 
     @pytest.mark.parametrize('action', ['accept', 'changes', 'decline'])
-    def test_decisions_are_single_and_never_create_production(self, sent_proposal, action):
+    def test_only_acceptance_creates_one_authorised_order(self, sent_proposal, action):
         client = guest(sent_proposal)
         result = respond(client, action=action, comment='Contexto confirmado')
         assert result.status_code == 200, result.data
@@ -189,7 +254,7 @@ class TestClientProposal:
         assert bool(sent_proposal.price_approved_at) == (action == 'accept')
         assert sent_proposal.proposal_history[-1]['client_decision'] == action
         assert sent_proposal.proposal_history[-1]['actor_id'] is None
-        assert not Order.objects.filter(quote=sent_proposal).exists()
+        assert Order.objects.filter(quote=sent_proposal).count() == (1 if action == 'accept' else 0)
         assert respond(client).status_code == 400
         assert respond(client, action='view').data['decision']['client_decision'] == action
 
@@ -241,7 +306,7 @@ class TestClientProposal:
         assert public.status_code == 200
         assert 'Ligação recebida' not in str(public.data)
         assert 'comment' not in public.data['decision']
-        assert not Order.objects.filter(quote=sent_proposal).exists()
+        assert Order.objects.filter(quote=sent_proposal).count() == 1
 
     def test_email_draft_has_pdf_preserves_edits_and_does_not_send(self, sent_proposal, staff_client, mailoutbox):
         url = f'/api/quotes/{sent_proposal.reference}/client-workspace/'

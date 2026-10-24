@@ -1,3 +1,6 @@
+import os
+import re
+
 from django.contrib.auth.models import User
 from django.db.models import Count, DecimalField, Sum, Value
 from django.db.models.functions import Coalesce, TruncDate
@@ -26,7 +29,12 @@ class HealthCheckView(APIView):
         except Exception:
             db_ok = False
         status_code = 200 if db_ok else 503
-        return Response({"status": "ok" if db_ok else "error", "db": db_ok}, status=status_code)
+        response = Response({"status": "ok" if db_ok else "error", "db": db_ok}, status=status_code)
+        response['Cache-Control'] = 'no-store'
+        revision = os.environ.get('RENDER_GIT_COMMIT', '')
+        if re.fullmatch(r'[a-fA-F0-9]{40}', revision):
+            response['X-MP-Release'] = revision.lower()
+        return response
 
 
 class AdminStatsView(APIView):

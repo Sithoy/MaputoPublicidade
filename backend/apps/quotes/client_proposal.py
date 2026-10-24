@@ -1,4 +1,4 @@
-"""Version-scoped proposal review; never grants account or production access."""
+"""Version-scoped decisions; acceptance atomically authorises a production order."""
 import hashlib
 import json
 import re
@@ -97,7 +97,12 @@ class DecisionInput(serializers.Serializer):
     confirmed = serializers.BooleanField()
 
 
+@transaction.atomic
 def record_decision(quote, values, *, actor=None, channel='link'):
+    # All channels serialize on the same row; the one-to-one Order.quote is a
+    # second database-level safeguard against duplicate hand-offs.
+    QuoteRequest.objects.select_for_update().get(pk=quote.pk)
+    quote.refresh_from_db()
     require_published(quote)
     if values['version'] != quote.proposal_version or decision(quote) or hasattr(quote, 'order') or quote.status == 'cancelled':
         raise ValidationError('Esta versão já tem uma decisão ou foi alterada. Atualize a página.')
@@ -129,7 +134,47 @@ def record_decision(quote, values, *, actor=None, channel='link'):
     record_activity(action='price_approved' if action == 'accept' else 'status_changed',
                     quote=quote, actor=actor, is_internal=True,
                     comment=f"Decisão da proposta v{quote.proposal_version}: {action}. Contacto: {values['contact_name']}. Canal: {channel}. {values['comment']}")
-    # Deliberately no order creation, payment clearance or production transition.
+    if action == 'accept':
+        authorise_operation(quote, actor=actor)
+
+
+def authorise_operation(quote, *, actor=None):
+    """Caller holds the quote lock. Approval queues work, not manufacture or payment."""
+    from apps.core.models import ActivityEvent, PortalNotification
+    from apps.orders.from_quote import create_order_from_quote
+    from apps.orders.models import Order
+
+    if not quote.price_approved_at:
+        raise ValidationError('Registe a aceitação do cliente antes de autorizar a operação.')
+    existing = Order.objects.filter(quote=quote).first()
+    if existing:
+        return existing
+    from apps.core.reception_briefing import reception_briefing
+    briefing = reception_briefing(quote)
+    fulfilment = briefing.get('fulfilment')
+    order = create_order_from_quote(quote,
+        delivery_method=Order.DELIVERY_DELIVERY if fulfilment in {'delivery', 'installation'} else Order.DELIVERY_PICKUP,
+        delivery_address=briefing.get('delivery_address') or '')
+    order.installation_required = fulfilment == 'installation'
+    order.save(update_fields=['installation_required'])
+    record_activity(action=ActivityEvent.ACTION_CONVERTED_TO_ORDER, quote=quote, actor=actor,
+        comment=f'Aceitação da proposta v{quote.proposal_version}: operação autorizada. Encomenda {order.reference}.')
+    record_activity(action=ActivityEvent.ACTION_CREATED, order=order, actor=actor,
+        comment=f'Operação autorizada pela aceitação da proposta {quote.reference} v{quote.proposal_version}.')
+    if quote.user_id and not quote.user.is_staff:
+        PortalNotification.objects.get_or_create(recipient=quote.user,
+            title=f'{quote.reference}: proposta aceite; operação autorizada',
+            href=f'/area-cliente/encomendas/{order.reference}')
+    from django.contrib.auth.models import User
+
+    from apps.accounts.roles import has_staff_capability
+    for staff in User.objects.filter(is_staff=True, is_active=True).select_related('profile'):
+        if has_staff_capability(staff, 'production.view'):
+            PortalNotification.objects.get_or_create(recipient=staff,
+                title=f'{quote.reference}: novo trabalho autorizado', href='/admin/producao')
+    from apps.core.notifications import notify_order_created
+    transaction.on_commit(lambda: notify_order_created(order), robust=True)
+    return order
 
 
 def prepare_email(quote, user):
@@ -159,7 +204,8 @@ def prepare_email(quote, user):
         f'Partilhamos em anexo a proposta {quote.reference}, versão {quote.proposal_version}.\n\n'
         f'Reveja os artigos e condições, aceite, peça alterações ou recuse através do link privado:\n{review_link(quote)}\n\n'
         f'Validade: {quote.valid_until or "conforme proposta"}.\nPagamento: {quote.get_payment_option_display()}.\n\n'
-        'Pode responder diretamente a este email. A aceitação da proposta não confirma o início da produção.')
+        'Pode responder diretamente a este email. Ao aceitar a proposta autoriza a operação. '
+        'A aceitação não confirma o pagamento; a execução respeita as aprovações técnicas necessárias.')
     EmailDraft.objects.create(conversation=conversation, subject=f'Proposta comercial - {quote.reference}',
         body=body, template_key='proposal', attachment_ids=[file.pk], updated_by=user)
     record_activity(action='reception_updated', quote=quote, actor=user, is_internal=True,
@@ -230,6 +276,7 @@ def workspace_data(quote):
         'whatsapp_number': whatsapp_number(quote.client_phone),
         'link': review_link(quote) if published else None, 'decision': current_decision, 'state': state,
         'published_at': quote.proposal_sent_at, 'expired': expired,
+        'order_reference': getattr(getattr(quote, 'order', None), 'reference', None),
         'follow_up': {'date': quote.reception_follow_up_date, 'note': quote.reception_follow_up_note},
         'channels': {
             'branddesk': {'state': 'available' if registered and published else 'not_available'},

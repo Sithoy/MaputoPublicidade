@@ -19,36 +19,32 @@ describe('Client proposal workspace', () => {
     expect(screen.getByRole('region', { name: 'Próxima ação do cliente' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeEnabled();
   });
-  it('preserves an unsaved follow-up while refreshing channel status', async () => {
-    const onDirtyChange = vi.fn();
-    render(<ClientProposalWorkspace {...props} onDirtyChange={onDirtyChange} />);
-    await screen.findByText('cliente@example.com');
-    fireEvent.change(screen.getByLabelText('Objetivo do contacto'), { target: { value: 'Contactar compras amanhã' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Atualizar estado' }));
-    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledTimes(2));
-    expect(screen.getByLabelText('Objetivo do contacto')).toHaveValue('Contactar compras amanhã');
-    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
-  });
-
-  it('distinguishes a draft email from a confirmed send and explains the next action', async () => {
-    vi.mocked(fetchWithAuth).mockResolvedValue({ ...data, registered: false, state: 'not_sent', channels: {
-      branddesk: { state: 'not_available' }, email: { state: 'draft' }, whatsapp: { state: 'not_sent' },
+  it('keeps channel status and decision provenance in Summary, not the operational stage', async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ...data, state: 'not_sent', channels: {
+      branddesk: { state: 'available' }, email: { state: 'draft' }, whatsapp: { state: 'not_sent' },
     } });
-    render(<ClientProposalWorkspace {...props} />);
+    const view = render(<ClientProposalWorkspace {...props} />);
+    await screen.findByRole('heading', { name: 'Enviar a proposta' });
+    expect(screen.queryByRole('definition')).not.toBeInTheDocument();
+    expect(screen.queryByText('Rascunho — ainda não enviado')).not.toBeInTheDocument();
+    expect(screen.queryByText('Proposta em consulta')).not.toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Agendar seguimento' })).not.toBeInTheDocument();
+    view.rerender(<ClientProposalWorkspace {...props} summary />);
     expect(await screen.findByText('Rascunho — ainda não enviado')).toBeInTheDocument();
-    expect(screen.getByText('Por enviar ao cliente')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Enviar a proposta' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Resumo da decisão' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Preparar email com PDF' })).not.toBeInTheDocument();
   });
 
-  it('saves the follow-up date and objective into the shared reception agenda', async () => {
-    render(<ClientProposalWorkspace {...props} />);
-    await screen.findByText('cliente@example.com');
-    fireEvent.change(screen.getByLabelText('Data do seguimento'), { target: { value: '2026-10-26' } });
-    fireEvent.change(screen.getByLabelText('Objetivo do contacto'), { target: { value: 'Confirmar decisão' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar seguimento' }));
-    await waitFor(() => expect(props.onChanged).toHaveBeenCalled());
-    const writes = vi.mocked(fetchWithAuth).mock.calls.filter(([, options]) => options?.method === 'POST');
-    expect(JSON.parse(String(writes[0][1]?.body))).toMatchObject({ action: 'follow_up', version: 2, date: '2026-10-26', comment: 'Confirmar decisão' });
+  it('prioritises contact after sending and opens follow-ups on demand', async () => {
+    const onFollowUps = vi.fn();
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ...data, state: 'awaiting_response' });
+    render(<ClientProposalWorkspace {...props} onFollowUps={onFollowUps} />);
+    expect(await screen.findByRole('heading', { name: 'Obter a decisão do cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Ligar/ })).toHaveAttribute('href', 'tel:+258841234567');
+    fireEvent.click(screen.getByRole('button', { name: 'Agendar próximo contacto' }));
+    expect(onFollowUps).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Já tenho a decisão' }));
+    expect(screen.getByLabelText('Nome do contacto')).toBeInTheDocument();
   });
 
   it('only records WhatsApp as sent after staff explicitly confirms the PDF and link', async () => {
@@ -61,15 +57,16 @@ describe('Client proposal workspace', () => {
     fireEvent.change(screen.getByLabelText('Registo do envio'), { target: { value: 'PDF e link enviados às compras' } });
     fireEvent.click(screen.getByLabelText(/Confirmo que enviei a mensagem/));
     fireEvent.click(screen.getByRole('button', { name: 'Registar envio por WhatsApp' }));
-    await waitFor(() => expect(props.onChanged).toHaveBeenCalled());
+    await waitFor(() => expect(vi.mocked(fetchWithAuth).mock.calls.some(([, options]) => options?.method === 'POST')).toBe(true));
+    expect(props.onChanged).not.toHaveBeenCalled();
     const writes = vi.mocked(fetchWithAuth).mock.calls.filter(([, options]) => options?.method === 'POST');
     expect(JSON.parse(String(writes[0][1]?.body))).toMatchObject({ action: 'whatsapp', version: 2, confirmed: true, comment: 'PDF e link enviados às compras' });
   });
 
-  it('keeps the proposal visible beside verified recipients and channel choices', async () => {
+  it('keeps the stage focused on sending without repeating the proposal document', async () => {
     render(<ClientProposalWorkspace {...props} />);
     expect(await screen.findByText('cliente@example.com')).toBeInTheDocument();
-    expect(screen.getByText('Proposta em consulta')).toBeInTheDocument();
+    expect(screen.queryByText('Proposta em consulta')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeEnabled();
     expect(screen.getByText(/não envia nem anexa o documento automaticamente/)).toBeInTheDocument();
     expect(fetchWithAuth).toHaveBeenCalledTimes(1);
@@ -94,16 +91,30 @@ describe('Client proposal workspace', () => {
   it('requires phone context and explicit confirmation before recording', async () => {
     render(<ClientProposalWorkspace {...props} />);
     await screen.findByText('cliente@example.com');
-    fireEvent.click(screen.getByRole('button', { name: 'Registar decisão por telefone' }));
+    fireEvent.click(screen.getByRole('button', { name: /Registar decisão Confirmação por telefone/ }));
     expect(screen.getByRole('button', { name: 'Registar decisão do cliente' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Nome do contacto'), { target: { value: 'Dário' } });
     fireEvent.change(screen.getByLabelText('Contexto e confirmação obtida'), { target: { value: 'Confirmou por telefone às 10h' } });
     fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo que este contacto comunicou/ }));
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     fireEvent.click(screen.getByRole('button', { name: 'Registar decisão do cliente' }));
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('autorizar a operação'));
     await waitFor(() => expect(props.onChanged).toHaveBeenCalled());
     const call = vi.mocked(fetchWithAuth).mock.calls.find(([, options]) => options?.method === 'POST');
     expect(JSON.parse(String(call?.[1]?.body))).toMatchObject({ action: 'phone', decision: 'accept', version: 2, contact_name: 'Dário', confirmed: true });
     vi.restoreAllMocks();
+  });
+  it('protects a decision draft when switching operational actions', async () => {
+    const onDirtyChange = vi.fn();
+    render(<ClientProposalWorkspace {...props} onDirtyChange={onDirtyChange} />);
+    await screen.findByText('cliente@example.com');
+    fireEvent.click(screen.getByRole('button', { name: /Registar decisão Confirmação/ }));
+    fireEvent.change(screen.getByLabelText('Nome do contacto'), { target: { value: 'Contacto por confirmar' } });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(screen.getByRole('button', { name: /Enviar proposta PDF/ }));
+    expect(confirm).toHaveBeenCalled();
+    expect(screen.getByLabelText('Nome do contacto')).toHaveValue('Contacto por confirmar');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    confirm.mockRestore();
   });
 });

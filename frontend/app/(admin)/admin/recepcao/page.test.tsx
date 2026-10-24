@@ -129,7 +129,7 @@ describe('Reception workspace', () => {
     expect(await screen.findByRole('button', { name: 'Gerir envio e decisão' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Pedido em foco' })).toBeInTheDocument();
     expect(auth.acquire).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: /3 Cliente/ }));
+    fireEvent.click(screen.getByRole('button', { name: /3 Decisão do cliente/ }));
     expect(await screen.findByRole('region', { name: 'Espaço do cliente' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Mensagens do pedido' })).toBeEnabled();
