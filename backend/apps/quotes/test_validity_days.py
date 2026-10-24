@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
-from io import BytesIO
 from unittest.mock import patch
 
+import fitz
 import pytest
 from django.core import signing
 from django.utils import timezone
-from pypdf import PdfReader
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
@@ -26,8 +25,8 @@ def test_validity_starts_at_publication_not_draft_creation(quote, staff_user, da
     prepare(quote, staff_user)
     transition(quote, staff_user, 'save', 0, '')
     assert quote.valid_until is None
-    draft_pdf = PdfReader(BytesIO(build_quote_pdf(quote)))
-    assert f'{days} dias após envio' in '\n'.join(page.extract_text() for page in draft_pdf.pages)
+    with fitz.open(stream=build_quote_pdf(quote), filetype='pdf') as draft_pdf:
+        assert f'{days} dias após envio' in '\n'.join(page.get_text() for page in draft_pdf)
     sent = datetime(2026, 10, 24, 23, 30, tzinfo=dt_timezone.utc)
     with patch('apps.quotes.proposal_workflow.timezone.now', return_value=sent):
         transition(quote, staff_user, 'send', 1, '')
