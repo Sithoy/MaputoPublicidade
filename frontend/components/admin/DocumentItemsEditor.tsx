@@ -112,6 +112,7 @@ export function DocumentItemsEditor({
               <Label htmlFor={`description-${line.key}`}>Descrição</Label>
               <Input
                 id={`description-${line.key}`}
+                maxLength={510}
                 value={line.description}
                 onChange={(event) => updateLine(line.key, { description: event.target.value })}
                 placeholder={`Item ${index + 1}`}

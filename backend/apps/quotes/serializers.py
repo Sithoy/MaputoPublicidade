@@ -501,7 +501,7 @@ class ManualQuoteItemSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
-    description = serializers.CharField(max_length=255)
+    description = serializers.CharField(max_length=510)
     quantity = serializers.IntegerField(min_value=1)
     unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
     notes = serializers.CharField(required=False, allow_blank=True)
@@ -710,7 +710,7 @@ class ReceptionIntakeItemSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
-    description = serializers.CharField(max_length=255)
+    description = serializers.CharField(max_length=510)
     quantity = serializers.IntegerField(min_value=1)
     unit_price = serializers.DecimalField(
         max_digits=12,

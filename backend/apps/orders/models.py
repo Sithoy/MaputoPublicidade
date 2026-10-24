@@ -221,7 +221,7 @@ class OrderItem(models.Model):
         blank=True,
         verbose_name="variante",
     )
-    description = models.CharField("descrição", max_length=255, blank=True)
+    description = models.CharField("descrição", max_length=510, blank=True)
     quantity = models.PositiveIntegerField("quantidade", default=1)
     size = models.CharField("tamanho", max_length=100, blank=True)
     material = models.CharField("material", max_length=100, blank=True)
