@@ -14,7 +14,6 @@ from .models import EmailDraft, PortalNotification
 from .studio import readiness
 from .support_files import selected_files
 from .test_production import assert_no_finance, publish, upload
-from .test_production import production_api as production_api
 
 
 @pytest.fixture(autouse=True)
@@ -22,6 +21,16 @@ def isolated_throttle_cache():
     cache.clear()
     yield
     cache.clear()
+
+
+@pytest.fixture
+def production_api(db):
+    user = User.objects.create_user('studio-production', is_staff=True)
+    user.profile.staff_role = StaffRole.PRODUCTION
+    user.profile.save()
+    api = APIClient()
+    api.force_authenticate(user)
+    return api
 
 
 @pytest.fixture
