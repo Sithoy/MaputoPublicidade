@@ -118,7 +118,7 @@ class ProposalWorkflowMixin:
             published = set(instance.proof_versions.filter(published_at__isnull=False).values_list('id', flat=True))
             data['proof_versions'] = [version for version in data['proof_versions'] if version['id'] in published]
         if request and not request.user.is_staff and instance.proposal_stage not in {"legacy", "sent"}:
-            for field in ("final_price", "estimated_price", "discount_amount", "discount_percentage", "tax_rate", "tax_amount", "subtotal", "terms", "valid_until", "estimated_delivery_days", "payment_option", "payment_option_display"):
+            for field in ("final_price", "estimated_price", "discount_amount", "discount_percentage", "tax_rate", "tax_amount", "subtotal", "terms", "valid_until", "validity_days", "estimated_delivery_days", "payment_option", "payment_option_display"):
                 if field in data:
                     data[field] = None
             for item in data.get("items", []):
@@ -289,6 +289,7 @@ class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSeria
             "price_approved_by_name",
             "price_approval_comment",
             "valid_until",
+            "validity_days",
             "billing_address",
             "discount_type",
             "discount_percentage",
@@ -527,6 +528,7 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
     client_nuit = serializers.CharField(max_length=50, required=False, allow_blank=True)
     billing_address = serializers.CharField(required=False, allow_blank=True, max_length=2000)
     valid_until = serializers.DateField(required=False, allow_null=True)
+    validity_days = serializers.ChoiceField(choices=[7, 15, 30, 60], required=False, allow_null=True)
     terms = serializers.CharField(required=False, allow_blank=True, max_length=10000)
     discount_type = serializers.ChoiceField(choices=["fixed", "percentage"], required=False)
     discount_amount = serializers.DecimalField(
@@ -588,6 +590,10 @@ class ManualQuoteCreateSerializer(serializers.Serializer):
         if values["discount_type"] == "fixed":
             attrs["discount_percentage"] = 0
         attrs["commercial_pricing"] = True
+        if attrs.get("validity_days", getattr(self.instance, 'validity_days', None)):
+            attrs["valid_until"] = None
+        if self.instance is None and "validity_days" not in attrs and not attrs.get("valid_until"):
+            attrs["validity_days"] = 15
         user = attrs.get("user")
         if user:
             profile = getattr(user, "profile", None)
@@ -852,12 +858,15 @@ class QuoteRequestUpdateSerializer(serializers.ModelSerializer):
             "internal_notes",
             "user_id",
             "valid_until",
+            "validity_days",
             "terms",
             "estimated_delivery_days",
             "payment_option",
         ]
 
     def validate(self, attrs):
+        if {'validity_days', 'valid_until'} & attrs.keys() and attrs.get('validity_days', getattr(self.instance, 'validity_days', None)):
+            attrs['valid_until'] = None
         if (
             self.instance
             and self.instance.commercial_pricing

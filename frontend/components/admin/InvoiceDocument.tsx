@@ -97,7 +97,7 @@ export function InvoiceDocument({ invoice, audience = 'admin', proposal }: Invoi
           {formatDate(invoice.issue_date)}
         </MetaItem>
         <MetaItem icon={CalendarDays} label={proposal ? 'Validade' : 'Vencimento'}>
-          {formatDate(invoice.due_date)}
+          {proposal?.validity_days && !invoice.due_date ? `${proposal.validity_days} dias após envio` : formatDate(invoice.due_date)}
         </MetaItem>
         <MetaItem icon={FileText} label="Referência">
           {invoice.order_reference ? (

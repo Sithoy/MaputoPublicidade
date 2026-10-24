@@ -1,5 +1,7 @@
 """Reception saves or sends proposals; only the client accepts their conditions."""
 
+from datetime import timedelta
+
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -7,7 +9,7 @@ from apps.core.activity import record_activity
 
 DOCUMENT_FIELDS = {
     "user", "client_name", "client_company", "client_email", "client_phone", "client_nuit",
-    "billing_address", "final_price", "estimated_price", "notes", "terms", "valid_until",
+    "billing_address", "final_price", "estimated_price", "notes", "terms", "valid_until", "validity_days",
     "estimated_delivery_days", "payment_option", "discount_type", "discount_amount",
     "discount_percentage", "tax_rate", "commercial_pricing",
     "vat_exempt", "vat_exemption_reason",
@@ -37,6 +39,8 @@ def prepare(quote, actor):
     quote.proposal_reviewed_at = None
     quote.proposal_review_comment = ""
     quote.proposal_sent_at = None
+    if quote.validity_days:
+        quote.valid_until = None
     quote.status = "reviewing"
     if not quote.reception_owner_id:
         quote.reception_owner = actor
@@ -56,6 +60,8 @@ def document_snapshot(quote):
         field: str(getattr(quote, field)) if getattr(quote, field) is not None else None
         for field in sorted(DOCUMENT_FIELDS)
     }
+    if quote.validity_days is None:
+        snapshot.pop('validity_days', None)  # Preserve legacy fingerprints and existing private links.
     snapshot["items"] = [
         {"id": item.pk, "description": item.description, "quantity": str(item.quantity),
          "unit_price": str(item.unit_price), "notes": item.notes}
@@ -91,6 +97,8 @@ def transition(quote, actor, action, version, comment):
         quote.reception_owner = actor
     quote.proposal_stage = "approved" if action == "save" else "sent"
     quote.proposal_sent_at = timezone.now() if action == "send" else None
+    if quote.validity_days:
+        quote.valid_until = timezone.localdate(quote.proposal_sent_at) + timedelta(days=quote.validity_days) if action == 'send' else None
     quote.status = "quoted" if action == "send" else "reviewing"
     event(quote, actor, "Proposta guardada" if action == "save" else "Disponibilizada ao cliente / envio registado",
           comment, document_snapshot(quote))

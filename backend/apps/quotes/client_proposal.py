@@ -23,7 +23,8 @@ from .models import QuoteRequest
 from .proposal_workflow import document_snapshot
 
 SALT = 'mp-commercial-review-v1'
-MAX_AGE = 7 * 24 * 3600
+MAX_AGE = 60 * 24 * 3600
+LEGACY_MAX_AGE = 7 * 24 * 3600
 
 
 def fingerprint(quote):
@@ -52,7 +53,8 @@ def require_published(quote):
 
 def review_link(quote):
     require_published(quote)
-    token = signing.dumps({'q': quote.pk, 'v': quote.proposal_version, 'f': fingerprint(quote)}, salt=SALT)
+    token = signing.dumps({'q': quote.pk, 'v': quote.proposal_version, 'f': fingerprint(quote),
+        'ttl': quote.validity_days * 24 * 3600 if quote.validity_days else LEGACY_MAX_AGE}, salt=SALT)
     origin = getattr(settings, 'TRACKING_SITE_URL', 'https://maputopublicidade.com').rstrip('/')
     return f'{origin}/proposta#token={token}'
 
@@ -314,6 +316,10 @@ class PublicProposalReview(APIView):
             if len(token) > 1024:
                 raise ValueError
             payload = signing.loads(token, salt=SALT, max_age=MAX_AGE)
+            ttl = payload.get('ttl', LEGACY_MAX_AGE)
+            if type(ttl) is not int or ttl not in {days * 24 * 3600 for days in (7, 15, 30, 60)}:
+                raise ValueError
+            signing.loads(token, salt=SALT, max_age=ttl)
             quote = QuoteRequest.objects.select_for_update().get(pk=payload['q'])
             require_published(quote)
             if payload['v'] != quote.proposal_version or not constant_time_compare(payload['f'], fingerprint(quote)):

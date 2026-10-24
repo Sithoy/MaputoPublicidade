@@ -146,6 +146,10 @@ class QuoteRequest(models.Model):
     )
     price_approval_comment = models.TextField("comentário da aprovação de preço", blank=True)
     valid_until = models.DateField("proposta válida até", null=True, blank=True)
+    validity_days = models.PositiveSmallIntegerField(
+        "validade após envio (dias)", choices=[(7, "7 dias"), (15, "15 dias"), (30, "30 dias"), (60, "60 dias")],
+        null=True, blank=True,
+    )
     terms = models.TextField("condições da proposta", blank=True)
     estimated_delivery_days = models.PositiveSmallIntegerField(
         "prazo estimado de entrega (dias úteis)",
