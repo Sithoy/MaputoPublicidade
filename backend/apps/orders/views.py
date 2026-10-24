@@ -137,8 +137,13 @@ class OrderViewSet(
         return export_response(queryset, field_map, "encomendas", fmt)
 
     @action(detail=True, methods=["post"], url_path="set-status")
+    @transaction.atomic
     def set_status(self, request, reference=None):
         order = self.get_object()
+        if order.quote_id:
+            from apps.quotes.models import QuoteRequest
+            QuoteRequest.objects.select_for_update().get(pk=order.quote_id)
+        order = Order.objects.select_for_update().get(pk=order.pk)
         serializer = OrderStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         old_status = order.status
@@ -146,9 +151,10 @@ class OrderViewSet(
         if new_status == Order.STATUS_IN_PRODUCTION and order.quote_id:
             from apps.catalog.apparel import require_apparel_ready
             require_apparel_ready(order.quote)
-            latest = order.quote.proof_versions.first()
-            if latest and latest.mime_type and (not latest.published_at or latest.client_decision != 'approved'):
-                return Response({'detail': 'A versão atual da arte deve ser publicada e aprovada pelo cliente antes da produção.'}, status=400)
+            from apps.core.studio import require_ready
+            require_ready(order.quote)
+        elif new_status == Order.STATUS_IN_PRODUCTION and order.items.filter(needs_design=True).exists():
+            return Response({'detail': 'Associe este trabalho a uma proposta para concluir o Studio.'}, status=400)
         if (
             new_status == Order.STATUS_CANCELLED
             and not has_staff_capability(

@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.db import transaction
 from rest_framework import serializers
 
 from apps.accounts.roles import StaffCapability, has_staff_capability
@@ -309,8 +310,19 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "items",
         ]
 
+    @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
+        quote = validated_data.get('quote')
+        if quote:
+            from apps.quotes.models import QuoteRequest
+            quote = QuoteRequest.objects.select_for_update().get(pk=quote.pk)
+        if validated_data.get('status') == Order.STATUS_IN_PRODUCTION:
+            if quote:
+                from apps.core.studio import require_ready
+                require_ready(quote)
+            elif any(item.get('needs_design') for item in items_data):
+                raise serializers.ValidationError('Conclua a aprovação da arte no Studio antes da produção.')
         order = Order.objects.create(**validated_data)
         for idx, item_data in enumerate(items_data):
             OrderItem.objects.create(
@@ -352,13 +364,26 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
         if value == Order.STATUS_IN_PRODUCTION and self.instance and self.instance.quote_id:
             from apps.catalog.apparel import require_apparel_ready
             require_apparel_ready(self.instance.quote)
+            from apps.core.studio import require_ready
+            require_ready(self.instance.quote)
         if self.instance and not self.instance.can_transition_to(value):
             raise serializers.ValidationError(
                 f"Transição inválida a partir de '{self.instance.get_status_display()}'."
             )
         return value
 
+    @transaction.atomic
     def update(self, instance, validated_data):
+        if instance.quote_id:
+            from apps.quotes.models import QuoteRequest
+            QuoteRequest.objects.select_for_update().get(pk=instance.quote_id)
+        instance = Order.objects.select_for_update().get(pk=instance.pk)
+        if validated_data.get('status') == Order.STATUS_IN_PRODUCTION:
+            if instance.quote_id:
+                from apps.core.studio import require_ready
+                require_ready(instance.quote)
+            elif any(item.get('needs_design') for item in validated_data.get('items', [])) or instance.items.filter(needs_design=True).exists():
+                raise serializers.ValidationError('Conclua a aprovação da arte no Studio antes da produção.')
         items_data = validated_data.pop("items", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

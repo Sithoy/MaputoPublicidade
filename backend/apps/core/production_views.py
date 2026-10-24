@@ -23,6 +23,13 @@ from apps.quotes.models import ArtworkApproval, ArtworkProofVersion, QuoteReques
 
 from .activity import record_activity
 from .permissions import HasStaffCapability
+from .studio import (
+    current_proof,
+    ensure_studio_editable,
+    readiness,
+    requirement,
+    technical_fingerprint,
+)
 
 SALT = "mp-art-review-v1"
 
@@ -66,11 +73,13 @@ def job_data(quote):
         "order_reference": order.reference if order else None,
         "scheduled_date": order.scheduled_date if order else None,
         "production_notes": quote.production_notes,
+        "operation": readiness(quote),
         "items": list(
             quote.items.values(
                 "id", "description", "quantity", "size", "material", "colors", "needs_design", "material_briefing"
             )
         ),
+        "artwork_routes": [{'item_id': item.pk, 'requirement': requirement(item)} for item in quote.items.all()],
         "versions": [version_data(version, True) for version in versions(quote)],
     }
 
@@ -100,7 +109,7 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
 
     def get_permissions(self):
         permissions = [HasStaffCapability(StaffCapability.VIEW_PRODUCTION)]
-        if self.action in {"technical_notes", "revoke"}:
+        if self.action in {"technical_notes", "revoke", "requirements", "decision", "email"}:
             permissions.append(HasStaffCapability(StaffCapability.MANAGE_ARTWORK))
         return permissions
 
@@ -126,6 +135,66 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
     def retrieve(self, request, reference=None):
         return Response(job_data(self.get_object()))
 
+    @action(detail=True, methods=['post'], url_path=r'email/(?P<version_id>[0-9]+)')
+    @transaction.atomic
+    def email(self, request, reference=None, version_id=None):
+        self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(reference=reference)
+        ensure_studio_editable(quote)
+        version = get_object_or_404(quote.proof_versions, pk=version_id)
+        from .studio import prepare_artwork_email
+        return Response({'conversation_id': prepare_artwork_email(quote, version, request.user), 'detail': 'Email com arte e link preparado. A Recepção deve rever e enviar por atendimento.'})
+
+    @action(detail=True, methods=['post'], url_path='requirements')
+    @transaction.atomic
+    def requirements(self, request, reference=None):
+        self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(reference=reference)
+        ensure_studio_editable(quote)
+        note = serializers.CharField(max_length=1000).run_validation(request.data.get('note'))
+        rows = request.data.get('items')
+        if not isinstance(rows, list) or not rows or len(rows) > 50:
+            raise ValidationError('Confirme os requisitos dos artigos deste trabalho.')
+        existing = {item.pk: item for item in quote.items.all()}
+        seen = set()
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != {'item_id', 'requirement'}:
+                raise ValidationError('Indique apenas o artigo e o requisito de arte.')
+            item_id = serializers.IntegerField(min_value=1).run_validation(row['item_id'])
+            if item_id not in existing or item_id in seen:
+                raise ValidationError('Artigo inválido ou repetido.')
+            seen.add(item_id)
+            value = serializers.ChoiceField(choices=['none', 'client', 'studio']).run_validation(row['requirement'])
+            existing[item_id].artwork_requirement = value
+            existing[item_id].save(update_fields=['artwork_requirement'])
+        record_activity(action='status_changed', quote=quote, actor=request.user, is_internal=True,
+            comment=f'Studio: requisitos de arte confirmados. {note}')
+        return Response(job_data(quote))
+
+    @action(detail=True, methods=['post'], url_path='decision')
+    @transaction.atomic
+    def decision(self, request, reference=None):
+        self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(reference=reference)
+        ensure_studio_editable(quote)
+        version = get_object_or_404(quote.proof_versions, pk=serializers.IntegerField(min_value=1).run_validation(request.data.get('version_id')))
+        if request.data.get('confirmed') is not True or not version.published_at or version.client_decision != 'pending' or not current_proof(quote, version):
+            raise ValidationError('Confirme uma decisão para a versão atual publicada e ainda pendente.')
+        decision = serializers.ChoiceField(choices=['approved', 'changes_requested']).run_validation(request.data.get('decision'))
+        contact = serializers.CharField(max_length=160).run_validation(request.data.get('contact_name'))
+        comment = serializers.CharField(max_length=3000).run_validation(request.data.get('comment'))
+        version.client_decision, version.client_comment = decision, comment
+        version.decision_source, version.reviewer_name = 'phone', contact
+        version.save(update_fields=['client_decision', 'client_comment', 'decision_source', 'reviewer_name'])
+        artwork, _ = ArtworkApproval.objects.get_or_create(quote=quote)
+        artwork.status, artwork.client_comment = decision, comment
+        artwork.approved_at = timezone.now() if decision == 'approved' else None
+        artwork.requested_changes = comment if decision == 'changes_requested' else ''
+        artwork.save()
+        record_activity(action='artwork_approved' if decision == 'approved' else 'artwork_changes_requested',
+            quote=quote, actor=request.user, comment=f'Arte v{version.version}; decisão por telefone de {contact}. {comment}')
+        return Response(job_data(quote))
+
     @action(detail=True, methods=["post"], url_path="technical-notes")
     def technical_notes(self, request, reference=None):
         quote = self.get_object()
@@ -142,6 +211,7 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         if not HasStaffCapability(StaffCapability.MANAGE_ARTWORK).has_permission(request, self):
             self.permission_denied(request)
         quote = QuoteRequest.objects.select_for_update().get(reference=reference)
+        ensure_studio_editable(quote)
         file = request.FILES.get("file")
         if not file or file.size > 3 * 1024 * 1024:
             raise ValidationError("Carregue uma imagem ou PDF até 3 MB.")
@@ -173,6 +243,7 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
             mime_type=mime,
             designer_comment=comment,
             uploaded_by=request.user,
+            technical_fingerprint=technical_fingerprint(quote),
         )
         record_activity(
             action="artwork_proof_uploaded",
@@ -195,9 +266,12 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         if not HasStaffCapability(StaffCapability.MANAGE_ARTWORK).has_permission(request, self):
             self.permission_denied(request)
         quote = QuoteRequest.objects.select_for_update().get(reference=reference)
+        ensure_studio_editable(quote)
         version = get_object_or_404(quote.proof_versions, pk=version_id)
         if version.pk != quote.proof_versions.order_by("-version").first().pk:
             raise ValidationError("Publique apenas a versão técnica mais recente.")
+        if not current_proof(quote, version):
+            raise ValidationError('Os requisitos técnicos mudaram. Prepare uma nova versão de arte.')
         first = version.published_at is None
         version.published_at = version.published_at or timezone.now()
         version.share_nonce = secrets.token_urlsafe(32)
@@ -282,7 +356,7 @@ class PublicArtReview(APIView):
                 **version_data(version),
                 "reference": version.quote.reference,
                 "file_url": public_file_url(version),
-                "current": latest.pk == version.pk,
+                "current": latest.pk == version.pk and current_proof(version.quote, version),
             }
         )
         response["Cache-Control"] = "private, no-store"
@@ -295,12 +369,13 @@ class PublicArtReview(APIView):
             return Response(status=405)
         version = self.version(token)
         quote = QuoteRequest.objects.select_for_update().get(pk=version.quote_id)
+        ensure_studio_editable(quote)
         version = ArtworkProofVersion.objects.select_for_update().get(pk=version.pk)
         self.version(token)  # Re-check revocation and expiry after acquiring the quote lock.
         latest = (
             quote.proof_versions.filter(published_at__isnull=False).order_by("-version").first()
         )
-        if latest.pk != version.pk or version.client_decision != "pending":
+        if latest.pk != version.pk or version.client_decision != "pending" or not current_proof(quote, version):
             raise ValidationError(
                 "Esta versão já recebeu uma decisão ou foi substituída. Peça a versão atual à MP."
             )

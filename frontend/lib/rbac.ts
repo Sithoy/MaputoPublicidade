@@ -89,6 +89,7 @@ export function getDefaultAdminPath(user: User | null | undefined) {
 }
 
 export function getRequiredCapability(pathname: string): StaffCapability | null {
+  if (pathname.startsWith('/admin/studio')) return 'quotes.artwork';
   if (pathname.startsWith('/admin/producao')) return 'production.view';
   if (pathname.startsWith('/admin/definicoes')) return 'integrations.manage';
   if (pathname.startsWith('/admin/recepcao')) return 'reception.manage';
