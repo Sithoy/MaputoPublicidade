@@ -295,7 +295,7 @@ export default function ClientQuoteDetailPage() {
               </p>
             )}
 
-            <ProofVersionHistory versions={quote.proof_versions ?? []} />
+            <ProofVersionHistory versions={quote.proof_versions ?? []} canSaveToLibrary />
           </CardContent>
         </Card>
       ) : null}

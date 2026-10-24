@@ -91,7 +91,8 @@ class ReceptionSerializer(serializers.ModelSerializer):
         return reception_briefing(obj)
 
     def get_attachments(self, obj):
-        return list(obj.request_attachments.values("id", "name", "size", "is_internal"))
+        from apps.assets.job_library import reference_data
+        return [{**reference_data(file), 'is_internal': file.is_internal} for file in obj.request_attachments.defer('content')]
 
     class Meta:
         model = QuoteRequest

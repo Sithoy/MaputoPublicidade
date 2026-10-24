@@ -53,6 +53,12 @@ class BrandRequestSerializer(serializers.Serializer):
     urgency = serializers.ChoiceField(choices=["normal", "urgent"], default="normal")
     notes = serializers.CharField(max_length=20000, required=False, allow_blank=True)
     items = BrandItemSerializer(many=True, allow_empty=True)
+    library_asset_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), max_length=5, required=False, default=list)
+
+    def validate_library_asset_ids(self, value):
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError('Não repita materiais da Biblioteca.')
+        return value
 
     def validate(self, attrs):
         from django.utils import timezone

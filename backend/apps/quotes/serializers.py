@@ -336,7 +336,8 @@ class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSeria
             or has_staff_capability(request.user, StaffCapability.MANAGE_QUOTES)
         ):
             queryset = queryset.filter(is_internal=False)
-        return list(queryset.values("id", "name", "size"))
+        from apps.assets.job_library import reference_data
+        return [reference_data(file) for file in queryset.defer('content')]
 
     def get_internal_notes(self, obj):
         request = self.context.get("request")

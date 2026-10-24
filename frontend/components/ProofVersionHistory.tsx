@@ -1,6 +1,7 @@
 import type { ProofVersion } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { PrivateArtPreview } from './PrivateArtPreview';
+import { SaveArtworkToLibrary } from './SaveArtworkToLibrary';
 
 const decisionStyles: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700 ring-amber-200',
@@ -8,7 +9,7 @@ const decisionStyles: Record<string, string> = {
   changes_requested: 'bg-red-50 text-red-700 ring-red-200',
 };
 
-export function ProofVersionHistory({ versions }: { versions: ProofVersion[] }) {
+export function ProofVersionHistory({ versions, canSaveToLibrary = false }: { versions: ProofVersion[]; canSaveToLibrary?: boolean }) {
   if (versions.length === 0) return null;
 
   return (
@@ -44,6 +45,7 @@ export function ProofVersionHistory({ versions }: { versions: ProofVersion[] }) 
               {version.client_comment ? (
                 <p className="mt-1 text-xs italic leading-5 text-[#718078]">“{version.client_comment}”</p>
               ) : null}
+              {canSaveToLibrary && version.id === versions[0]?.id && version.client_decision === 'approved' ? <SaveArtworkToLibrary key={version.id} versionId={version.id} /> : null}
             </div>
             {version.file ? <PrivateArtPreview url={version.file} label="Abrir arte" /> : <p className="text-xs">Sem ficheiro disponível.</p>}
           </li>

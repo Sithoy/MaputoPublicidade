@@ -7,9 +7,23 @@ vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams()
 vi.mock('@/lib/client-api', async (original) => ({ ...await original<typeof import('@/lib/client-api')>(),
   getMe: vi.fn().mockResolvedValue({ first_name: 'Ana', email: 'ana@example.com', profile: { company: 'Empresa Horizonte', nuit: '400123456' } }),
   createBrandRequest: vi.fn().mockResolvedValue({ reference: 'MP-0008-2026' }),
+  getBrandAssets: vi.fn().mockResolvedValue([{ id: 17, name: 'Logo Horizonte', kind: 'logo', file: '/api/brand-assets/17/file/', file_name: 'logo.pdf', file_size: 100 }]),
 }));
 
 describe('BrandDesk request wizard', () => {
+  it('carries a selected Library file through review and sends its ID without reuploading', async () => {
+    render(<BrandRequestWizard />);
+    fireEvent.click(screen.getByRole('button', { name: /Preciso de um orçamento/ }));
+    await screen.findByText('Empresa Horizonte');
+    fireEvent.change(screen.getByLabelText('Nome do pedido *'), { target: { value: 'Polos' } });
+    fireEvent.change(screen.getByLabelText('Contexto e observações'), { target: { value: '200 polos com o nosso logo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Escolher da Biblioteca' }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Logo Horizonte/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rever pedido' }));
+    expect(screen.getByText('Logo Horizonte · versão preservada neste pedido')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido' }));
+    await waitFor(() => expect(createBrandRequest).toHaveBeenCalledWith(expect.objectContaining({ libraryAssetIds: [17], files: [] })));
+  });
   beforeEach(() => vi.clearAllMocks());
   it('sends different contexts in a mixed request, with delivery details', async () => {
     render(<BrandRequestWizard />);

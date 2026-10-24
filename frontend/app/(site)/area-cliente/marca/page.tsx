@@ -34,7 +34,7 @@ import { BrandLibraryFileLink, BrandLibraryThumbnail, isBrandImage } from '@/com
 
 const kindOptions = [
   { value: 'logo', label: 'Logótipo' },
-  { value: 'artwork', label: 'Arte aprovada' },
+  { value: 'artwork', label: 'Arte / ficheiro gráfico' },
   { value: 'template', label: 'Modelo reutilizável' },
   { value: 'guide', label: 'Guia de marca' },
   { value: 'document', label: 'Documento' },
@@ -355,7 +355,7 @@ export default function BrandLibraryPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="truncate text-sm font-semibold text-dark" title={asset.name}>{asset.name}</h3>
-                      <p className="mt-0.5 text-xs text-[#829087]">{asset.kind_display || asset.kind}</p>
+                      <p className="mt-0.5 text-xs text-[#829087]">{asset.kind_display || asset.kind}</p><p className="mt-2 text-xs text-brand-800">{asset.approval_record?.quote_reference ? `Aprovação registada · ${asset.approval_record.quote_reference} · v${asset.approval_record.version}` : 'Material fornecido pelo cliente · sem aprovação registada'}</p><Link href={`/area-cliente/novo-pedido?material=${asset.id}`} className="mt-2 inline-block text-xs font-semibold underline">Usar este material num pedido</Link>
                     </div>
                     <div className="flex shrink-0 gap-1">
                       <BrandLibraryFileLink

@@ -1,6 +1,8 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
+from apps.assets.artwork_library import SaveApprovedArtwork
+
 from .email_connection import EmailSettingsView, EmailTestView
 from .notification_views import PortalNotificationViewSet
 from .production_views import AuthenticatedArtFile, ProductionViewSet, PublicArtReview
@@ -46,6 +48,7 @@ urlpatterns = [
     path("tracking/detail/", TrackingDetail.as_view(), name="tracking-detail"),
     path("tracking/messages/", TrackingMessages.as_view(), name="tracking-messages"),
     path("artwork-files/<int:version_id>/", AuthenticatedArtFile.as_view(), name="authenticated-art-file"),
+    path('artwork-files/<int:version_id>/save-to-library/', SaveApprovedArtwork.as_view(), name='save-approved-artwork'),
     path("art-review/<str:token>/", PublicArtReview.as_view(), name="public-art-review"),
     path("art-review/<str:token>/file/", PublicArtReview.as_view(), {"file": True}, name="public-art-file"),
     path("integrations/whatsapp/", WhatsAppSettingsView.as_view(), name="whatsapp-settings"),

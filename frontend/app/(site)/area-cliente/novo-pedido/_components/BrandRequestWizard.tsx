@@ -11,6 +11,8 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { BriefingDisclosure } from '@/components/BriefingDisclosure';
 import { RequestReferenceUpload } from '@/components/RequestReferenceUpload';
+import { BrandLibraryPicker } from '@/components/BrandLibraryPicker';
+import type { BrandAsset } from '@/lib/api';
 import { MaterialBriefingFields } from '@/components/MaterialBriefingFields';
 import { materialBriefingLines, type MaterialBriefing } from '@/lib/material-briefing';
 import { createBrandRequest, getMe, fulfilmentLabels, type BrandRequestIntent } from '@/lib/client-api';
@@ -41,6 +43,7 @@ export function BrandRequestWizard() {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<Material[]>([]);
   const [files, setFiles] = useState<File[]>([]);
+  const [libraryAssets, setLibraryAssets] = useState<BrandAsset[]>([]);
   const [contact, setContact] = useState({ name: '', company: '', email: '', nuit: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -80,7 +83,7 @@ export function BrandRequestWizard() {
     try {
       const quote = await createBrandRequest({ intent, projectName: projectName.trim(), deadline, fulfilment, deliveryAddress,
         sourceReference: intent === 'reorder' ? sourceReference.trim() : '', needsDesign, urgency, notes: notes.trim(), contact,
-        items: items.map((item) => ({ description: item.description.trim(), quantity: Number(item.quantity), specifications: item.specifications.trim(), ...(item.material_briefing ? { material_briefing: item.material_briefing } : {}) })), files });
+        items: items.map((item) => ({ description: item.description.trim(), quantity: Number(item.quantity), specifications: item.specifications.trim(), ...(item.material_briefing ? { material_briefing: item.material_briefing } : {}) })), files, libraryAssetIds: libraryAssets.map((asset) => asset.id) });
       setCreatedReference(quote.reference);
     } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível enviar o pedido.'); }
     finally { submitting.current = false; setSaving(false); }
@@ -135,13 +138,15 @@ export function BrandRequestWizard() {
           </BriefingDisclosure>
           <label className="flex items-start gap-3 rounded-xl bg-brand-50 p-4 text-sm"><input type="checkbox" checked={needsDesign} onChange={(event) => setNeedsDesign(event.target.checked)} className="mt-1" />Preciso de apoio com design ou arte final</label>
           {needsDesign ? <p className="text-sm text-brand-800">Descreva o que pretende no contexto do pedido e, se tiver, junte o logótipo ou exemplos nas referências.</p> : null}
+          <BrandLibraryPicker selected={libraryAssets} onChange={setLibraryAssets} initialId={params.get('material') || undefined} disabled={saving} />
           <RequestReferenceUpload files={files} onChange={setFiles} />
         </> : <>
           <h3 className="font-semibold">{projectName}</h3><p className="whitespace-pre-wrap text-sm text-gray-600">{notes || 'Sem observações adicionais.'}</p>
           {items.length ? <ul className="divide-y">{items.map((item) => <li key={item.key} className="py-4"><p className="font-medium">{item.description} · {item.quantity} unidades</p><p className="mt-1 whitespace-pre-wrap text-sm text-gray-500">{item.specifications || 'Especificações a confirmar pela MP.'}</p>{materialBriefingLines(item.material_briefing).map((line) => <p key={line} className="mt-1 whitespace-pre-wrap text-sm text-gray-600">{line}</p>)}</li>)}</ul> : <p className="rounded-xl bg-brand-50 p-4 text-sm">A equipa ajudará a definir os materiais e quantidades. Não serão assumidos valores.</p>}
           {fulfilment === 'delivery' && deliveryAddress ? <p className="whitespace-pre-wrap text-sm">Entrega: {deliveryAddress}</p> : null}
           <dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-gray-500">Data pretendida</dt><dd>{deadline || 'A combinar'} · sujeita a confirmação</dd></div><div><dt className="text-gray-500">Recepção</dt><dd>{fulfilmentLabels[fulfilment]}</dd></div><div><dt className="text-gray-500">Design</dt><dd>{needsDesign ? 'Solicitado' : 'Não solicitado'}</dd></div><div><dt className="text-gray-500">Prioridade</dt><dd>{urgency === 'urgent' ? 'Urgente' : 'Planeada'}</dd></div>{intent === 'reorder' ? <div><dt>Referência anterior</dt><dd>{sourceReference}</dd></div> : null}</dl>
-          <div><h3 className="font-semibold">Anexos ({files.length})</h3><ul className="mt-2 space-y-2 text-sm">{files.map((file, index) => <li key={index} className="break-all">{file.name} · {Math.ceil(file.size / 1024)} KB</li>)}</ul></div>
+          <div><h3 className="font-semibold">Materiais da Biblioteca ({libraryAssets.length})</h3><ul className="mt-2 space-y-2 text-sm">{libraryAssets.map((asset) => <li key={asset.id}>{asset.name} · versão preservada neste pedido</li>)}</ul></div>
+          <div><h3 className="font-semibold">Novos anexos ({files.length})</h3><ul className="mt-2 space-y-2 text-sm">{files.map((file, index) => <li key={index} className="break-all">{file.name} · {Math.ceil(file.size / 1024)} KB</li>)}</ul></div>
           <Button type="button" variant="outline" disabled={saving} onClick={() => setStep(2)}><ArrowLeft className="mr-2 h-4 w-4" />Editar briefing</Button>
           <p className="rounded-xl bg-[#f4f0e8] p-4 text-sm">Está a enviar um pedido de análise, não uma encomenda confirmada. Receberá uma proposta para aprovar antes da produção.</p>
         </>}

@@ -18,7 +18,7 @@ export interface ReceptionRequest {
   reception_owner: number | null; owner_name: string; reception_notes: string;
   missing_information: string[]; items: ReceptionItem[]; deadline: string | null;
   briefing?: ReceptionBriefing;
-  attachments?: { id: number; name: string; size: number; is_internal: boolean }[];
+  attachments?: { id: number; name: string; size: number; is_internal: boolean; library_origin?: import('./api').LibraryOrigin }[];
 }
 export interface ReceptionSummary {
   counts: { queue: number; unassigned: number; mine: number; messages: number; ready: number };
