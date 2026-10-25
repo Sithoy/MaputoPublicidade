@@ -402,6 +402,15 @@ class ArtworkProofVersion(models.Model):
         return f"{self.quote.reference} — v{self.version}"
 
 
+class ArtworkProofFile(models.Model):
+    """Additional private files covered by the parent version's single decision."""
+
+    proof = models.ForeignKey(ArtworkProofVersion, on_delete=models.CASCADE, related_name='attachments')
+    file_name = models.CharField(max_length=160)
+    mime_type = models.CharField(max_length=100)
+    private_content = models.BinaryField()
+
+
 class ArtworkApproval(models.Model):
     STATUS_PENDING = "pending"
     STATUS_APPROVED = "approved"

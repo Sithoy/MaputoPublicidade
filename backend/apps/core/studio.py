@@ -92,14 +92,22 @@ def prepare_artwork_email(quote, version, actor):
         else:
             with version.file.open('rb') as artwork_file:
                 content = artwork_file.read()
-        name, mime = validate_file(version.file_name or version.file.name.rsplit('/', 1)[-1], content)
-        attachment = SupportFile.objects.create(conversation=conversation, uploaded_by=actor, name=name, mime_type=mime,
-            size=len(content), sha256=hashlib.sha256(content).hexdigest(), content=content,
-            document_source={'kind': 'artwork', 'quote_id': quote.pk, 'version_id': version.pk, 'nonce': version.share_nonce})
+        package = [(version.file_name or version.file.name.rsplit('/', 1)[-1], content)]
+        package.extend((row.file_name, bytes(row.private_content)) for row in version.attachments.order_by('pk'))
+        # Never silently attach only part of an approval package.
+        attachment_ids = []
+        if len(package) <= 3 and all(len(content) <= 3 * 1024 * 1024 for _, content in package) and sum(len(content) for _, content in package) <= 6 * 1024 * 1024:
+            for file_name, content in package:
+                name, mime = validate_file(file_name, content)
+                attachment = SupportFile.objects.create(conversation=conversation, uploaded_by=actor, name=name, mime_type=mime,
+                    size=len(content), sha256=hashlib.sha256(content).hexdigest(), content=content,
+                    document_source={'kind': 'artwork', 'quote_id': quote.pk, 'version_id': version.pk, 'nonce': version.share_nonce})
+                attachment_ids.append(attachment.pk)
         link = f"{getattr(settings, 'TRACKING_SITE_URL', 'https://maputopublicidade.com').rstrip('/')}/arte/rever/{share_token(version)}"
+        delivery = 'Os ficheiros seguem em anexo e no link privado.' if attachment_ids else 'Todos os ficheiros estão no link privado; o conjunto excede o limite de anexos do email.'
         EmailDraft.objects.create(conversation=conversation, template_key='artwork', updated_by=actor,
-            subject=f'Arte para apreciação — {quote.reference} v{version.version}', attachment_ids=[attachment.pk],
-            body=f'Olá {quote.client_company or quote.client_name},\n\nSegue em anexo a arte v{version.version} do pedido {quote.reference}.\n\nReveja e aprove ou indique alterações através do link privado:\n{link}\n\nA produção aguarda a aprovação da versão atual. Pode responder a este email para esclarecer dúvidas.')
+            subject=f'Arte para apreciação — {quote.reference} v{version.version}', attachment_ids=attachment_ids,
+            body=f'Olá {quote.client_company or quote.client_name},\n\nArte v{version.version} do pedido {quote.reference} ({len(package)} ficheiro(s)). {delivery}\n\nReveja todos os ficheiros e aprove o conjunto ou indique alterações:\n{link}\n\nA produção aguarda a aprovação da versão atual. Pode responder a este email para esclarecer dúvidas.')
         record_activity(action='reception_updated', quote=quote, actor=actor, is_internal=True,
             comment=f'Studio preparou email com arte v{version.version}; aguarda revisão e envio pela Recepção.')
         for staff in User.objects.filter(is_staff=True, is_active=True).select_related('profile'):

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithAuth } from '@/lib/auth';
 import { ProductionWorkspace } from './ProductionWorkspace';
@@ -9,6 +9,27 @@ vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ loading: false, 
 const job = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'approved', order_reference: 'ORD-0001', production_notes: 'Confirmar cores', scheduled_date: null, items: [{ id: 1, description: 'Cartões de visita', quantity: 200, size: '85x55', material: 'Papel mate', colors: 'Verde' }], versions: [] };
 beforeEach(() => { allowed = true; vi.resetAllMocks(); vi.mocked(fetchWithAuth).mockImplementation(async (path) => path === '/api/production/' ? { results: [job], next: null } : job); });
 describe('Production workspace', () => {
+  it('uploads multiple files as one version and displays each file name', async () => {
+    render(<ProductionWorkspace workspace="studio" />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026/ }));
+    const input = await screen.findByLabelText('Ficheiros da versão (até 5, 5 MB cada)');
+    expect(input).toHaveAttribute('multiple');
+    const files = [new File(['%PDF-one'], 'frente.pdf'), new File(['%PDF-two'], 'verso.pdf')];
+    fireEvent.change(input, { target: { files } });
+    expect(screen.getByRole('button', { name: 'Remover verso.pdf' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar nova versão em rascunho' }));
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/production/MP-0001-2026/artwork/', expect.objectContaining({ method: 'POST', body: expect.any(FormData) })));
+    const call = vi.mocked(fetchWithAuth).mock.calls.find(([path]) => path.endsWith('/artwork/'))!;
+    expect((call[1]!.body as FormData).getAll('files')).toEqual(files);
+  });
+  it('rejects an oversized file before uploading', async () => {
+    render(<ProductionWorkspace workspace="studio" />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026/ }));
+    const input = await screen.findByLabelText('Ficheiros da versão (até 5, 5 MB cada)');
+    fireEvent.change(input, { target: { files: [new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'large.pdf')] } });
+    expect(screen.getByRole('alert')).toHaveTextContent('5 MB cada');
+    expect(screen.getByRole('button', { name: 'Guardar nova versão em rascunho' })).toBeDisabled();
+  });
   it('shows the shared Reception briefing and client files without a second briefing step', async () => {
     const shared = { ...job, briefing: { project_name: 'Campanha', description: 'Logótipo no peito', delivery_address: 'Maputo' }, references: [{ id: 2, name: 'logo.png', size: 100 }], items: [{ ...job.items[0], notes: 'Verde escuro' }] };
     vi.mocked(fetchWithAuth).mockImplementation(async (path) => path === '/api/production/' ? { results: [shared], next: null } : shared);

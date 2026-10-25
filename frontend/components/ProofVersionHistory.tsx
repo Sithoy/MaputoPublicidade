@@ -45,9 +45,9 @@ export function ProofVersionHistory({ versions, canSaveToLibrary = false }: { ve
               {version.client_comment ? (
                 <p className="mt-1 text-xs italic leading-5 text-[#718078]">“{version.client_comment}”</p>
               ) : null}
-              {canSaveToLibrary && version.id === versions[0]?.id && version.client_decision === 'approved' ? <SaveArtworkToLibrary key={version.id} versionId={version.id} /> : null}
+{canSaveToLibrary && version.id === versions[0]?.id && version.client_decision === 'approved' ? <div>{(version.files?.length || 0) > 1 ? <p className="text-xs text-slate-500">Guardar na Biblioteca arquiva apenas o primeiro ficheiro desta versão.</p> : null}<SaveArtworkToLibrary key={version.id} versionId={version.id} /></div> : null}
             </div>
-            {version.file ? <PrivateArtPreview url={version.file} label="Abrir arte" /> : <p className="text-xs">Sem ficheiro disponível.</p>}
+            <div className="space-y-2">{version.files?.length ? version.files.map((file) => <PrivateArtPreview key={file.id} url={file.url} label={`Abrir ${file.name}`} />) : version.file ? <PrivateArtPreview url={version.file} label="Abrir arte" /> : <p className="text-xs">Sem ficheiro disponível.</p>}</div>
           </li>
         ))}
       </ol>

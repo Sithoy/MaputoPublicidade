@@ -57,6 +57,11 @@ class ArtworkProofVersionSerializer(serializers.ModelSerializer):
         source="get_client_decision_display", read_only=True
     )
     file = serializers.SerializerMethodField()
+    files = serializers.SerializerMethodField()
+
+    def get_files(self, obj):
+        from apps.core.production_views import proof_files
+        return proof_files(obj, self.get_file(obj)) if self.get_file(obj) else []
 
     def get_file(self, obj):
         if obj.mime_type:
@@ -72,6 +77,7 @@ class ArtworkProofVersionSerializer(serializers.ModelSerializer):
             "file",
             "designer_comment",
             "uploaded_by_name",
+            "files",
             "client_decision",
             "client_decision_display",
             "client_comment",

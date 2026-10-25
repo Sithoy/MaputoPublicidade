@@ -255,7 +255,7 @@ class TestProduction:
         )
         assert not ArtworkProofVersion.objects.exists()
         assert (
-            upload(production_api, quoted_quote, b"%PDF-" + b"x" * (3 * 1024 * 1024)).status_code
+            upload(production_api, quoted_quote, b"%PDF-" + b"x" * (5 * 1024 * 1024)).status_code
             == 400
         )
         assert (
