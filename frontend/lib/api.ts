@@ -624,6 +624,7 @@ export type ActivityEvent = {
 };
 
 export type ProofVersion = {
+  files?: { id: number; name: string; mime_type: string; url: string }[];
   id: number;
   version: number;
   file: string;

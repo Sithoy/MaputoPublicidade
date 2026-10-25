@@ -52,11 +52,11 @@ class SaveApprovedArtwork(APIView):
         else:
             try:
                 with version.file.open('rb') as file:
-                    content = file.read(3 * 1024 * 1024 + 1)
+                    content = file.read(5 * 1024 * 1024 + 1)
             except (OSError, ValueError) as exc:
                 raise ValidationError('Arte indisponível. Confirme o ficheiro com o Studio.') from exc
-        if not content or len(content) > 3 * 1024 * 1024:
-            raise ValidationError('A arte deve ter conteúdo e até 3 MB.')
+        if not content or len(content) > 5 * 1024 * 1024:
+            raise ValidationError('A arte deve ter conteúdo e até 5 MB.')
         artwork = getattr(quote, 'artwork', None)
         approval = {'quote_reference': quote.reference, 'version': version.version,
             'source': version.decision_source or 'branddesk', 'reviewer_name': version.reviewer_name,

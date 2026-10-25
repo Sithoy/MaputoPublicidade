@@ -22,6 +22,7 @@ from apps.accounts.roles import StaffCapability, has_staff_capability
 from apps.assets.job_library import reference_data
 from apps.quotes.models import (
     ArtworkApproval,
+    ArtworkProofFile,
     ArtworkProofVersion,
     QuoteRequest,
     QuoteRequestAttachment,
@@ -54,6 +55,24 @@ def versions(quote):
     return quote.proof_versions.all()
 
 
+def proof_files(version, base):
+    return [
+        {"id": 0, "name": version.file_name or version.file.name.rsplit("/", 1)[-1],
+         "mime_type": version.mime_type, "url": base},
+        *[{"id": row.pk, "name": row.file_name, "mime_type": row.mime_type,
+           "url": f"{base}?attachment={row.pk}"} for row in version.attachments.defer("private_content").order_by("pk")],
+    ]
+
+
+def requested_file(version, request):
+    attachment = request.query_params.get("attachment")
+    if attachment is None:
+        return version
+    if not attachment.isdigit():
+        raise ValidationError("Ficheiro inválido.")
+    return get_object_or_404(version.attachments, pk=attachment)
+
+
 def version_data(version, staff=False):
     data = {
         "id": version.pk,
@@ -67,8 +86,10 @@ def version_data(version, staff=False):
         "decision_source": version.decision_source,
         "reviewer_name": version.reviewer_name,
     }
+    base = f"/api/production/{version.quote.reference}/files/{version.pk}/" if staff else f"/api/artwork-files/{version.pk}/"
+    data["files"] = proof_files(version, base)
     if staff:
-        data["file_url"] = f"/api/production/{version.quote.reference}/files/{version.pk}/"
+        data["file_url"] = base
     return data
 
 
@@ -229,25 +250,28 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
             self.permission_denied(request)
         quote = QuoteRequest.objects.select_for_update().get(reference=reference)
         ensure_studio_editable(quote)
-        file = request.FILES.get("file")
-        if not file or file.size > 3 * 1024 * 1024:
-            raise ValidationError("Carregue uma imagem ou PDF até 3 MB.")
-        content = file.read()
-        if len(content) > 3 * 1024 * 1024:
-            raise ValidationError('A arte ultrapassa 3 MB.')
-        mime = (
-            "application/pdf"
-            if content.startswith(b"%PDF-")
-            else "image/png"
-            if content.startswith(b"\x89PNG\r\n\x1a\n")
-            else "image/jpeg"
-            if content.startswith(b"\xff\xd8\xff")
-            else "image/webp"
-            if content.startswith(b"RIFF") and content[8:12] == b"WEBP"
-            else ""
-        )
-        if not mime:
-            raise ValidationError("Formato não suportado: utilize PDF, PNG, JPEG ou WebP.")
+        files = request.FILES.getlist("files") or request.FILES.getlist("file")
+        if not 1 <= len(files) <= 5:
+            raise ValidationError("Selecione entre 1 e 5 ficheiros para esta versão.")
+        prepared = []
+        for file in files:
+            if not file.size or file.size > 5 * 1024 * 1024:
+                raise ValidationError("Cada ficheiro deve ter conteúdo e até 5 MB.")
+            content = file.read(5 * 1024 * 1024 + 1)
+            if not content or len(content) > 5 * 1024 * 1024:
+                raise ValidationError("Cada ficheiro deve ter conteúdo e até 5 MB.")
+            mime = (
+                "application/pdf" if content.startswith(b"%PDF-")
+                else "image/png" if content.startswith(b"\x89PNG\r\n\x1a\n")
+                else "image/jpeg" if content.startswith(b"\xff\xd8\xff")
+                else "image/webp" if content.startswith(b"RIFF") and content[8:12] == b"WEBP"
+                else ""
+            )
+            name = file.name.replace("\\", "/").rsplit("/", 1)[-1][:160]
+            if not mime or not name or any(ord(char) < 32 for char in name):
+                raise ValidationError("Utilize PDF, PNG, JPEG ou WebP com nome válido.")
+            prepared.append((name, mime, content))
+        name, mime, content = prepared[0]
         comment = serializers.CharField(max_length=3000, allow_blank=True).run_validation(
             request.data.get("comment", "")
         )
@@ -256,12 +280,16 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
             quote=quote,
             version=latest.version + 1 if latest else 1,
             private_content=content,
-            file_name=file.name.replace("\\", "/").rsplit("/", 1)[-1][:160],
+            file_name=name,
             mime_type=mime,
             designer_comment=comment,
             uploaded_by=request.user,
             technical_fingerprint=technical_fingerprint(quote),
         )
+        ArtworkProofFile.objects.bulk_create([
+            ArtworkProofFile(proof=version, file_name=name, mime_type=mime, private_content=content)
+            for name, mime, content in prepared[1:]
+        ])
         record_activity(
             action="artwork_proof_uploaded",
             quote=quote,
@@ -274,7 +302,7 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
     @action(detail=True, methods=["get"], url_path=r"files/(?P<version_id>[0-9]+)")
     def file(self, request, reference=None, version_id=None):
         quote = self.get_object()
-        return file_response(get_object_or_404(quote.proof_versions, pk=version_id))
+        return file_response(requested_file(get_object_or_404(quote.proof_versions, pk=version_id), request))
 
     @action(detail=True, methods=["post"], url_path=r"publish/(?P<version_id>[0-9]+)")
     @transaction.atomic
@@ -362,7 +390,7 @@ class PublicArtReview(APIView):
     def get(self, request, token, file=False):
         version = self.version(token)
         if file:
-            return file_response(version)
+            return file_response(requested_file(version, request))
         latest = (
             version.quote.proof_versions.filter(published_at__isnull=False)
             .order_by("-version")
@@ -373,6 +401,7 @@ class PublicArtReview(APIView):
                 **version_data(version),
                 "reference": version.quote.reference,
                 "file_url": public_file_url(version),
+                "files": proof_files(version, public_file_url(version)),
                 "current": latest.pk == version.pk and current_proof(version.quote, version),
             }
         )
@@ -450,4 +479,4 @@ class AuthenticatedArtFile(APIView):
             from django.http import Http404
 
             raise Http404()
-        return file_response(version)
+        return file_response(requested_file(version, request))
