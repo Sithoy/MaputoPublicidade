@@ -1,7 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { analyticsAllowed, publicTrafficPath, setAnalyticsConsent, trackWebsiteAction, trafficSource, TRAFFIC_CONSENT } from './website-traffic';
+import { aggregateAllowed, analyticsAllowed, disableAllMeasurement, publicTrafficPath, setAnalyticsConsent, trackWebsiteAction, trafficSource, TRAFFIC_AGGREGATE, TRAFFIC_CONSENT } from './website-traffic';
 
 beforeEach(() => {
+  setAnalyticsConsent(false);
   localStorage.clear(); sessionStorage.clear();
   window.history.replaceState({}, '', '/orcamento?token=secret&utm_source=whatsapp');
   Object.defineProperty(navigator, 'doNotTrack', { configurable: true, value: '0' });
@@ -13,14 +14,16 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('public website tracking', () => {
-  it('requires a new explicit opt-in, not the old cookie acceptance', () => {
+  it('automatically counts without identifiers but never treats old cookie acceptance as optional consent', () => {
     localStorage.setItem('mp_cookie_consent', 'accepted');
     trackWebsiteAction('page_view');
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string)).toEqual({ mode: 'aggregate', path: '/orcamento', kind: 'page_view' });
     expect(localStorage.getItem('mp_analytics_visitor_v1')).toBeNull();
     setAnalyticsConsent(true);
     trackWebsiteAction('page_view');
-    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[1][1]!.body as string).mode).toBe('optional');
   });
   it('sends only bounded public data, without URL queries or private identifiers', () => {
     setAnalyticsConsent(true);
@@ -31,7 +34,7 @@ describe('public website tracking', () => {
     expect(body.source).toBe('whatsapp');
     expect(call[1]).toMatchObject({ credentials: 'omit', referrerPolicy: 'no-referrer' });
     expect(JSON.stringify(body)).not.toContain('secret');
-    expect(Object.keys(body).sort()).toEqual(['consent', 'device', 'event_id', 'kind', 'path', 'session_id', 'source', 'visitor_id']);
+    expect(Object.keys(body).sort()).toEqual(['aggregate', 'consent', 'device', 'event_id', 'kind', 'mode', 'path', 'session_id', 'source', 'visitor_id']);
   });
   it.each(['/admin', '/area-cliente', '/arte/rever/token', '/proposta', '/acompanhar', '/?token=private', '/catalogo/x#private', 'https://example.com/'])('excludes private or arbitrary path %s', (path) => {
     expect(publicTrafficPath(path)).toBeNull();
@@ -63,7 +66,8 @@ describe('public website tracking', () => {
   it('withdraws consent and clears analytic identifiers', () => {
     setAnalyticsConsent(true); trackWebsiteAction('page_view');
     setAnalyticsConsent(false); trackWebsiteAction('page_view');
-    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[1][1]!.body as string).mode).toBe('aggregate');
     expect(localStorage.getItem(TRAFFIC_CONSENT)).toBe('denied');
     expect(localStorage.getItem('mp_analytics_visitor_v1')).toBeNull();
     expect(sessionStorage.getItem('mp_analytics_session_v1')).toBeNull();
@@ -83,6 +87,20 @@ describe('public website tracking', () => {
   });
   it('does not interrupt the site if storage is blocked', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw Error('blocked'); });
-    expect(() => trackWebsiteAction('page_view')).not.toThrow(); expect(fetch).not.toHaveBeenCalled();
+    expect(() => trackWebsiteAction('page_view')).not.toThrow();
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string)).toEqual({ mode: 'aggregate', kind: 'page_view', path: '/orcamento' });
+  });
+  it('honours the explicit all-measurement opt-out and clears identifiers', () => {
+    setAnalyticsConsent(true); trackWebsiteAction('page_view');
+    disableAllMeasurement(); trackWebsiteAction('page_view');
+    expect(fetch).toHaveBeenCalledOnce(); expect(aggregateAllowed()).toBe(false);
+    expect(localStorage.getItem(TRAFFIC_AGGREGATE)).toBe('disabled');
+    expect(localStorage.getItem('mp_analytics_visitor_v1')).toBeNull();
+  });
+  it('honours a legacy refusal until the visitor explicitly chooses the new aggregate option', () => {
+    localStorage.setItem(TRAFFIC_CONSENT, 'denied');
+    trackWebsiteAction('page_view'); expect(fetch).not.toHaveBeenCalled();
+    setAnalyticsConsent(false); trackWebsiteAction('page_view');
+    expect(fetch).toHaveBeenCalledOnce(); expect(localStorage.getItem('mp_analytics_visitor_v1')).toBeNull();
   });
 });

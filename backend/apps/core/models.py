@@ -4,6 +4,18 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+class TrafficCounter(models.Model):
+    """Daily public counts without visitor, session, device or request identifiers."""
+
+    day = models.DateField(db_index=True)
+    path = models.CharField(max_length=180)
+    kind = models.CharField(max_length=24)
+    count = models.PositiveBigIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['day', 'path', 'kind'], name='unique_traffic_counter')]
+
+
 class TrafficEvent(models.Model):
     """Opt-in public-site events. No raw identifiers, IPs, URLs or user relation."""
 

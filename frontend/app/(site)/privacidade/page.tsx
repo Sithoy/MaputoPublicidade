@@ -44,6 +44,16 @@ export default function PrivacyPage() {
           </a>
           .
         </p>
+        <h2 className="mt-4 text-lg font-semibold">6. Medição de utilização do website</h2>
+        <p>Para melhorar o website, somamos contagens por dia, página pública e ação, sem identificar
+          visitantes nem ligar visitas entre si. Apenas a análise detalhada autorizada usa identificadores
+          aleatórios de navegador e sessão para estimar visitantes e percursos. Os dados de contas,
+          mensagens, documentos e encomendas não são associados aos dados analíticos.</p>
+        <p>Pode escolher apenas contagens agregadas ou desativar toda a medição em “Preferências de
+          privacidade”, no final das páginas públicas. Respeitamos os sinais Do Not Track e Global Privacy
+          Control. Os identificadores opcionais têm validade de 30 dias para visitantes e 30 minutos
+          sem eventos para a sessão; o relatório abrange 90 dias. Consulte os detalhes de armazenamento,
+          retenção e limpeza na <a href="/politica-cookies" className="font-medium text-brand underline">Política de Cookies</a>.</p>
       </div>
     </div>
   );
