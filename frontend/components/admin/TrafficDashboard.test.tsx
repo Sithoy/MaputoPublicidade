@@ -45,4 +45,18 @@ describe('website traffic workspace', () => {
     expect(screen.getByText('Google')).toBeInTheDocument(); expect(screen.getByText('Catálogo')).toBeInTheDocument();
     expect(screen.queryByText('À espera das primeiras visitas')).not.toBeInTheDocument();
   });
+  it('labels public totals and optional samples separately without extrapolating visitors', async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ...report,
+      summary: { ...report.summary, page_views: 100, requests: 10 },
+      optional_summary: { ...report.summary, page_views: 5, visitors: 2, sessions: 2 },
+      optional_previous: null,
+      pages: [{ path: '/', views: 100 }],
+    });
+    render(<TrafficDashboard />);
+    expect(await screen.findByRole('heading', { name: 'Análise detalhada · só com autorização' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Visualizações públicas' }).closest('article')).toHaveTextContent('100');
+    expect(screen.getByRole('heading', { name: 'Visualizações autorizadas' }).closest('article')).toHaveTextContent('5');
+    expect(screen.getByRole('heading', { name: 'Visitantes estimados' }).closest('article')).toHaveTextContent('2');
+    expect(screen.getByText(/Não extrapolamos visitantes/)).toBeInTheDocument();
+  });
 });

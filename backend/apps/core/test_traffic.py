@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.roles import StaffRole
 
-from .models import TrafficEvent
+from .models import TrafficCounter, TrafficEvent
 
 NOW = datetime(2026, 10, 26, 14, 30, tzinfo=dt_timezone.utc)
 
@@ -44,6 +44,7 @@ def test_private_minimal_collection_and_idempotency():
     for _ in range(2):
         assert api.post('/api/website-traffic/events/', data, format='json').status_code == 204
     event = TrafficEvent.objects.get()
+    assert TrafficCounter.objects.get().count == 1
     assert event.visitor_key != data['visitor_id'] and event.session_key != data['session_id']
     assert set(field.name for field in TrafficEvent._meta.fields) == {'id', 'event_id', 'visitor_key', 'session_key', 'kind', 'path', 'source', 'device', 'created_at'}
 
@@ -104,6 +105,10 @@ def test_empty_report_does_not_invent_visitors_or_conversion():
 def stored(kind='page_view', visitor='visitor', session='session', when=NOW, path='/', source='google'):
     row = TrafficEvent.objects.create(event_id=uuid4(), visitor_key=visitor, session_key=session, kind=kind, path=path, source=source, device='mobile')
     TrafficEvent.objects.filter(pk=row.pk).update(created_at=when)
+    if kind != 'signup_completed':
+        counter, _ = TrafficCounter.objects.get_or_create(day=when.astimezone(ZoneInfo('Africa/Maputo')).date(), path=path, kind=kind)
+        counter.count += 1
+        counter.save()
     return row
 
 
@@ -121,7 +126,7 @@ def test_report_distinct_counts_conversion_and_maputo_dates():
     stored(when=NOW - timedelta(days=8), session='previous')
     with patch('apps.core.traffic.timezone.now', return_value=NOW):
         report = api.get('/api/website-traffic/report/?days=7').data
-    assert report['summary'] == {'visitors': 2, 'sessions': 2, 'page_views': 4, 'whatsapp_clicks': 1, 'requests': 2, 'registrations': 0, 'request_session_rate': 50.0}
+    assert report['summary'] == {'visitors': 2, 'sessions': 2, 'page_views': 4, 'whatsapp_clicks': 1, 'requests': 2, 'registrations': 0, 'request_session_rate': 50.0, 'quote_clicks': 0, 'signup_clicks': 0}
     assert report['daily'][-1] == {'date': NOW.astimezone(ZoneInfo('Africa/Maputo')).date(), 'views': 4}
     assert report['previous']['page_views'] == 1
     assert report['sources'][0]['source'] == 'google'
@@ -136,6 +141,7 @@ def test_retention_removes_old_events_and_does_not_compare_partial_baseline():
     with patch('apps.core.traffic.timezone.now', return_value=NOW):
         report = api.get('/api/website-traffic/report/?days=90').data
     assert not TrafficEvent.objects.filter(pk=old.pk).exists()
+    assert not TrafficCounter.objects.filter(day__lt=NOW.date() - timedelta(days=89)).exists()
     assert report['previous'] is None and report['summary']['page_views'] == 1
 
 

@@ -11,8 +11,8 @@ export default function CookiesPage() {
       <h1 className="mb-6 text-3xl font-bold text-dark">Política de Cookies</h1>
       <div className="prose prose-sm max-w-none text-gray-700">
         <p>
-          O site da Maputo Publicidade utiliza cookies para melhorar a experiência de navegação e
-          analisar o tráfego.
+          O site da Maputo Publicidade utiliza mecanismos essenciais de navegação e duas camadas
+          separadas de medição, descritas abaixo.
         </p>
         <h2 className="mt-4 text-lg font-semibold">O que são cookies?</h2>
         <p>
@@ -21,18 +21,28 @@ export default function CookiesPage() {
         </p>
         <h2 className="mt-4 text-lg font-semibold">Cookies utilizados</h2>
         <p>
-          Os mecanismos essenciais suportam a sessão e o funcionamento do site. A análise do
-          website só é ativada quando escolhe “Permitir análise”. Escolher “Apenas essenciais”
-          não limita os serviços do website. Uma aceitação antiga não ativa esta análise.
+          Os mecanismos essenciais suportam a sessão e o funcionamento do site. As preferências
+          de medição são guardadas para respeitar a sua escolha; não são identificadores de visitante.
+          A análise detalhada só é ativada quando escolhe “Permitir análise detalhada”. Os serviços
+          continuam disponíveis independentemente da escolha. Uma aceitação antiga não ativa a análise detalhada.
         </p>
         <h2 className="mt-4 text-lg font-semibold">Gestão de cookies</h2>
         <p>
           Pode mudar a sua escolha em “Preferências de privacidade”, no final das páginas públicas.
-          Ao recusar, deixamos de enviar novos eventos e removemos os identificadores analíticos
-          deste navegador. Respeitamos os sinais Do Not Track e Global Privacy Control.
+          “Só contagens agregadas” remove os identificadores analíticos e mantém apenas totais sem
+          ligação entre visitas. “Desativar toda a medição” interrompe também estas contagens.
+          Respeitamos os sinais Do Not Track e Global Privacy Control em ambas as camadas.
+          Uma recusa anterior à separação das camadas continua a interromper a medição até rever a escolha.
         </p>
+        <h2 className="mt-4 text-lg font-semibold">Contagens públicas agregadas</h2>
+        <p>Por predefinição, contamos páginas públicas, cliques nos principais botões e envios de
+          pedidos confirmados no navegador. Enviamos apenas o tipo de ação e o caminho público,
+          sem parâmetros. O servidor soma totais por dia, página e ação; não conserva um registo
+          individual destes pedidos nem identificadores, origem, dimensão do ecrã ou ligações entre visitas.
+          Não usamos cookies, armazenamento de identificadores ou impressão digital do dispositivo
+          para estas contagens. Pode desativá-las nas preferências.</p>
         <h2 className="mt-4 text-lg font-semibold">Análise opcional do website</h2>
-        <p>A medição usa armazenamento local, não cookies analíticos: uma escolha de consentimento,
+        <p>Apenas a análise detalhada autorizada usa armazenamento local, não cookies analíticos: uma escolha de consentimento,
           um identificador aleatório de visitante com validade de 30 dias e uma sessão no separador
           que expira após 30 minutos sem eventos. Recolhemos páginas públicas, origem agrupada,
           dimensão do ecrã e ações como cliques WhatsApp e confirmação de pedidos. Um registo de

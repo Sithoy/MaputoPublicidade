@@ -5,13 +5,16 @@ import { analyticsAllowed, publicTrafficPath, trackWebsiteAction, TRAFFIC_CHANGE
 
 export function WebsiteTraffic() {
   const pathname = usePathname();
-  const last = useRef('');
+  const last = useRef({ path: '', aggregate: false, optional: false });
   useEffect(() => {
     function visit() {
-      if (!analyticsAllowed()) { last.current = ''; return; }
-      if (!publicTrafficPath(pathname) || last.current === pathname) return;
-      last.current = pathname;
-      trackWebsiteAction('page_view', pathname);
+      if (!publicTrafficPath(pathname)) return;
+      if (last.current.path !== pathname) last.current = { path: pathname, aggregate: false, optional: false };
+      const detailOnly = last.current.aggregate;
+      if (detailOnly && (!analyticsAllowed() || last.current.optional)) return;
+      const result = trackWebsiteAction('page_view', pathname, detailOnly);
+      if (result !== 'none') last.current.aggregate = true;
+      if (result === 'optional') last.current.optional = true;
     }
     function click(event: MouseEvent) {
       if (!publicTrafficPath(pathname) || !(event.target instanceof Element)) return;
