@@ -21,6 +21,7 @@ class StaffRole(models.TextChoices):
 
 
 class StaffCapability:
+    VIEW_TRAFFIC = "traffic.view"
     MANAGE_RECEPTION = "reception.manage"
     MANAGE_SUPPORT = "support.manage"
     CREATE_INTAKE = "intake.create"
@@ -104,6 +105,7 @@ ROLE_CAPABILITIES = {
     ),
     StaffRole.CONTENT: frozenset(
         {
+            StaffCapability.VIEW_TRAFFIC,
             StaffCapability.MANAGE_CATALOG,
             StaffCapability.MANAGE_CONTENT,
         }

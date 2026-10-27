@@ -11,6 +11,7 @@ export type StaffRole =
   | 'client';
 
 export type StaffCapability =
+  | 'traffic.view'
   | 'reception.manage'
   | 'support.manage'
   | 'intake.create'
@@ -89,6 +90,7 @@ export function getDefaultAdminPath(user: User | null | undefined) {
 }
 
 export function getRequiredCapability(pathname: string): StaffCapability | null {
+  if (pathname.startsWith('/admin/trafego')) return 'traffic.view';
   if (pathname.startsWith('/admin/studio')) return 'quotes.artwork';
   if (pathname.startsWith('/admin/producao')) return 'production.view';
   if (pathname.startsWith('/admin/definicoes')) return 'integrations.manage';

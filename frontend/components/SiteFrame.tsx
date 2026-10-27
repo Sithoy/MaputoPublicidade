@@ -5,6 +5,7 @@ import { CookieBanner } from '@/components/CookieBanner';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { WebsiteTraffic } from '@/components/WebsiteTraffic';
 
 export function SiteFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -15,6 +16,7 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <WebsiteTraffic />
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
