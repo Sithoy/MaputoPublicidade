@@ -31,7 +31,7 @@ class PreparationThrottle(UserRateThrottle):
 
 
 class DraftItemSerializer(serializers.Serializer):
-    description = serializers.CharField(max_length=255)
+    description = serializers.CharField(max_length=510)
     quantity = serializers.IntegerField(min_value=1, max_value=1000000, allow_null=True)
     specifications = serializers.CharField(max_length=2000, allow_blank=True)
     source = serializers.CharField(max_length=1000, allow_blank=True)
