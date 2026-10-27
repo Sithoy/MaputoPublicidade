@@ -10,6 +10,7 @@ from .reception_views import ReceptionViewSet
 from .signatures import StaffSignatures
 from .support_views import SupportConversationViewSet
 from .tracking_views import TrackingDetail, TrackingLookup, TrackingMessages
+from .traffic import CollectTraffic, TrafficReport
 from .whatsapp_views import (
     WhatsAppSettingsView,
     WhatsAppTestView,
@@ -34,6 +35,8 @@ router.register(
 router.register("reception", ReceptionViewSet, basename="reception")
 router.register("production", ProductionViewSet, basename="production")
 urlpatterns = [
+    path('website-traffic/events/', CollectTraffic.as_view(), name='traffic-collect'),
+    path('website-traffic/report/', TrafficReport.as_view(), name='traffic-report'),
     path('staff-email-signatures/', StaffSignatures.as_view(), name='staff-email-signatures'),
     path("integrations/email/oauth/activate/", ZohoActivate.as_view(), name="zoho-activate"),
     path("integrations/email/oauth/sync/", ZohoSync.as_view(), name="zoho-sync"),

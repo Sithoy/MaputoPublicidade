@@ -1,4 +1,5 @@
 'use client';
+import { trackWebsiteAction } from '@/lib/website-traffic';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -60,6 +61,7 @@ export function CartCheckout() {
         notes,
       }, files);
       setResult({ reference: quote.reference, estimated_price: quote.estimated_price });
+      trackWebsiteAction('quote_submitted');
       await clearCart();
       setCart((prev) => (prev ? { ...prev, items: [], item_count: 0 } : prev));
     } catch (err) {

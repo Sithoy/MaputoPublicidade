@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { post } from '@/lib/api';
 import { RequestReferenceUpload } from './RequestReferenceUpload';
+import { trackWebsiteAction } from '@/lib/website-traffic';
 
 const products = [
   { slug: 'rollups', name: 'Rollups' },
@@ -85,6 +86,7 @@ export function QuoteForm() {
       files.forEach((file) => body.append('files', file));
       const data = await post('/api/quotes/', files.length ? body : payload);
       setResult(data as { reference: string; estimated_price?: number; tracking_token?: string });
+      trackWebsiteAction('quote_submitted');
       form.reset();
       setFiles([]);
     } catch (err) {

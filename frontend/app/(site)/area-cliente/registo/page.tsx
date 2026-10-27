@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { registerClient } from '@/lib/auth';
+import { trackWebsiteAction } from '@/lib/website-traffic';
 
 const signupBenefits = [
   'Submeta pedidos e acompanhe a produção',
@@ -63,6 +64,7 @@ export default function ClientRegistrationPage() {
         passwordConfirm,
         acceptTerms: formData.get('accept_terms') === 'on',
       });
+      trackWebsiteAction('signup_completed');
       router.push('/area-cliente');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível criar a conta.');

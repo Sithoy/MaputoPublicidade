@@ -4,6 +4,19 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+class TrafficEvent(models.Model):
+    """Opt-in public-site events. No raw identifiers, IPs, URLs or user relation."""
+
+    event_id = models.UUIDField(unique=True)
+    visitor_key = models.CharField(max_length=64)
+    session_key = models.CharField(max_length=64)
+    kind = models.CharField(max_length=24)
+    path = models.CharField(max_length=180)
+    source = models.CharField(max_length=20)
+    device = models.CharField(max_length=10)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+
 class EmailConnection(models.Model):
     """Zoho mailbox configuration; the encrypted password is never serialized."""
 

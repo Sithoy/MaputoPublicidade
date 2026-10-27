@@ -59,6 +59,10 @@ const navGroups = [
     items: [{ href: '/admin/utilizadores', label: 'Utilizadores', icon: Users, capability: 'users.manage' },
       { href: '/admin/definicoes', label: 'Definições', icon: Settings, capability: 'integrations.manage' }],
   },
+  {
+    label: 'Website',
+    items: [{ href: '/admin/trafego', label: 'Tráfego e resultados', icon: BarChart3, capability: 'traffic.view' }],
+  },
 ];
 
 function isActiveRoute(pathname: string, href: string) {
