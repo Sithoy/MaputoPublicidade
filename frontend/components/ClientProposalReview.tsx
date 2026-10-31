@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check, Download, LockKeyhole } from 'lucide-react';
 import { formatMZN as formatMoney } from '@/lib/utils';
-import { type ClientProposal, decisionLabels, proposalRequest } from '@/lib/proposal-review';
+import { type ClientProposal, decisionLabels, proposalRequest, ReviewLinkError } from '@/lib/proposal-review';
+import { RequestReviewLink } from './RequestReviewLink';
 import { fetchBlobWithAuth, fetchWithAuth } from '@/lib/auth';
 
 const formatMZN = (value: string | number) => formatMoney(Number(value));
@@ -20,19 +21,20 @@ export function ClientProposalReview({ reference }: { reference?: string } = {})
   const [confirmed, setConfirmed] = useState(false);
   const [question, setQuestion] = useState('');
   const [notice, setNotice] = useState('');
+  const [expiredLink, setExpiredLink] = useState(false);
   useEffect(() => {
     const value = reference ? '' : new URLSearchParams(window.location.hash.slice(1)).get('token') || '';
     setToken(value);
     if (!value && !reference) { setError('Abra o link privado que recebeu da MP. Se precisar de um novo link, contacte a Recepção.'); return; }
     const controller = new AbortController();
     setBusy(true);
-    setProposal(null); setError(''); setConfirmed(false); setName(''); setComment('');
+    setProposal(null); setError(''); setExpiredLink(false); setConfirmed(false); setName(''); setComment('');
     const load = reference
       ? fetchWithAuth(`/api/quotes/${encodeURIComponent(reference)}/client-review/`, { signal: controller.signal })
       : proposalRequest(value, { action: 'view' }, controller.signal).then((r) => r.json());
     load.then((data: ClientProposal) => {
       if (!controller.signal.aborted) setProposal(data);
-    }).catch((reason) => { if (!controller.signal.aborted) setError(reason.message); }).finally(() => { if (!controller.signal.aborted) setBusy(false); });
+    }).catch((reason) => { if (!controller.signal.aborted) { setError(reason.message); setExpiredLink(reason instanceof ReviewLinkError && reason.code === 'link_expired'); } }).finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => controller.abort();
   }, [reference]);
   async function respond(event: React.FormEvent) {
@@ -77,6 +79,7 @@ export function ClientProposalReview({ reference }: { reference?: string } = {})
       <div><p className="text-xs uppercase tracking-[.2em] text-[#96773a]">Uma proposta para a sua marca</p><h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">O próximo passo começa consigo.</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Reveja o que preparámos, esclareça as condições e partilhe a sua decisão. Não precisa de criar uma conta para responder.</p></div>
       {error ? <p role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">{error}</p> : null}
       {busy && !proposal ? <p role="status">A abrir a sua proposta…</p> : null}
+      {!reference && token && (expiredLink || (proposal?.expired && !proposal.decision)) ? <RequestReviewLink key={token} request={async () => (await proposalRequest(token, { action: 'request_link' })).json()} /> : null}
       {proposal ? <>
         <section className="overflow-hidden rounded-2xl border border-[#dce2d5] bg-white shadow-sm">
           <header className="flex flex-wrap items-end justify-between gap-5 bg-[#173f30] p-6 text-white md:p-8"><div><p className="text-xs tracking-wider text-[#dac68b]">{proposal.reference} · VERSÃO {proposal.version}</p><h2 className="mt-3 text-2xl font-semibold">{proposal.client_name}</h2><p className="mt-2 text-sm text-white/70">{proposal.valid_until ? `Válida até ${new Date(`${proposal.valid_until}T00:00:00`).toLocaleDateString('pt-MZ')}` : 'Validade conforme condições da proposta'}</p></div><button onClick={pdf} disabled={busy} className="flex items-center gap-2 rounded-xl border border-white/30 px-4 py-3 text-sm disabled:opacity-50"><Download className="h-4 w-4" />Descarregar PDF</button></header>

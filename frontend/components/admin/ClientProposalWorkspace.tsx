@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState, type ComponentProps } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowRight, CalendarClock, Copy, Download, Mail, MessageCircle, Phone, Send } from 'lucide-react';
+import { ArrowRight, CalendarClock, Download, Mail, MessageCircle, Phone, Send } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
 import { downloadQuotePdf, type AdminQuote } from '@/lib/admin-api';
 import { decisionLabels, type ProposalDecision } from '@/lib/proposal-review';
-import { proposalWhatsAppMessage } from '@/lib/proposal-whatsapp';
+import { ReviewShareActions } from './ReviewShareActions';
 
 const EmailDesk = dynamic(() => import('./EmailDesk').then((m) => m.EmailDesk));
 type Channel = { state: string; at?: string | null; actor?: string | null; conversation_id?: number | null };
@@ -73,10 +73,6 @@ function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged,
     finally { setBusy(false); onBusyChange?.(false); }
   }
   const next = nextActions[data?.state || (data?.published ? 'awaiting_response' : 'draft')] || nextActions.draft;
-  const message = data?.link ? proposalWhatsAppMessage(quote.client_company || quote.client_name, quote.reference, data.link) : '';
-  async function copy(value: string) {
-    try { await navigator.clipboard.writeText(value); setNotice('Copiado.'); } catch { setError('Não foi possível copiar. Selecione e copie o texto manualmente.'); }
-  }
   const activeTool = tool || (data?.state === 'awaiting_response' ? 'contact' : 'send');
   const actionable = data?.published && !data.decision && !data.expired;
   function chooseTool(value: 'send' | 'contact' | 'decision') {
@@ -114,8 +110,7 @@ function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged,
               <details className="rounded-xl border p-4">
                 <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold"><MessageCircle className="h-4 w-4" />Preparar WhatsApp</summary>
                 <p className="mt-3 text-xs leading-5 text-slate-500">Confirme o número com o cliente. Descarregue o PDF e anexe-o na conversa; abrir WhatsApp não envia nem anexa o documento automaticamente.</p>
-                <textarea aria-label="Mensagem de WhatsApp" value={message} readOnly rows={6} className="mt-3 w-full rounded-lg border p-2 text-xs" />
-                <div className="mt-3 flex flex-wrap gap-3 text-xs"><button onClick={() => copy(message)} className="font-semibold underline">Copiar mensagem</button>{data.whatsapp_number ? <a href={`https://wa.me/${data.whatsapp_number}?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" className="font-semibold underline">Abrir WhatsApp</a> : <span>Confirme o indicativo e o número.</span>}</div>
+                <ReviewShareActions key={`send:${data.version}`} endpoint={`/api/quotes/${quote.reference}/client-workspace/`} version={data.version} proposal disabled={!editable || busy} />
                 <form onSubmit={(event) => { event.preventDefault(); const fields = new FormData(event.currentTarget); void act('whatsapp', { confirmed: fields.get('sent') === 'on', comment: fields.get('context') }); }} onChange={() => setDirtyFields((previous) => ({ ...previous, whatsapp: true }))} className="mt-4 space-y-3 border-t pt-3">
                   <fieldset disabled={!editable || busy || !data.whatsapp_number} className="space-y-3">
                     <label className="block text-xs">Registo do envio<input required name="context" maxLength={500} placeholder="Contacto e contexto do envio" className="mt-2 w-full rounded-lg border p-2" /></label>
@@ -126,10 +121,9 @@ function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged,
               </details>
 
             </div></div>
-            {data.link ? <details className="border-t pt-4"><summary className="cursor-pointer text-xs font-semibold">Partilhar apenas o link privado</summary><label className="mt-3 block text-xs" htmlFor="proposal-private-link">Link de apreciação</label><input id="proposal-private-link" readOnly value={data.link} className="mt-2 w-full rounded-lg border p-2 text-xs" /><button type="button" onClick={() => copy(data.link!)} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold"><Copy aria-hidden="true" className="h-3 w-3" />Copiar link privado</button></details> : null}
             <button type="button" disabled={busy} onClick={() => downloadQuotePdf(quote.reference).catch(() => setError('PDF indisponível.'))} className="inline-flex items-center gap-2 text-xs font-semibold"><Download aria-hidden="true" className="h-4 w-4" />Descarregar PDF para anexar</button>
           </section> : activeTool === 'contact' ? <section aria-label="Contactar cliente" className="space-y-5 rounded-2xl border bg-white p-5 sm:p-6"><div><h3 className="font-semibold">Converse para desbloquear a decisão</h3><p className="mt-2 text-sm text-slate-500">Confirme que recebeu a proposta, esclareça dúvidas e combine uma resposta.</p></div><div className="flex flex-wrap gap-3">{data.phone ? <a href={`tel:${data.phone.replace(/[^+\d]/g, '')}`} className="desk-primary rounded-xl px-4 py-3 text-sm font-semibold text-white">Ligar · {data.phone}</a> : <p className="text-sm">Confirme o telefone no briefing.</p>}<button type="button" disabled={busy} onClick={onMessages} className="rounded-xl border px-4 py-3 text-sm font-semibold">Abrir correspondência</button></div>
-            <div className="rounded-xl bg-[#f5f7ef] p-4"><label className="block text-xs font-semibold" htmlFor="decision-reminder">Lembrete para rever e partilhar</label><textarea id="decision-reminder" readOnly rows={4} value={`Olá ${quote.client_company || quote.client_name}, conseguiu rever a proposta ${quote.reference} (v${data.version})? Podemos esclarecer alguma dúvida? Pode comunicar a sua decisão aqui: ${data.link || 'contacte a Recepção'}`} className="mt-3 w-full rounded-lg border bg-white p-3 text-sm" /><button type="button" onClick={() => copy(`Olá ${quote.client_company || quote.client_name}, conseguiu rever a proposta ${quote.reference} (v${data.version})? Podemos esclarecer alguma dúvida? Pode comunicar a sua decisão aqui: ${data.link || 'contacte a Recepção'}`)} className="mt-3 text-xs font-semibold underline">Copiar lembrete</button>{data.whatsapp_number ? <a href={`https://wa.me/${data.whatsapp_number}?text=${encodeURIComponent(`Olá, podemos esclarecer alguma dúvida sobre a proposta ${quote.reference}? ${data.link || ''}`)}`} target="_blank" rel="noreferrer" className="ml-4 text-xs font-semibold underline">Abrir WhatsApp</a> : null}</div>
+            <div className="rounded-xl bg-[#f5f7ef] p-4"><h4 className="mb-3 text-sm font-semibold">Lembrete para rever e partilhar</h4><ReviewShareActions key={`contact:${data.version}`} endpoint={`/api/quotes/${quote.reference}/client-workspace/`} version={data.version} proposal reminder disabled={!editable || busy} /></div>
             <div className="flex flex-wrap gap-3 border-t pt-4"><button type="button" onClick={() => chooseTool('decision')} className="desk-primary rounded-xl px-4 py-3 text-sm font-semibold text-white">Já tenho a decisão</button>{onFollowUps ? <button type="button" onClick={onFollowUps} className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold"><CalendarClock aria-hidden="true" className="h-4 w-4" />Agendar próximo contacto</button> : null}</div>
           </section> : null}
     {activeTool === 'decision' && actionable ? <form onSubmit={(e) => { e.preventDefault(); void act('phone'); }} onChange={() => onDirtyChange?.(true)} className="space-y-4 rounded-2xl border bg-white p-5"><h3 className="font-semibold">Decisão comunicada por telefone</h3><fieldset disabled={!editable || busy} className="space-y-4"><label className="block text-sm">Nome do contacto<input required value={contact} onChange={(e) => setContact(e.target.value)} maxLength={160} className="mt-2 block w-full rounded-xl border p-3" /></label><label className="block text-sm">Decisão<select value={phoneDecision} onChange={(e) => setPhoneDecision(e.target.value)} className="ml-3 rounded-lg border p-2"><option value="accept">Aceitar</option><option value="changes">Pedir alterações</option><option value="decline">Recusar</option></select></label><label className="block text-sm">Contexto e confirmação obtida<textarea required value={comment} onChange={(e) => setComment(e.target.value)} rows={3} maxLength={3000} className="mt-2 block w-full rounded-xl border p-3" /></label><label className="flex gap-3 text-sm"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />Confirmo que este contacto comunicou esta decisão para a versão atual.</label><button disabled={!confirmed} className="rounded-xl bg-[#173f30] px-4 py-3 text-sm text-white disabled:opacity-50">Registar decisão do cliente</button></fieldset></form> : null}

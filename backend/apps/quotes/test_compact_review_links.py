@@ -58,7 +58,10 @@ def test_compact_link_expiry_cannot_be_extended_by_tampering(published_quote):
     with patch('apps.quotes.client_proposal.time.time', return_value=1800000000):
         token = review_link(published_quote).split('#token=')[1]
     with patch('apps.quotes.client_proposal.time.time', return_value=1800000000 + 15 * 86400 + 1):
-        assert view(token).status_code == 403
+        expired = view(token)
+        assert expired.status_code == 410
+        assert expired.data['code'] == 'link_expired'
+        assert set(expired.data) == {'code', 'detail'}  # renewal prompt, never document access
     with patch('apps.quotes.client_proposal.time.time', return_value=1800000000 - 100):
         assert view(token).status_code == 403
 

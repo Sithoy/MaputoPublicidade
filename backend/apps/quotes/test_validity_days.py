@@ -87,4 +87,7 @@ def test_long_validity_links_survive_seven_days_but_legacy_links_do_not(quote, s
         client.credentials(HTTP_X_MP_PROPOSAL_TOKEN=token)
         assert client.post('/api/proposal-review/', {'action': 'view'}, format='json').status_code == 200
         client.credentials(HTTP_X_MP_PROPOSAL_TOKEN=legacy)
-        assert client.post('/api/proposal-review/', {'action': 'view'}, format='json').status_code == 403
+        expired = client.post('/api/proposal-review/', {'action': 'view'}, format='json')
+        assert expired.status_code == 410
+        assert expired.data['code'] == 'link_expired'
+        assert set(expired.data) == {'code', 'detail'}

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClientProposalReview } from './ClientProposalReview';
-import { proposalRequest, type ClientProposal } from '@/lib/proposal-review';
+import { proposalRequest, ReviewLinkError, type ClientProposal } from '@/lib/proposal-review';
 import { fetchWithAuth } from '@/lib/auth';
 
 vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn(), fetchBlobWithAuth: vi.fn() }));
@@ -20,6 +20,16 @@ beforeEach(() => {
   vi.mocked(proposalRequest).mockReset().mockResolvedValue(reply(proposal));
 });
 describe('Client proposal review', () => {
+  it('offers renewal on a verified expired token without displaying proposal details', async () => {
+    vi.mocked(proposalRequest).mockRejectedValueOnce(new ReviewLinkError('Este link expirou', 'link_expired'));
+    render(<ClientProposalReview />);
+    const button = await screen.findByRole('button', { name: 'Pedir novo link' });
+    expect(screen.queryByText('Empresa Horizonte')).not.toBeInTheDocument();
+    vi.mocked(proposalRequest).mockResolvedValueOnce(reply({ detail: 'Pedido enviado à Recepção.' }));
+    fireEvent.click(button);
+    expect(await screen.findByText('Pedido enviado à Recepção.')).toBeInTheDocument();
+    expect(proposalRequest).toHaveBeenLastCalledWith('synthetic-review-link', { action: 'request_link' });
+  });
   it.each(['accept', 'changes', 'decline'] as const)('uses the same explicit %s decision in BrandDesk with the viewed snapshot', async (action) => {
     vi.mocked(fetchWithAuth).mockResolvedValue({ ...proposal, snapshot: 'synthetic-commercial-snapshot' });
     render(<ClientProposalReview reference={proposal.reference} />);

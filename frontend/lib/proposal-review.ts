@@ -11,6 +11,10 @@ export type ClientProposal = {
 };
 export const decisionLabels = { accept: 'Proposta aceite', changes: 'Alterações pedidas', decline: 'Proposta recusada' };
 
+export class ReviewLinkError extends Error {
+  constructor(message: string, public code?: string) { super(message); }
+}
+
 export async function proposalRequest(token: string, body: Record<string, unknown>, signal?: AbortSignal) {
   const response = await fetch('/api/proposal-review/', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-MP-Proposal-Token': token },
@@ -18,7 +22,7 @@ export async function proposalRequest(token: string, body: Record<string, unknow
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(typeof data.detail === 'string' ? data.detail : 'Não foi possível concluir. Verifique os campos e tente novamente.');
+    throw new ReviewLinkError(typeof data.detail === 'string' ? data.detail : 'Não foi possível concluir. Verifique os campos e tente novamente.', data.code);
   }
   return response;
 }

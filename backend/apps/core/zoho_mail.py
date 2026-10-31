@@ -201,7 +201,9 @@ def send_reply(conversation, sender, body, request_id, *, subject=None, rendered
             raise ValidationError('Envio não confirmado. Verifique a caixa Zoho antes de tentar novamente.')
         original = conversation.messages.filter(source='email', is_staff=False, email_id__isnull=False).order_by('-created_at', '-id').first()
         from apps.quotes.client_proposal import validate_proposal_email
-        proposal_email = validate_proposal_email(conversation, files or [])
+        proposal_email = validate_proposal_email(conversation, files or [], body)
+        from .review_sharing import validate_artwork_links
+        validate_artwork_links(body, conversation.quote_id)
         if (original and not original.email_id.startswith(config.oauth_account_id + ':')) or (not original and not proposal_email):
             raise ValidationError('Email original indisponível nesta ligação.')
         from django.contrib.auth.models import User
