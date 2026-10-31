@@ -7,7 +7,6 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.quotes.client_proposal import review_link, validate_proposal_email
-from apps.quotes.test_client_proposal import sent_proposal as sent_proposal
 
 from .models import ActivityEvent, EmailDraft, PortalNotification, SupportFile
 from .production_views import share_token
@@ -18,6 +17,19 @@ from .test_production import publish, upload
 @pytest.fixture(autouse=True)
 def clear_throttles():
     cache.clear()
+
+
+@pytest.fixture
+def sent_proposal(quoted_quote):
+    quoted_quote.proposal_stage = 'sent'
+    quoted_quote.proposal_version = 1
+    quoted_quote.proposal_sent_at = timezone.now()
+    quoted_quote.valid_until = timezone.localdate() + timedelta(days=10)
+    quoted_quote.commercial_pricing = True
+    quoted_quote.internal_notes = 'PRIVATE-STAFF-ONLY'
+    quoted_quote.save()
+    quoted_quote.items.update(unit_price=100)
+    return quoted_quote
 
 
 @pytest.fixture
