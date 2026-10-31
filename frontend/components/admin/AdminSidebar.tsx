@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowUpRight,
+  Activity,
   BarChart3,
   Boxes,
   Factory,
@@ -72,6 +73,10 @@ const navGroups = [
   {
     label: 'Website',
     items: [{ href: '/admin/trafego', label: 'Tráfego e resultados', icon: BarChart3, capability: 'traffic.view' }],
+  },
+  {
+    label: 'Sistema',
+    items: [{ href: '/admin/monitorizacao', label: 'Monitorização', icon: Activity, capability: 'observability.view' }],
   },
 ];
 

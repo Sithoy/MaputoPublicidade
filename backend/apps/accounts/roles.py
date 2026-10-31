@@ -21,6 +21,7 @@ class StaffRole(models.TextChoices):
 
 
 class StaffCapability:
+    VIEW_OBSERVABILITY = "observability.view"
     VIEW_TRAFFIC = "traffic.view"
     MANAGE_RECEPTION = "reception.manage"
     MANAGE_SUPPORT = "support.manage"

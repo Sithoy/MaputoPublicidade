@@ -5,6 +5,7 @@ from apps.assets.artwork_library import SaveApprovedArtwork
 
 from .email_connection import EmailSettingsView, EmailTestView
 from .notification_views import PortalNotificationViewSet
+from .observability import MonitoringReport
 from .production_views import AuthenticatedArtFile, ProductionViewSet, PublicArtReview
 from .reception_views import ReceptionViewSet
 from .signatures import StaffSignatures
@@ -35,6 +36,7 @@ router.register(
 router.register("reception", ReceptionViewSet, basename="reception")
 router.register("production", ProductionViewSet, basename="production")
 urlpatterns = [
+    path('observability/report/', MonitoringReport.as_view(), name='observability-report'),
     path('website-traffic/events/', CollectTraffic.as_view(), name='traffic-collect'),
     path('website-traffic/report/', TrafficReport.as_view(), name='traffic-report'),
     path('staff-email-signatures/', StaffSignatures.as_view(), name='staff-email-signatures'),

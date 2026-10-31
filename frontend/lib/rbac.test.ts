@@ -53,6 +53,7 @@ describe('staff RBAC helpers', () => {
 
   it('maps protected routes and displays the assigned role', () => {
     expect(getRequiredCapability('/admin/trafego')).toBe('traffic.view');
+    expect(getRequiredCapability('/admin/monitorizacao')).toBe('observability.view');
     expect(getRequiredCapability('/admin/parceiros/novo')).toBe('content.manage');
     expect(getRequiredCapability('/admin/utilizadores/12')).toBe('users.manage');
     expect(getRequiredCapability('/admin/faturas/FT-2026-0001')).toBe('invoices.view');

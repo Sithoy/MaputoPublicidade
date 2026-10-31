@@ -144,6 +144,45 @@ class SupportFile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class MonitoringBucket(models.Model):
+    """One backend-wide minute, not a visitor/session record."""
+
+    minute = models.DateTimeField(unique=True)
+    requests = models.PositiveBigIntegerField(default=0)
+    server_errors = models.PositiveBigIntegerField(default=0)
+    denied = models.PositiveBigIntegerField(default=0)
+    rate_limited = models.PositiveBigIntegerField(default=0)
+    slow = models.PositiveBigIntegerField(default=0)
+    total_ms = models.PositiveBigIntegerField(default=0)
+    max_ms = models.PositiveIntegerField(default=0)
+
+
+class MonitoringEvent(models.Model):
+    """Grouped incidents: no request bodies, URLs, IPs or visitor identifiers."""
+
+    minute = models.DateTimeField(db_index=True)
+    code = models.CharField(max_length=32)
+    route = models.CharField(max_length=180)
+    method = models.CharField(max_length=8)
+    status = models.PositiveSmallIntegerField()
+    count = models.PositiveBigIntegerField(default=0)
+    request_id = models.UUIDField()
+    last_seen = models.DateTimeField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['minute', 'code', 'route', 'method', 'status'], name='unique_monitoring_event')]
+
+
+class MonitoringAlert(models.Model):
+    window = models.DateTimeField()
+    code = models.CharField(max_length=32)
+    count = models.PositiveBigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['window', 'code'], name='unique_monitoring_alert')]
+
+
 class WhatsAppConnection(models.Model):
     """Singleton. Credentials are encrypted and never returned by settings reads."""
 
