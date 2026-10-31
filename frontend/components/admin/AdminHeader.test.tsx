@@ -11,7 +11,7 @@ describe('Workdesk header', () => {
     const open = vi.fn();
     const user = { id: 1, email: 'production@example.test', first_name: 'Dário', last_name: 'Nhaule', role: 'production' } as User;
     render(<AdminHeader user={user} onMenuOpen={open} />);
-    expect(screen.getByText('Produção e Artes')).toBeInTheDocument();
+    expect(screen.getAllByText('Produção')).toHaveLength(2); // page title and assigned role
     expect(screen.getByText('Dário Nhaule')).toBeInTheDocument();
     expect(screen.getByText('DN')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menu de administração' }));

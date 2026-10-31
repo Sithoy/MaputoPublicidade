@@ -59,6 +59,8 @@ describe('staff RBAC helpers', () => {
     expect(getRequiredCapability('/admin/atendimento/novo')).toBe('intake.create');
     expect(getRequiredCapability('/admin/recepcao')).toBe('reception.manage');
     expect(getRequiredCapability('/admin/studio')).toBe('quotes.artwork');
+    expect(getRequiredCapability('/admin/entregas')).toBe('orders.view');
+    expect(getRequiredCapability('/admin/propostas')).toBe('quotes.view');
     expect(getRequiredCapability('/admin/definicoes')).toBe('integrations.manage');
     expect(getRoleLabel(user())).toBe('Comercial');
   });

@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/admin/StatusBadge';
 import { getOrders, getQuotes } from '@/lib/admin-api';
 import type { Order, Quote } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { orderWorkspaceHref, requestWorkspaceHref } from '@/lib/admin-workspaces';
 
 type BoardCard = {
   key: string;
@@ -121,7 +122,7 @@ export default function AdminBoardPage() {
         label: q.item_count ? `${q.item_count} ${q.item_count === 1 ? 'item' : 'itens'}` : 'Pedido de orçamento',
         status: q.status,
         created_at: q.created_at,
-        href: `/admin/orcamentos/${q.reference}`,
+        href: requestWorkspaceHref(q.reference, can),
         needsArtwork: q.artwork_status === 'pending',
         sourceLabel: q.contact_source_display,
       }));
@@ -135,7 +136,7 @@ export default function AdminBoardPage() {
         label: o.item_count ? `${o.item_count} ${o.item_count === 1 ? 'item' : 'itens'}` : 'Encomenda',
         status: o.status,
         created_at: o.created_at,
-        href: `/admin/encomendas/${o.reference}`,
+        href: orderWorkspaceHref(o, can),
         paymentLabel:
           o.payment_status !== 'paid'
             ? o.payment_status_display || o.payment_status
@@ -143,7 +144,7 @@ export default function AdminBoardPage() {
         needsArtwork: o.artwork_status === 'pending',
       }));
     return [...quoteCards, ...orderCards];
-  }, [quotes, orders]);
+  }, [quotes, orders, can]);
 
   if (authLoading || loading) {
     return (
@@ -157,7 +158,7 @@ export default function AdminBoardPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-dark">Pipeline de trabalhos</h1>
+          <h1 className="text-2xl font-bold text-dark">Mapa de acompanhamento</h1>
           <p className="text-sm text-gray-500">
             Todos os trabalhos em curso, por etapa. Clique num cartão para abrir o detalhe.
           </p>

@@ -7,7 +7,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Boxes,
-  Columns3,
+  Factory,
   FileText,
   FolderOpen,
   Handshake,
@@ -16,6 +16,7 @@ import {
   LogOut,
   Package,
   ShoppingCart,
+  Truck,
   Settings,
   Users,
 } from 'lucide-react';
@@ -30,12 +31,21 @@ const navGroups = [
     items: [
       { href: '/admin/recepcao', label: 'Recepção', icon: Headphones, capability: 'reception.manage' },
       { href: '/admin/studio', label: 'Studio · Artes', icon: ImageIcon, capability: 'quotes.artwork' },
-      { href: '/admin/producao', label: 'Operação · Produção', icon: ImageIcon, capability: 'production.view' },
-      { href: '/admin/apoio', label: 'Mensagens e apoio', icon: Headphones, capability: 'support.manage' },
+      { href: '/admin/producao', label: 'Produção', icon: Factory, capability: 'production.view' },
+      { href: '/admin/entregas', label: 'Entregas', icon: Truck, capability: 'orders.manage_delivery' },
+    ],
+  },
+  {
+    label: 'Comunicação',
+    items: [{ href: '/admin/apoio', label: 'Caixa de entrada', icon: Headphones, capability: 'support.manage' }],
+  },
+  {
+    label: 'Consulta e registos',
+    items: [
       { href: '/admin', label: 'Visão geral', icon: BarChart3, capability: 'dashboard.view' },
-      { href: '/admin/quadro', label: 'Pipeline de trabalhos', icon: Columns3, capability: 'quotes.view' },
-      { href: '/admin/orcamentos', label: 'Pedidos e propostas', icon: ShoppingCart, capability: 'quotes.view' },
-      { href: '/admin/encomendas', label: 'Produção e entregas', icon: Package, capability: 'orders.view' },
+      { href: '/admin/orcamentos', label: 'Pedidos', icon: ShoppingCart, capability: 'quotes.view' },
+      { href: '/admin/propostas', label: 'Propostas', icon: FileText, capability: 'quotes.view' },
+      { href: '/admin/encomendas', label: 'Encomendas', icon: Package, capability: 'orders.view' },
     ],
   },
   {
@@ -106,7 +116,7 @@ export function AdminSidebar({ user, onNavigate }: { user: User; onNavigate?: ()
         {navGroups.map((group, groupIndex) => {
           const visibleItems = group.items.filter((item) =>
             hasCapability(user, item.capability as StaffCapability) &&
-            !(user.role === 'receptionist' && ['/admin/quadro', '/admin/orcamentos', '/admin/encomendas'].includes(item.href)) &&
+            !(user.role === 'receptionist' && ['/admin/orcamentos', '/admin/propostas', '/admin/encomendas'].includes(item.href)) &&
             !(user.role === 'production' && item.href === '/admin/encomendas')
           );
           if (visibleItems.length === 0) return null;

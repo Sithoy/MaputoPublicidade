@@ -9,6 +9,15 @@ vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ loading: false, 
 const job = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'approved', order_reference: 'ORD-0001', production_notes: 'Confirmar cores', scheduled_date: null, items: [{ id: 1, description: 'Cartões de visita', quantity: 200, size: '85x55', material: 'Papel mate', colors: 'Verde' }], versions: [] };
 beforeEach(() => { allowed = true; vi.resetAllMocks(); vi.mocked(fetchWithAuth).mockImplementation(async (path) => path === '/api/production/' ? { results: [job], next: null } : job); });
 describe('Production workspace', () => {
+  it('keeps artwork editing in Studio and delivery completion in Entregas', async () => {
+    const ready = { ...job, status: 'ready', versions: [], operation: { stage: 'delivery', label: 'Pronto', needs_art: true, art_ready: true, can_start: false } };
+    vi.mocked(fetchWithAuth).mockImplementation(async (path) => path === '/api/production/' ? { results: [ready], next: null } : ready);
+    render(<ProductionWorkspace initialReference={job.reference} />);
+    expect(await screen.findByRole('link', { name: 'Coordenar entrega / levantamento →' })).toHaveAttribute('href', '/admin/entregas?encomenda=ORD-0001');
+    expect(screen.getByRole('link', { name: 'Consultar arte no Studio →' })).toHaveAttribute('href', '/admin/studio?pedido=MP-0001-2026');
+    expect(screen.queryByRole('button', { name: 'Registar entrega concluída' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Ficheiros da versão/)).not.toBeInTheDocument();
+  });
   it('opens a focused Studio job and protects unsaved changes when returning', async () => {
     const onClose = vi.fn();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
