@@ -1,3 +1,4 @@
+import secrets
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -122,6 +123,51 @@ def test_art_share_detects_expiry_and_only_staff_can_renew(staff_client, authent
     token = fresh.data['link'].rsplit('/', 1)[-1]
     assert public.get(f'/api/art-review/{token}/').status_code == 200
     assert not mailoutbox
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('scenario,code,status,renewable', [
+    ('tampered', 'link_invalid', 404, False),
+    ('expired', 'link_expired', 410, True),
+    ('old', 'link_expired', 410, False),
+    ('revoked', 'link_revoked', 404, False),
+    ('replaced', 'link_replaced', 404, False),
+    ('unpublished', 'link_unavailable', 404, False),
+    ('outdated', 'link_outdated', 404, False),
+])
+def test_art_link_diagnostics_never_reopen_access(art_version, scenario, code, status, renewable):
+    version = art_version
+    token = share_token(version)
+    if scenario == 'tampered':
+        token += 'invalid'
+    elif scenario == 'old':
+        with patch('django.core.signing.time.time', return_value=timezone.now().timestamp() - 91 * 86400):
+            token = share_token(version)
+    elif scenario == 'revoked':
+        version.share_nonce = ''
+    elif scenario == 'replaced':
+        version.share_nonce = secrets.token_urlsafe(32)
+    elif scenario == 'unpublished':
+        version.published_at = None
+    elif scenario == 'outdated':
+        version.quote.items.update(quantity=999)
+        version.share_expires_at = timezone.now() - timedelta(hours=1)
+    else:
+        version.share_expires_at = timezone.now() - timedelta(hours=1)
+    version.save()
+    api = APIClient()
+    url = f'/api/art-review/{token}/'
+    response = api.get(url)
+    assert response.status_code == status
+    assert response.data['code'] == code
+    assert response.data.get('can_request_link', False) is renewable
+    assert set(response.data) <= {'code', 'detail', 'can_request_link'}
+    assert response['Cache-Control'] == 'private, no-store'
+    assert response['Referrer-Policy'] == 'no-referrer'
+    assert api.get(url + 'file/').status_code == 404
+    assert api.post(url, {'decision': 'approved', 'name': 'Cliente'}, format='json').status_code == 404
+    version.refresh_from_db()
+    assert version.client_decision == 'pending'
 
 
 @pytest.mark.django_db

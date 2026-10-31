@@ -442,6 +442,32 @@ class PublicArtReview(APIView):
 
             raise Http404() from None
 
+    def unavailable_link(self, token):
+        """Diagnose signed links without granting access or returning job details."""
+        code = 'link_invalid'
+        try:
+            if len(token) > 1024:
+                raise ValueError()
+            # No age limit for diagnosis only. File/decision/renewal checks retain
+            # their existing expiry limits and never use this result for access.
+            data = signing.loads(token, salt=SALT, max_age=None)
+            if not isinstance(data['id'], int) or not isinstance(data['nonce'], str) or not data['nonce']:
+                raise ValueError()
+            version = ArtworkProofVersion.objects.select_related('quote').defer('private_content').filter(pk=data['id']).first()
+            if not version or not version.published_at:
+                code = 'link_unavailable'
+            elif not version.share_nonce:
+                code = 'link_revoked'
+            elif version.share_nonce != data['nonce']:
+                code = 'link_replaced'
+            elif not current_proof(version.quote, version):
+                code = 'link_outdated'
+            else:
+                return Response({'code': 'link_expired', 'can_request_link': False}, status=410)
+        except (signing.BadSignature, KeyError, TypeError, ValueError):
+            pass
+        return Response({'code': code}, status=404)
+
     def get(self, request, token, file=False):
         from django.http import Http404
         try:
@@ -452,10 +478,12 @@ class PublicArtReview(APIView):
                     expired = self.version(token, allow_expired=True)
                     if expired.client_decision == 'pending' and current_proof(expired.quote, expired):
                         ensure_studio_editable(expired.quote)
-                        return Response({'detail': 'Este link expirou. Peça um novo link à Recepção.', 'code': 'link_expired'}, status=410)
+                        return Response({'detail': 'Este link expirou. Peça um novo link à Recepção.', 'code': 'link_expired', 'can_request_link': True}, status=410)
                 except (Http404, ValidationError):
                     pass
-            raise
+            if file:
+                raise
+            return self.unavailable_link(token)
         if file:
             return file_response(requested_file(version, request))
         latest = (
