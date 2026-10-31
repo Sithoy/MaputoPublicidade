@@ -23,14 +23,14 @@ export default function CookiesPage() {
         <p>
           Os mecanismos essenciais suportam a sessão e o funcionamento do site. As preferências
           de medição são guardadas para respeitar a sua escolha; não são identificadores de visitante.
-          A análise detalhada só é ativada quando escolhe “Permitir análise detalhada”. Os serviços
+          A análise detalhada só é ativada quando escolhe “Aceitar todos” ou guarda “Permitir todas” em “Personalizar”. Os serviços
           continuam disponíveis independentemente da escolha. Uma aceitação antiga não ativa a análise detalhada.
         </p>
         <h2 className="mt-4 text-lg font-semibold">Gestão de cookies</h2>
         <p>
           Pode mudar a sua escolha em “Preferências de privacidade”, no final das páginas públicas.
-          “Só contagens agregadas” remove os identificadores analíticos e mantém apenas totais sem
-          ligação entre visitas. “Desativar toda a medição” interrompe também estas contagens.
+          Em “Personalizar”, “Só estatísticas anónimas” remove os identificadores analíticos e mantém apenas totais sem
+          ligação entre visitas. “Rejeitar opcionais” ou guardar “Não permitir estatísticas” interrompe toda a medição.
           Respeitamos os sinais Do Not Track e Global Privacy Control em ambas as camadas.
           Uma recusa anterior à separação das camadas continua a interromper a medição até rever a escolha.
         </p>

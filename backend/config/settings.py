@@ -62,6 +62,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "apps.core.observability.OperationalMonitoringMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -322,6 +323,9 @@ CSP_CONNECT_SRC = ("'self'",)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "private_request": {"()": "apps.core.email_telemetry.PrivateRequestLogFilter"},
+    },
     "formatters": {
         "verbose": {
             "format": "{levelname} {asctime} {module} {message}",
@@ -332,6 +336,7 @@ LOGGING = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+            "filters": ["private_request"],
         },
     },
     "root": {
@@ -347,6 +352,9 @@ LOGGING = {
     },
 }
 
+# Operational monitoring is independent of browser analytics consent.
+OBSERVABILITY_ENABLED = os.getenv('OBSERVABILITY_ENABLED', 'false' if DEBUG else 'true').lower() == 'true'
+
 # Sentry
 AI_GATEWAY_API_KEY = os.getenv("AI_GATEWAY_API_KEY", "")
 AI_GATEWAY_MODEL = os.getenv("AI_GATEWAY_MODEL", "openai/gpt-4.1-mini")
@@ -356,13 +364,13 @@ if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
 
-    from apps.core.email_telemetry import filter_email_event
+    from apps.core.email_telemetry import filter_operational_event
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration()],
         traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
-        send_default_pii=True,
-        before_send=filter_email_event,
-        before_send_transaction=filter_email_event,
+        send_default_pii=False,
+        before_send=filter_operational_event,
+        before_send_transaction=filter_operational_event,
     )
