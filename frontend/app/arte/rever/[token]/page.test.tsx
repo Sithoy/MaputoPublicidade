@@ -21,6 +21,18 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+it('shows a renewal request instead of artwork for an expired link', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce({ ok: false, json: async () => ({ code: 'link_expired' }) } as Response);
+  render(<ArtReviewPage />);
+  const button = await screen.findByRole('button', { name: 'Pedir novo link' });
+  expect(screen.queryByTitle('Arte v1')).not.toBeInTheDocument();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ detail: 'Pedido enviado.' }) } as Response);
+  fireEvent.click(button);
+  expect(await screen.findByText('Pedido enviado.')).toBeInTheDocument();
+  expect(fetch).toHaveBeenLastCalledWith('/api/art-review/test-review/', expect.objectContaining({ method: 'POST', body: JSON.stringify({ action: 'request_link' }) }));
+});
+
 it('lets the client switch files while keeping approval scoped to the entire version', async () => {
   render(<ArtReviewPage />);
   await screen.findByTitle('Arte v1');

@@ -4,6 +4,7 @@ import secrets
 from datetime import timedelta
 from io import BytesIO
 
+from django.conf import settings
 from django.core import signing
 from django.db import transaction
 from django.db.models import Prefetch
@@ -141,7 +142,7 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
 
     def get_permissions(self):
         permissions = [HasStaffCapability(StaffCapability.VIEW_PRODUCTION)]
-        if self.action in {"technical_notes", "revoke", "requirements", "decision", "email", "studio"}:
+        if self.action in {"technical_notes", "revoke", "requirements", "decision", "email", "studio", "share"}:
             permissions.append(HasStaffCapability(StaffCapability.MANAGE_ARTWORK))
         return permissions
 
@@ -380,6 +381,31 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         version.save(update_fields=["share_nonce", "share_expires_at"])
         return Response(job_data(quote))
 
+    @action(detail=True, methods=['post'], url_path=r'share/(?P<version_id>[0-9]+)')
+    @transaction.atomic
+    def share(self, request, reference=None, version_id=None):
+        from .review_sharing import share_data
+
+        self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(reference=reference)
+        ensure_studio_editable(quote)
+        version = get_object_or_404(quote.proof_versions, pk=version_id)
+        if not version.published_at or version.client_decision != 'pending' or not current_proof(quote, version):
+            raise ValidationError('Publique a versão atual e sem decisão antes de preparar a mensagem.')
+        renew = serializers.BooleanField().run_validation(request.data.get('renew', False))
+        expired = not version.share_nonce or not version.share_expires_at or version.share_expires_at <= timezone.now()
+        if expired and not renew:
+            return Response({'expired': True, 'detail': 'Este link expirou ou foi revogado. Gere um novo link antes de enviar.'}, headers={'Cache-Control': 'private, no-store'})
+        if renew:
+            version.share_nonce = secrets.token_urlsafe(32)
+            version.share_expires_at = timezone.now() + timedelta(days=7)
+            version.save(update_fields=['share_nonce', 'share_expires_at'])
+            record_activity(action='reception_updated', quote=quote, actor=request.user, is_internal=True,
+                            comment=f'Link de arte v{version.version} renovado; os links anteriores foram invalidados.')
+        link = f"{getattr(settings, 'TRACKING_SITE_URL', 'https://maputopublicidade.com').rstrip('/')}/arte/rever/{share_token(version)}"
+        return Response(share_data(quote, version.version, link, version.share_expires_at, 'artwork'),
+                        headers={'Cache-Control': 'private, no-store'})
+
 
 class ReviewThrottle(AnonRateThrottle):
     rate = "30/min"
@@ -391,17 +417,24 @@ class PublicArtReview(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ReviewThrottle]
 
-    def version(self, token):
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response['Cache-Control'] = 'private, no-store'
+        response['Referrer-Policy'] = 'no-referrer'
+        return response
+
+    def version(self, token, allow_expired=False):
         try:
-            data = signing.loads(token, salt=SALT, max_age=7 * 86400)
+            if len(token) > 1024:
+                raise ValueError()
+            data = signing.loads(token, salt=SALT, max_age=(90 if allow_expired else 7) * 86400)
             version = get_object_or_404(
                 ArtworkProofVersion.objects.select_related("quote").defer("private_content"),
                 pk=data["id"],
                 share_nonce=data["nonce"],
                 published_at__isnull=False,
-                share_expires_at__gt=timezone.now(),
             )
-            if not version.share_nonce:
+            if not version.share_nonce or not version.share_expires_at or (not allow_expired and version.share_expires_at <= timezone.now()):
                 raise signing.BadSignature()
             return version
         except (signing.BadSignature, KeyError, TypeError, ValueError):
@@ -410,7 +443,19 @@ class PublicArtReview(APIView):
             raise Http404() from None
 
     def get(self, request, token, file=False):
-        version = self.version(token)
+        from django.http import Http404
+        try:
+            version = self.version(token)
+        except Http404:
+            if not file:
+                try:
+                    expired = self.version(token, allow_expired=True)
+                    if expired.client_decision == 'pending' and current_proof(expired.quote, expired):
+                        ensure_studio_editable(expired.quote)
+                        return Response({'detail': 'Este link expirou. Peça um novo link à Recepção.', 'code': 'link_expired'}, status=410)
+                except (Http404, ValidationError):
+                    pass
+            raise
         if file:
             return file_response(requested_file(version, request))
         latest = (
@@ -435,6 +480,15 @@ class PublicArtReview(APIView):
     def post(self, request, token, file=False):
         if file:
             return Response(status=405)
+        if request.data.get('action') == 'request_link':
+            from .review_sharing import request_review_link
+            version = self.version(token, allow_expired=True)
+            quote = QuoteRequest.objects.select_for_update().get(pk=version.quote_id)
+            version = self.version(token, allow_expired=True)
+            ensure_studio_editable(quote)
+            if version.client_decision != 'pending' or not current_proof(quote, version):
+                raise ValidationError('Esta versão foi substituída ou já tem uma decisão. Contacte a Recepção.')
+            return Response(request_review_link(quote, 'arte', version.version))
         version = self.version(token)
         quote = QuoteRequest.objects.select_for_update().get(pk=version.quote_id)
         ensure_studio_editable(quote)

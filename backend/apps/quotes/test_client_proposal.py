@@ -269,7 +269,7 @@ class TestClientProposal:
     def test_drafts_expiry_and_tampering(self, sent_proposal):
         client = guest(sent_proposal)
         with patch('django.core.signing.time.time', return_value=timezone.now().timestamp() + MAX_AGE + 10):
-            assert respond(client, action='view').status_code == 403
+            assert respond(client, action='view').status_code == 410
         client.credentials(HTTP_X_MP_PROPOSAL_TOKEN=signing.dumps({'q': sent_proposal.pk, 'v': 1, 'f': 'bad'}, salt=SALT))
         assert respond(client).status_code == 403
         client = guest(sent_proposal)

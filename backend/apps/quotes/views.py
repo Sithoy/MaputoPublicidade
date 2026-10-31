@@ -567,6 +567,9 @@ class QuoteRequestViewSet(
                 return Response({'published': True, 'version': quote.proposal_version})
             if command == 'email':
                 return Response({'conversation_id': prepare_email(quote, request.user)})
+            if command == 'prepare_share':
+                from .client_proposal import prepare_share
+                return Response(prepare_share(quote), headers={'Cache-Control': 'private, no-store'})
             if command == 'whatsapp':
                 from .client_proposal import require_published, whatsapp_number
                 from .proposal_workflow import event

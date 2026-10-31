@@ -3,6 +3,8 @@ import hashlib
 import json
 import re
 import time
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core import signing
@@ -64,7 +66,7 @@ def review_link(quote):
     return f'{origin}/proposta#token={token}'
 
 
-def compact_review_quote(token):
+def compact_review_quote(token, allow_expired=False):
     match = re.fullmatch(r'p1\.([0-9a-z]{1,10})\.([0-9a-z]{1,7})\.([0-9a-z]{1,8}):[A-Za-z0-9_-]{43}', token)
     if not match:
         raise ValueError()
@@ -72,9 +74,45 @@ def compact_review_quote(token):
     signing.Signer(salt=f'{COMPACT_SALT}:{fingerprint(quote)}', algorithm='sha256').unsign(token[3:])
     ttl = quote.validity_days * 24 * 3600 if quote.validity_days else LEGACY_MAX_AGE
     age = time.time() - base36_to_int(match[3])
-    if base36_to_int(match[2]) != quote.proposal_version or not 0 <= age <= min(ttl, MAX_AGE):
+    if base36_to_int(match[2]) != quote.proposal_version or not 0 <= age <= (90 * 86400 if allow_expired else min(ttl, MAX_AGE)):
         raise ValueError()
     return quote
+
+
+def resolve_review_quote(token, allow_expired=False):
+    if len(token) > 1024:
+        raise ValueError()
+    if token.startswith('p1.'):
+        quote = compact_review_quote(token, allow_expired)
+    else:
+        payload = signing.loads(token, salt=SALT, max_age=90 * 86400 if allow_expired else MAX_AGE)
+        ttl = payload.get('ttl', LEGACY_MAX_AGE)
+        if type(ttl) is not int or ttl not in {days * 86400 for days in (7, 15, 30, 60)}:
+            raise ValueError()
+        if not allow_expired:
+            signing.loads(token, salt=SALT, max_age=ttl)
+        quote = QuoteRequest.objects.select_for_update().get(pk=payload['q'])
+        if payload['v'] != quote.proposal_version or not constant_time_compare(payload['f'], fingerprint(quote)):
+            raise ValueError()
+    require_published(quote)
+    if quote.status == 'cancelled':
+        raise ValueError()
+    return quote
+
+
+def prepare_share(quote):
+    from apps.core.review_sharing import share_data
+
+    require_published(quote)
+    if quote.status == 'cancelled' or decision(quote):
+        raise ValidationError('Esta proposta já não aguarda uma decisão. Atualize o pedido.')
+    if quote.valid_until and quote.valid_until < timezone.localdate():
+        raise ValidationError('A proposta expirou. Reveja as condições antes de partilhar um novo link.')
+    expires = timezone.now() + timedelta(seconds=min(quote.validity_days * 86400 if quote.validity_days else LEGACY_MAX_AGE, MAX_AGE))
+    if quote.valid_until:
+        midnight = datetime.combine(quote.valid_until + timedelta(days=1), datetime.min.time(), tzinfo=ZoneInfo('Africa/Maputo'))
+        expires = min(expires, midnight)
+    return share_data(quote, quote.proposal_version, review_link(quote), expires, 'proposal')
 
 
 def publish_notice(quote):
@@ -213,7 +251,7 @@ def prepare_email(quote, user):
         raise PermissionDenied()
     if not quote.client_email:
         raise ValidationError('Confirme o email do cliente no pedido.')
-    require_published(quote)
+    prepare_share(quote)
     key = email_key(quote)
     conversation, _ = SupportConversation.objects.get_or_create(email_thread_key=key, defaults={
         'channel': 'email', 'client': quote.user, 'quote': quote, 'contact_email': quote.client_email,
@@ -244,7 +282,7 @@ def email_key(quote):
     return hashlib.sha256(f'proposal:{quote.pk}:{quote.proposal_version}:{fingerprint(quote)}'.encode()).hexdigest()
 
 
-def validate_proposal_email(conversation, files):
+def validate_proposal_email(conversation, files, body=None):
     """Bind outgoing proposal attachments to the published commercial version."""
     proposals = [file for file in files if file.document_source.get('kind') == 'proposal']
     if not proposals:
@@ -263,6 +301,14 @@ def validate_proposal_email(conversation, files):
             source.get('fingerprint') and source['fingerprint'] != fingerprint(quote)
         ):
             raise ValidationError('O PDF pertence a uma versão anterior. Prepare novamente o email.')
+    if body:
+        for token in re.findall(r'/proposta#token=([^\s<>"\']+)', body):
+            try:
+                linked = resolve_review_quote(token.rstrip('.,;)'))
+                if linked.pk != quote.pk:
+                    raise ValueError()
+            except (signing.BadSignature, QuoteRequest.DoesNotExist, KeyError, TypeError, ValueError, ValidationError):
+                raise ValidationError('O link no email expirou ou mudou. Copie um link atual na etapa Cliente e reveja o rascunho antes de enviar.') from None
     return True
 
 
@@ -337,27 +383,23 @@ class PublicProposalReview(APIView):
     @transaction.atomic
     def post(self, request):
         token = request.headers.get('X-MP-Proposal-Token', '')
-        try:
-            if len(token) > 1024:
-                raise ValueError
-            if token.startswith('p1.'):
-                quote = compact_review_quote(token)
-            else:
-                # Existing links remain valid until their original expiry.
-                payload = signing.loads(token, salt=SALT, max_age=MAX_AGE)
-                ttl = payload.get('ttl', LEGACY_MAX_AGE)
-                if type(ttl) is not int or ttl not in {days * 24 * 3600 for days in (7, 15, 30, 60)}:
-                    raise ValueError
-                signing.loads(token, salt=SALT, max_age=ttl)
-                quote = QuoteRequest.objects.select_for_update().get(pk=payload['q'])
-                if payload['v'] != quote.proposal_version or not constant_time_compare(payload['f'], fingerprint(quote)):
-                    raise ValueError
-            require_published(quote)
-            if quote.status == 'cancelled':
-                raise ValueError
-        except (signing.BadSignature, QuoteRequest.DoesNotExist, KeyError, TypeError, ValueError, ValidationError):
-            raise PermissionDenied('Link inválido, expirado ou substituído. Contacte a Recepção.') from None
         command = request.data.get('action', 'view')
+        try:
+            quote = resolve_review_quote(token, allow_expired=command == 'request_link')
+        except (signing.BadSignature, QuoteRequest.DoesNotExist, KeyError, TypeError, ValueError, ValidationError):
+            if command != 'request_link':
+                try:
+                    expired_quote = resolve_review_quote(token, allow_expired=True)
+                    if not decision(expired_quote):
+                        return Response({'detail': 'Este link expirou. Peça um novo link à Recepção.', 'code': 'link_expired'}, status=410)
+                except (signing.BadSignature, QuoteRequest.DoesNotExist, KeyError, TypeError, ValueError, ValidationError):
+                    pass
+            raise PermissionDenied('Link inválido, expirado ou substituído. Contacte a Recepção.') from None
+        if command == 'request_link':
+            from apps.core.review_sharing import request_review_link
+            if decision(quote):
+                raise ValidationError('Esta versão já recebeu uma decisão. Contacte a Recepção.')
+            return Response(request_review_link(quote, 'proposta', quote.proposal_version))
         if command == 'question':
             from apps.core.models import SupportConversation, SupportMessage
             from apps.core.support_views import notify_message

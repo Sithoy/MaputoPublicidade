@@ -52,7 +52,7 @@ describe('Client proposal workspace', () => {
     render(<ClientProposalWorkspace {...props} />);
     await screen.findByText('cliente@example.com');
     fireEvent.click(screen.getByText('Preparar WhatsApp'));
-    expect(screen.getByRole('link', { name: 'Abrir WhatsApp' }).getAttribute('href')).toContain('wa.me/258841234567');
+    expect(screen.getByRole('button', { name: 'Abrir WhatsApp' })).toBeEnabled();
     expect(vi.mocked(fetchWithAuth).mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0);
     fireEvent.change(screen.getByLabelText('Registo do envio'), { target: { value: 'PDF e link enviados às compras' } });
     fireEvent.click(screen.getByLabelText(/Confirmo que enviei a mensagem/));
