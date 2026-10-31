@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import { Suspense, useEffect, useEffectEvent, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -229,7 +230,7 @@ export function ReceptionWorkspace() {
       <fieldset disabled={busy || !lease.editable} className="min-w-0">
       <div id="reception-work-panel" className="scroll-mt-24" onChangeCapture={() => setDirty(true)}>
         {step === 0 ? triage && user ? <ReceptionRequestPanel embedded editingAllowed={lease.editable} request={triage} userId={user.id} canReleaseOthers={can('quotes.review')} onChange={(value) => { setDirty(false); if (value) setTriage(value); else saved(); }} onClose={() => { setDirty(false); setReference(''); }} /> : <section className="rounded-2xl border bg-white p-5"><h3 className="font-semibold">Briefing confirmado</h3><p className="mt-3 whitespace-pre-wrap text-sm">{quote.reception?.briefing?.description || quote.notes || 'Consulte os materiais e anexos.'}</p><QuoteRequestEvidence quote={quote} /></section> : null}
-        {step === 3 ? quote.order_reference ? <OperationalDelivery key={quote.order_reference} reference={quote.order_reference} onSaved={() => setDirty(false)} /> : quote.price_approved_at && can('orders.manage_status') ? <button type="button" disabled={busy} onClick={createOrder} className="rounded-xl bg-brand-800 px-5 py-3 text-white">Criar ordem de produção</button> : <p className="rounded-xl border bg-white p-5">A ordem de produção estará disponível após a aceitação do cliente.</p> : null}
+        {step === 3 ? quote.order_reference ? <section className="space-y-4"><OperationalDelivery key={quote.order_reference} reference={quote.order_reference} readOnly /><Link href={`/admin/entregas?encomenda=${encodeURIComponent(quote.order_reference)}`} className="inline-block rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-brand-800">Abrir no espaço de Entregas →</Link><p className="text-xs text-slate-500">A Recepção acompanha o estado e comunica com o cliente. O agendamento e a conclusão são registados pela equipa responsável.</p></section> : quote.price_approved_at && can('orders.manage_status') ? <button type="button" disabled={busy} onClick={createOrder} className="rounded-xl bg-brand-800 px-5 py-3 text-white">Criar ordem de produção</button> : <p className="rounded-xl border bg-white p-5">A ordem de produção estará disponível após a aceitação do cliente.</p> : null}
       </div></fieldset></>}</section></>}
     </section>
     {panel && quote ? <ReceptionContextPanel title={{ summary: 'Resumo', messages: 'Mensagens', history: 'Registos', followups: 'Seguimentos', proposal: 'Documento da proposta', work: 'Etapa' }[panel]} reference={quote.reference} onClose={() => openPanel(null)}>

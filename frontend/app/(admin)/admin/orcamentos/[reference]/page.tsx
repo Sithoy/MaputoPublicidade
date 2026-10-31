@@ -43,6 +43,7 @@ export default function AdminOrderDetailPage() {
   const router = useRouter();
   const { loading: authLoading, can } = useAdminAuth();
   const canManageQuote = can('quotes.manage');
+  const receptionWorkspace = can('reception.manage');
   const canManageArtwork = can('quotes.artwork');
   const [quote, setQuote] = useState<AdminQuote | null>(null);
   const [status, setStatus] = useState('');
@@ -88,8 +89,9 @@ export default function AdminOrderDetailPage() {
 
   useEffect(() => {
     if (authLoading) return;
+    if (receptionWorkspace) { router.replace(`/admin/recepcao?pedido=${encodeURIComponent(reference)}`); return; }
     loadQuote();
-  }, [authLoading, loadQuote]);
+  }, [authLoading, loadQuote, receptionWorkspace, reference, router]);
 
   async function handleClientUpdate() {
     if (!quote || !clientIdentity.trim()) {

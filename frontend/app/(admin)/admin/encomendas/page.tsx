@@ -25,6 +25,7 @@ import { exportOrders, getOrders } from '@/lib/admin-api';
 import type { Order } from '@/lib/api';
 import { orderStatusLabels, orderStatusOptions } from '@/lib/status';
 import { cn, formatMZN } from '@/lib/utils';
+import { orderWorkspaceHref } from '@/lib/admin-workspaces';
 
 type OperationsView = 'production' | 'delivery' | 'completed' | 'all';
 
@@ -91,7 +92,7 @@ function AdminOrdersContent() {
   const canViewPayments = can('payments.view');
   const initialView = operationsViews.some((view) => view.value === requestedView)
     ? (requestedView as OperationsView)
-    : viewFromStatus(urlStatus);
+    : urlStatus ? viewFromStatus(urlStatus) : 'all';
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeView, setActiveView] = useState<OperationsView>(initialView);
   const [statusFilter, setStatusFilter] = useState(urlStatus);
@@ -272,12 +273,11 @@ function AdminOrdersContent() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-            Centro de operações
+            Consulta e registos
           </p>
-          <h1 className="text-2xl font-bold text-dark">Produção e entregas</h1>
+          <h1 className="text-2xl font-bold text-dark">Registo de encomendas</h1>
           <p className="mt-1 max-w-2xl text-sm text-gray-500">
-            Acompanhe os trabalhos aprovados, prepare as entregas e mantenha a equipa
-            alinhada até à conclusão.
+            Consulte os trabalhos autorizados e o seu histórico. As ações são abertas no espaço responsável: Recepção, Studio, Produção ou Entregas.
           </p>
         </div>
         {can('orders.export') ? (
@@ -361,7 +361,7 @@ function AdminOrdersContent() {
           <div
             className="grid gap-2 border-b border-gray-100 pb-4 sm:grid-cols-4"
             role="tablist"
-            aria-label="Filas operacionais"
+            aria-label="Estados do registo"
           >
             {operationsViews.map((view) => (
               <button
@@ -421,7 +421,7 @@ function AdminOrdersContent() {
         data={filtered}
         emptyText="Não existem trabalhos nesta fila."
         actions={(item) => (
-          <Link href={`/admin/encomendas/${item.reference}`}>
+          <Link href={orderWorkspaceHref(item, can)}>
             <Button variant="outline" size="sm" className="gap-2">
               <Edit className="h-4 w-4" />
               Abrir

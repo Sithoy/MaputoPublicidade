@@ -500,7 +500,7 @@ export async function updateOrderNotes(reference: string, internalNotes: string)
 export type DeliveryInput = {
   delivery_method?: 'pickup' | 'delivery';
   delivery_address?: string;
-  scheduled_date?: string;
+  scheduled_date?: string | null;
   installation_required?: boolean;
   delivery_responsible_id?: number | null;
   completion_photo?: File | null;
@@ -510,7 +510,7 @@ export async function updateOrderDelivery(reference: string, data: DeliveryInput
   const formData = new FormData();
   if (data.delivery_method) formData.append('delivery_method', data.delivery_method);
   if (data.delivery_address !== undefined) formData.append('delivery_address', data.delivery_address);
-  if (data.scheduled_date) formData.append('scheduled_date', data.scheduled_date);
+  if (data.scheduled_date !== undefined) formData.append('scheduled_date', data.scheduled_date || '');
   if (data.installation_required !== undefined) {
     formData.append('installation_required', String(data.installation_required));
   }

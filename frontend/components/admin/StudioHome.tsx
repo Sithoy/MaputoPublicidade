@@ -30,7 +30,7 @@ function dateLabel(value: string) {
   return new Date(value.includes('T') ? value : `${value}T12:00:00+02:00`).toLocaleDateString('pt-MZ', { day: '2-digit', month: 'short', timeZone: 'Africa/Maputo' });
 }
 
-export function StudioHome() {
+export function StudioHome({ initialReference = '' }: { initialReference?: string } = {}) {
   const { loading, can, user } = useAdminAuth();
   const allowed = can('production.view') && can('quotes.artwork');
   const [data, setData] = useState<Agenda | null>(null);
@@ -41,7 +41,7 @@ export function StudioHome() {
   const [revision, setRevision] = useState(0);
   const [pending, setPending] = useState(true);
   const [error, setError] = useState('');
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState(initialReference);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { setQuery(search.trim()); setPage(1); }, 300);
