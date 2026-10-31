@@ -13,6 +13,7 @@ from django.utils import timezone
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -140,7 +141,7 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
 
     def get_permissions(self):
         permissions = [HasStaffCapability(StaffCapability.VIEW_PRODUCTION)]
-        if self.action in {"technical_notes", "revoke", "requirements", "decision", "email"}:
+        if self.action in {"technical_notes", "revoke", "requirements", "decision", "email", "studio"}:
             permissions.append(HasStaffCapability(StaffCapability.MANAGE_ARTWORK))
         return permissions
 
@@ -166,6 +167,27 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
 
     def retrieve(self, request, reference=None):
         return Response(job_data(self.get_object()))
+
+    @action(detail=False, methods=['get'])
+    def studio(self, request):
+        from .studio_queue import studio_agenda
+
+        rows, counts, updated = studio_agenda(self.get_queryset().filter(order__status='approved'))
+        task = request.query_params.get('task', 'all')
+        if task not in counts:
+            raise ValidationError('Filtro de Studio inválido.')
+        if task != 'all':
+            rows = [row for row in rows if row['followup']] if task == 'followup' else [row for row in rows if row['task'] == task]
+        search = request.query_params.get('search', '').strip().casefold()[:160]
+        if search:
+            rows = [row for row in rows if search in f"{row['reference']} {row['client_name']} {row['description']}".casefold()]
+        paginator = PageNumberPagination()
+        paginator.page_size = 10
+        page = paginator.paginate_queryset(rows, request, view=self)
+        response = paginator.get_paginated_response(page)
+        response.data.update(overview=counts, updated_at=updated)
+        response['Cache-Control'] = 'private, no-store'
+        return response
 
     @action(detail=True, methods=['get'], url_path=r'references/(?P<attachment_id>[0-9]+)')
     def reference_file(self, request, reference=None, attachment_id=None):

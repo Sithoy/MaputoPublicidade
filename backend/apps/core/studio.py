@@ -11,6 +11,13 @@ def requirement(item):
     return 'studio' if item.needs_design else 'client' if item.artwork_file else 'none'
 
 
+def latest_proof(quote):
+    cached = getattr(quote, '_prefetched_objects_cache', {}).get('proof_versions')
+    if cached is not None:
+        return max(cached, key=lambda version: version.version, default=None)
+    return quote.proof_versions.order_by('-version').first()
+
+
 def technical_fingerprint(quote):
     rows = [{'id': item.pk, 'description': item.description, 'quantity': item.quantity,
              'size': item.size, 'material': item.material, 'colors': item.colors,
@@ -20,7 +27,8 @@ def technical_fingerprint(quote):
 
 
 def current_proof(quote, version):
-    if not version or quote.proof_versions.order_by('-version').first().pk != version.pk:
+    latest = latest_proof(quote)
+    if not version or not latest or latest.pk != version.pk:
         return False
     if version.technical_fingerprint:
         return version.technical_fingerprint == technical_fingerprint(quote)
@@ -30,7 +38,7 @@ def current_proof(quote, version):
 
 def readiness(quote):
     order = getattr(quote, 'order', None)
-    latest = quote.proof_versions.order_by('-version').first()
+    latest = latest_proof(quote)
     needs_art = any(requirement(item) != 'none' for item in quote.items.all()) or bool(latest)
     art_ready = not needs_art or bool(latest and latest.published_at and latest.client_decision == 'approved' and current_proof(quote, latest))
     authorised = bool(order and (quote.price_approved_at or (quote.proposal_stage == 'legacy' and quote.status == 'approved')))

@@ -1,3 +1,3 @@
-import { ProductionWorkspace } from '@/components/admin/ProductionWorkspace';
+import { StudioHome } from '@/components/admin/StudioHome';
 
-export default function StudioPage() { return <ProductionWorkspace workspace="studio" />; }
+export default function StudioPage() { return <StudioHome />; }
