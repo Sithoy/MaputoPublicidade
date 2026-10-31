@@ -30,7 +30,7 @@ export default function CookiesPage() {
         <p>
           Pode mudar a sua escolha em “Preferências de privacidade”, no final das páginas públicas.
           Em “Personalizar”, “Só estatísticas anónimas” remove os identificadores analíticos e mantém apenas totais sem
-          ligação entre visitas. “Rejeitar opcionais” ou guardar “Não permitir estatísticas” interrompe toda a medição.
+          ligação entre visitas. “Rejeitar opcionais” ou guardar “Não permitir estatísticas” interrompe toda a medição de visitas descrita nesta política.
           Respeitamos os sinais Do Not Track e Global Privacy Control em ambas as camadas.
           Uma recusa anterior à separação das camadas continua a interromper a medição até rever a escolha.
         </p>
@@ -53,6 +53,11 @@ export default function CookiesPage() {
           abrange 90 dias. Uma limpeza diária é acionada durante recolhas e consultas para remover
           eventos mais antigos; sem atividade, estes aguardam a próxima limpeza. A infraestrutura
           de alojamento pode ter os seus próprios registos operacionais, separados desta análise.</p>
+        <h2 className="mt-4 text-lg font-semibold">Segurança e funcionamento do serviço</h2>
+        <p>A monitorização técnica de falhas, abuso e tentativas de acesso não autorizado é separada
+          das estatísticas de visitas. Não é desativada pelos botões de análise ou pelos sinais Do Not Track/GPC.
+          Não usamos esta monitorização para criar perfis de navegação. Consulte os dados e prazos na{' '}
+          <a href="/privacidade" className="font-medium text-brand underline">Política de Privacidade</a>.</p>
       </div>
     </div>
   );
