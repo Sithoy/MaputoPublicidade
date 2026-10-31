@@ -9,6 +9,21 @@ vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ loading: false, 
 const job = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'approved', order_reference: 'ORD-0001', production_notes: 'Confirmar cores', scheduled_date: null, items: [{ id: 1, description: 'Cartões de visita', quantity: 200, size: '85x55', material: 'Papel mate', colors: 'Verde' }], versions: [] };
 beforeEach(() => { allowed = true; vi.resetAllMocks(); vi.mocked(fetchWithAuth).mockImplementation(async (path) => path === '/api/production/' ? { results: [job], next: null } : job); });
 describe('Production workspace', () => {
+  it('opens a focused Studio job and protects unsaved changes when returning', async () => {
+    const onClose = vi.fn();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<ProductionWorkspace workspace="studio" initialReference={job.reference} onClose={onClose} />);
+    const input = await screen.findByLabelText('Mensagem sobre a arte');
+    expect(fetchWithAuth).not.toHaveBeenCalledWith('/api/production/');
+    expect(screen.queryByLabelText('Trabalhos técnicos')).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: 'Trabalho por guardar' } });
+    fireEvent.click(screen.getByRole('button', { name: /Voltar à agenda do Studio/ }));
+    expect(onClose).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: /Voltar à agenda do Studio/ }));
+    expect(onClose).toHaveBeenCalledOnce();
+    confirm.mockRestore();
+  });
   it('uploads multiple files as one version and displays each file name', async () => {
     render(<ProductionWorkspace workspace="studio" />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026/ }));
