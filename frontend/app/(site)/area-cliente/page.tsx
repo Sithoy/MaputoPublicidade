@@ -374,7 +374,7 @@ export default function ClientDashboardPage() {
             </Link>
           ) : null}
         </div>
-        <WorkflowJourney status={focusOrder?.status} compact className="mt-6" />
+        <WorkflowJourney status={focusOrder?.status} journey={focusOrder?.journey} compact className="mt-6" />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[0.92fr_1.58fr]">
@@ -516,7 +516,7 @@ export default function ClientDashboardPage() {
                         <div
                           className="h-full rounded-full bg-brand-600"
                           style={{
-                            width: `${getOrderProgress(order.status)}%`,
+                            width: `${getOrderProgress(order.status, order.journey)}%`,
                           }}
                         />
                       </div>

@@ -80,6 +80,7 @@ class ArtworkProofVersionSerializer(serializers.ModelSerializer):
             "files",
             "client_decision",
             "client_decision_display",
+            "published_at",
             "client_comment",
             "created_at",
         ]
@@ -95,6 +96,10 @@ class ArtworkProofVersionSerializer(serializers.ModelSerializer):
 
 
 class ProposalWorkflowMixin:
+    def get_journey(self, obj):
+        from apps.core.job_workflow import job_journey
+        return job_journey(obj)
+
     def get_workdesk(self, obj):
         request = self.context.get("request")
         if not request or not has_staff_capability(request.user, StaffCapability.MANAGE_RECEPTION):
@@ -133,6 +138,7 @@ class ProposalWorkflowMixin:
 
 
 class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    journey = serializers.SerializerMethodField()
     workdesk = serializers.SerializerMethodField()
     owner_name = serializers.SerializerMethodField()
     job_summary = serializers.SerializerMethodField()
@@ -158,6 +164,7 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
         fields = [
             "id",
             "reference",
+            "journey",
             "proposal_workflow",
             "reception_completed_at",
             "owner_name",
@@ -205,6 +212,7 @@ class QuoteRequestListSerializer(ProposalWorkflowMixin, serializers.ModelSeriali
 
 
 class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSerializer):
+    journey = serializers.SerializerMethodField()
     client_review_available = serializers.SerializerMethodField()
 
     def get_client_review_available(self, obj):
@@ -269,6 +277,7 @@ class QuoteRequestDetailSerializer(ProposalWorkflowMixin, serializers.ModelSeria
             "id",
             "reference",
             "proposal_workflow",
+            "journey",
             "client_review_available",
             "user",
             "client_name",

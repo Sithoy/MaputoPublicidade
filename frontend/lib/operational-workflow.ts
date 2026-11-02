@@ -1,11 +1,13 @@
 import type { AdminQuote } from './admin-api';
 
-export const receptionSteps = ['Atendimento e briefing', 'Preparar proposta', 'Decisão do cliente', 'Produção e entrega'];
+export const receptionSteps = ['Atendimento e briefing', 'Preparar proposta', 'Decisão do cliente', 'Preparar arte', 'Aprovação da arte', 'Produção', 'Pronto para entrega', 'Entregue'];
 export function receptionStage(quote: AdminQuote & { reception_completed_at?: string | null; operational_order_status?: string | null }) {
-  if (quote.operational_order_status === 'delivered') return { index: 3, waiting: false, next: 'Trabalho entregue. Consulte o histórico e o registo da entrega.' };
-  if (quote.order_reference || quote.price_approved_at) return { index: 3, waiting: false, next: 'Coordenar o trabalho e a entrega com a Produção.' };
+  if (quote.journey) return { index: quote.journey.index, waiting: ['client', 'art_client'].includes(quote.journey.key), next: quote.journey.next_action };
+  if (quote.operational_order_status === 'delivered' || quote.status === 'delivered') return { index: 7, waiting: false, next: 'Trabalho entregue. Consulte o histórico e o registo da entrega.' };
+  if (quote.operational_order_status === 'ready' || quote.status === 'ready') return { index: 6, waiting: false, next: 'Coordenar entrega ou levantamento.' };
+  if (quote.order_reference || quote.price_approved_at) return { index: 5, waiting: false, next: 'Consultar o estado operacional atualizado antes de iniciar o trabalho.' };
   const stage = quote.proposal_workflow?.stage;
-  if (stage === 'review' || stage === 'approved') return { index: 2, waiting: false, next: 'Enviar a proposta guardada ao cliente ou editar as condições.' };
+  if (stage === 'review' || stage === 'approved') return { index: 1, waiting: false, next: 'Enviar a proposta guardada ao cliente ou editar as condições.' };
   if (stage === 'sent' || (stage === 'legacy' && quote.status === 'quoted')) return { index: 2, waiting: true, next: 'Acompanhar a decisão do cliente no mesmo pedido.' };
   if (stage === 'returned') return { index: 1, waiting: false, next: 'Ajustar as condições e guardar ou enviar a proposta.' };
   if (quote.reception?.completed_at || quote.reception_completed_at || quote.proposal_workflow?.prepared_by_id) return { index: 1, waiting: false, next: 'Preparar artigos, valores, prazo e condições. Guardar ou enviar ao cliente.' };

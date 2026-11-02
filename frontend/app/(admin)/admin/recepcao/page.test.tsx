@@ -126,10 +126,11 @@ describe('Reception workspace', () => {
     auth.editable = false;
     render(<ReceptionPage />);
     fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
-    expect(await screen.findByRole('button', { name: 'Gerir envio e decisão' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Pedido em foco' })).toBeInTheDocument();
     expect(auth.acquire).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /3 Decisão do cliente/ }));
+    expect(screen.getByRole('button', { name: 'Gerir envio e decisão' })).toBeInTheDocument();
     expect(await screen.findByRole('region', { name: 'Espaço do cliente' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Mensagens do pedido' })).toBeEnabled();
@@ -143,7 +144,11 @@ describe('Reception workspace', () => {
     await screen.findByRole('region', { name: 'Pedido em foco' });
     expect(screen.getByRole('navigation', { name: 'Contexto do pedido' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Aprovação comercial/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /4 Produção e entrega/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '4 Preparar arte' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '5 Aprovação da arte' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '6 Produção' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '7 Pronto para entrega' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '8 Entregue' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Agora' })).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Percurso do pedido' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /2 Preparar proposta/ }));
@@ -223,7 +228,7 @@ describe('Reception workspace', () => {
     await screen.findByRole('region', { name: 'Pedido em foco' });
     fireEvent.click(screen.getByRole('button', { name: 'Resumo' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ver documento da proposta' }));
-    expect(screen.getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog', { name: 'Documento da proposta' })).getByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
     expect(screen.queryByText('Guardar proposta no espaço')).not.toBeInTheDocument();
   });
   it('shows only the task list until a task is opened and preserves the agenda', async () => {

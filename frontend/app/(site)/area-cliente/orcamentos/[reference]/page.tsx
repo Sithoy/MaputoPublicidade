@@ -126,7 +126,7 @@ export default function ClientQuoteDetailPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-700">
             Percurso do trabalho
           </p>
-          <WorkflowJourney status={quote.status as OrderStatus} compact className="mt-6" />
+          <WorkflowJourney status={quote.status as OrderStatus} journey={quote.journey} compact className="mt-6" />
         </CardContent>
       </Card>
 

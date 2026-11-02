@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -13,6 +14,7 @@ from apps.core.models import ActivityEvent
 from apps.core.notifications import notify_order_status_changed
 from apps.core.permissions import HasStaffCapability, IsOwnerOrStaff
 from apps.payments.serializers import PaymentCreateSerializer, PaymentSerializer
+from apps.quotes.models import ArtworkProofVersion
 
 from .models import Order
 from .serializers import (
@@ -44,7 +46,7 @@ class OrderViewSet(
             "invoice",
             "delivery_responsible",
         )
-        .prefetch_related("items", "items__product", "items__product_variant")
+        .prefetch_related("items", "items__product", "items__product_variant", "quote__items", Prefetch("quote__proof_versions", queryset=ArtworkProofVersion.objects.defer('private_content')))
         .order_by("-created_at")
     )
     lookup_field = "reference"

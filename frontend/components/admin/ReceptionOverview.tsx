@@ -6,7 +6,7 @@ export type ReceptionHQ = { counts: Record<string, number>; unassigned_team: num
 export const taskLabels: Record<string, string> = {
   all: 'Todos os trabalhos', new: 'Novos pedidos', briefing: 'Completar briefing', proposal: 'Preparar / corrigir proposta',
   send: 'Prontas para enviar', delivery: 'Coordenar entrega', review: 'Propostas guardadas (fluxo anterior)', client: 'Com o cliente',
-  production: 'Em produção', handover: 'Confirmar ordem de produção', messages: 'Conversas por responder',
+  production: 'Com Operações · Arte e produção', handover: 'Confirmar ordem de produção', messages: 'Conversas por responder',
   urgent: 'Pedidos urgentes', overdue: 'Compromissos de dias anteriores', today: 'Agenda de hoje',
   followup: 'Seguimentos para hoje ou em atraso', delivery_today: 'Entregas / levantamentos de hoje',
 };
@@ -18,7 +18,7 @@ const sections = [
   { title: 'Dia da recepção', question: 'O que temos marcado para hoje?', icon: CalendarDays,
     tasks: [ ['today', 'Pedidos com compromisso hoje'], ['followup', 'Seguimentos a fazer'], ['delivery_today', 'Entregas / levantamentos hoje'] ] },
   { title: 'A acompanhar', question: 'De quem estamos à espera?', icon: Clock3,
-    tasks: [ ['client', 'Decisão do cliente'], ['production', 'Execução pela Produção'], ['handover', 'Confirmação da ordem'] ] },
+    tasks: [ ['client', 'Decisão do cliente'], ['production', 'Com Operações · Arte e produção'], ['handover', 'Confirmação da ordem'] ] },
 ];
 
 export function ReceptionOverview({ data, name, task, onTask, onInbox, disabled }: {

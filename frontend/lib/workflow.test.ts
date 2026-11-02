@@ -5,8 +5,8 @@ describe('portal workflow helpers', () => {
   it('maps operational statuses to the client journey', () => {
     expect(getOrderStageIndex('received')).toBe(0);
     expect(getOrderStageIndex('quoted')).toBe(2);
-    expect(getOrderStageIndex('in_production')).toBe(4);
-    expect(getOrderStageIndex('delivered')).toBe(5);
+    expect(getOrderStageIndex('in_production')).toBe(5);
+    expect(getOrderStageIndex('delivered')).toBe(7);
   });
 
   it('gives completed orders full progress', () => {

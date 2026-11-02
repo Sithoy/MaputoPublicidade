@@ -28,7 +28,7 @@ export function ReceptionOrderHeader({ quote, step, tab, busy, onStep, onTab, on
       {quote.client_phone ? <a href={`tel:${quote.client_phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1.5 hover:text-brand-800"><Phone aria-hidden="true" className="h-3 w-3" />{quote.client_phone}</a> : null}
       {quote.client_nuit ? <span>NUIT {quote.client_nuit}</span> : null}
     </div>
-    <ReceptionProgress current={current.index} selected={step} busy={busy} onSelect={onStep} />
+    <ReceptionProgress current={current.index} selected={step} busy={busy} onSelect={onStep} journey={quote.journey} />
     {children?.(action)}
   </section>;
 }

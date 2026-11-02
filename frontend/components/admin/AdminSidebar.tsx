@@ -31,6 +31,7 @@ const navGroups = [
     label: 'Operações',
     items: [
       { href: '/admin/recepcao', label: 'Recepção', icon: Headphones, capability: 'reception.manage' },
+      { href: '/admin/quadro', label: 'Kanban · Percurso', icon: BarChart3, capability: 'orders.view' },
       { href: '/admin/operacoes', label: 'Operações', icon: Factory, capability: 'production.view' },
       { href: '/admin/entregas', label: 'Entregas', icon: Truck, capability: 'orders.manage_delivery' },
     ],

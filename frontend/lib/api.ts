@@ -371,6 +371,7 @@ export type QuoteItem = {  id: number;
 };
 
 export type Quote = {
+  journey?: import('./workflow').JobJourney;
   client_review_available?: boolean;
   proposal_workflow?: {
     stage: 'legacy' | 'draft' | 'review' | 'returned' | 'approved' | 'sent'; stage_display: string;
@@ -624,6 +625,7 @@ export type ActivityEvent = {
 };
 
 export type ProofVersion = {
+  published_at?: string | null;
   files?: { id: number; name: string; mime_type: string; url: string }[];
   id: number;
   version: number;
@@ -637,6 +639,7 @@ export type ProofVersion = {
 };
 
 export type Order = {
+  journey?: import('./workflow').JobJourney;
   id: number;
   reference: string;
   quote?: number | null;

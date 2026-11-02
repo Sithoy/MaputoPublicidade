@@ -1,26 +1,28 @@
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getOrderStageIndex, workflowStages } from '@/lib/workflow';
+import { getOrderStageIndex, workflowStages, type JobJourney } from '@/lib/workflow';
 import type { OrderStatus } from '@/lib/api';
 
 type WorkflowJourneyProps = {
   status?: OrderStatus;
+  journey?: JobJourney;
   compact?: boolean;
   className?: string;
 };
 
-export function WorkflowJourney({ status, compact = false, className }: WorkflowJourneyProps) {
-  const currentStep = status ? getOrderStageIndex(status) : -1;
-  const cancelled = status === 'cancelled';
+export function WorkflowJourney({ status, journey, compact = false, className }: WorkflowJourneyProps) {
+  const currentStep = journey ? journey.index : status ? getOrderStageIndex(status) : -1;
+  const cancelled = status === 'cancelled' || journey?.cancelled;
 
   return (
     <div className={cn('w-full min-w-0 max-w-full overflow-x-auto pb-2', className)}>
       <ol
-        className="grid min-w-[760px] grid-cols-6"
+        className="grid min-w-[1040px] grid-cols-8"
         aria-label="Percurso do pedido, da recepção à entrega"
       >
         {workflowStages.map((stage, index) => {
-          const completed = !cancelled && currentStep > index;
+          const skipped = journey?.steps[index]?.skipped;
+          const completed = !cancelled && !skipped && currentStep > index;
           const current = !cancelled && currentStep === index;
           const active = completed || current;
 
@@ -45,7 +47,7 @@ export function WorkflowJourney({ status, compact = false, className }: Workflow
                     cancelled && 'border-[#e4e8e5] bg-[#f7f8f7] text-[#9aa49e]'
                   )}
                 >
-                  {completed ? <Check className="h-4 w-4" /> : index + 1}
+                  {skipped ? '—' : completed ? <Check className="h-4 w-4" /> : index + 1}
                 </span>
                 <p
                   className={cn(
@@ -55,6 +57,7 @@ export function WorkflowJourney({ status, compact = false, className }: Workflow
                 >
                   {stage.shortLabel}
                 </p>
+                {skipped ? <p className="mt-1 text-[10px] text-slate-500">Não necessária</p> : null}
                 {!compact ? (
                   <p className="mt-1 max-w-[125px] text-[11px] leading-[1.45] text-[#829087]">
                     {stage.description}
