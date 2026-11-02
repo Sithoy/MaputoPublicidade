@@ -18,6 +18,7 @@ from .whatsapp_views import (
     WhatsAppVerifyTokenView,
     WhatsAppWebhookView,
 )
+from .workflow_board import WorkflowBoard
 from .zoho_oauth import (
     ZohoActivate,
     ZohoOAuthCallback,
@@ -36,6 +37,7 @@ router.register(
 router.register("reception", ReceptionViewSet, basename="reception")
 router.register("production", ProductionViewSet, basename="production")
 urlpatterns = [
+    path('workflow/board/', WorkflowBoard.as_view(), name='workflow-board'),
     path('observability/report/', MonitoringReport.as_view(), name='observability-report'),
     path('website-traffic/events/', CollectTraffic.as_view(), name='traffic-collect'),
     path('website-traffic/report/', TrafficReport.as_view(), name='traffic-report'),

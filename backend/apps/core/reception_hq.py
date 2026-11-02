@@ -67,10 +67,11 @@ def workdesk_context(quote):
     elif quote.status == "delivered" or (order and order.status == "delivered"):
         label, action = "Entregue", "Consultar entrega"
     elif order:
-        label = order.get_status_display()
-        action = "Coordenar entrega" if order.status == "ready" else "Consultar produção"
-        if order.status != "ready":
-            blocker = "Execução pela Produção"
+        from .job_workflow import job_journey
+        journey = job_journey(quote, order)
+        label, action, blocker = journey['label'], journey['next_action'], journey['blocker']
+        if journey['key'] == 'art_client':
+            action = 'Acompanhar decisão da arte'
     elif quote.price_approved_at:
         label, action = "Aceite pelo cliente", "Confirmar ordem de produção"
     elif stage in {"review", "approved"}:

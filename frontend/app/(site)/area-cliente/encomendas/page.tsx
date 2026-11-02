@@ -138,11 +138,11 @@ export default function ClientOrdersPage() {
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e7ece8]" aria-hidden="true">
                           <div
                             className="h-full rounded-full bg-brand-600"
-                            style={{ width: `${getOrderProgress(order.status)}%` }}
+                            style={{ width: `${getOrderProgress(order.status, order.journey)}%` }}
                           />
                         </div>
                         <span className="shrink-0 text-[11px] font-semibold text-[#718078]">
-                          {getOrderProgress(order.status)}%
+                          {getOrderProgress(order.status, order.journey)}%
                         </span>
                       </div>
                     </div>

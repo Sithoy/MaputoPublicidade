@@ -214,7 +214,7 @@ export default function ClientOrderDetailPage() {
             <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] text-dark">
               Da recepção à entrega
             </h2>
-            <WorkflowJourney status={order.status} compact className="mt-6" />
+            <WorkflowJourney status={order.status} journey={order.journey} compact className="mt-6" />
           </CardContent>
         </Card>
 

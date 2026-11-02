@@ -16,7 +16,7 @@ import { ReceptionCaseContext } from './ReceptionCaseContext';
 import { ReceptionOrderHeader, type ReceptionTab } from './ReceptionOrderHeader';
 import { ReceptionContextPanel } from './ReceptionContextPanel';
 import { ReceptionRequestPanel } from './ReceptionRequestPanel';
-import { OperationalDelivery } from './OperationalDelivery';
+import { ReceptionOperationPanel } from './ReceptionOperationPanel';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { QuoteRequestEvidence } from '@/components/QuoteRequestEvidence';
 import { ReceptionOverview, type ReceptionHQ } from './ReceptionOverview';
@@ -195,12 +195,12 @@ export function ReceptionWorkspace() {
   const orderHeader = quote && current ? <ReceptionOrderHeader quote={contextQuote || quote} step={step} tab={panel || 'work'} focused busy={busy || lease.pending}
     editControls={<section aria-label="Reserva de edição" className="flex max-w-full flex-wrap items-center gap-2 text-xs">
       <span className={`inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 ${lease.session ? 'bg-[#f8f2e2] text-[#806329]' : 'bg-[#eff3e9] text-[#4f6b53]'}`}><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" /><span className="min-w-0 [overflow-wrap:anywhere]">{lease.editable ? 'Em edição por si' : lease.session ? `Em edição por ${lease.session.editor_name}` : 'Consulta partilhada'}</span></span>
-      {!closed && !focusedProposal ? lease.editable ? <button disabled={busy || lease.pending} type="button" onClick={finishEditing} className="rounded-lg border px-3 py-2 font-medium">Terminar edição</button> : <button disabled={busy || lease.pending || Boolean(lease.session)} type="button" onClick={() => void beginEditing()} className="rounded-lg border bg-white px-3 py-2 font-medium text-brand-800 disabled:opacity-50">{workLabels[step]}</button> : null}
+      {!closed && !focusedProposal && step < 3 ? lease.editable ? <button disabled={busy || lease.pending} type="button" onClick={finishEditing} className="rounded-lg border px-3 py-2 font-medium">Terminar edição</button> : <button disabled={busy || lease.pending || Boolean(lease.session)} type="button" onClick={() => void beginEditing()} className="rounded-lg border bg-white px-3 py-2 font-medium text-brand-800 disabled:opacity-50">{workLabels[step]}</button> : null}
       {resumeOwnControl}
       {!closed && lease.session && !lease.editable && !ownReservation && can('quotes.review') ? <button type="button" disabled={busy || lease.pending} onClick={() => { const reason = window.prompt('Motivo para retomar esta edição ativa:'); if (reason?.trim()) void beginEditing(reason.trim()); }} className="rounded-lg border px-3 py-2">Retomar com motivo</button> : null}
       {lease.error ? <p role="alert" className="w-full text-xs text-amber-900">{lease.error}</p> : null}
     </section>}
-    onStep={(index) => navigate(() => { if (index === 1) { void enterProposal(quote); return; } setStep(index); })}
+    onStep={(index) => navigate(() => { if (index === 1) { void enterProposal(quote); return; } if (index >= 3) void lease.release(); setStep(index); })}
     onTab={openPanel}
     onAction={() => { if (closed) openPanel('history'); else navigate(() => setStep(current.index)); }}>
   </ReceptionOrderHeader> : null;
@@ -227,10 +227,10 @@ export function ReceptionWorkspace() {
       </>}
     </section> : focusedClient ? <>{orderHeader}<ClientProposalWorkspace key={`${reference}:${quote.proposal_workflow?.stage}:${quote.proposal_workflow?.version}:${quote.price_approved_at}`} embedded quote={quote} editable={lease.editable && canQuoteEdit} onAcquire={() => void beginEditing()} onChanged={clientChanged} onBack={() => navigate(() => { void enterProposal(quote); })} onMessages={() => openPanel('messages')} onFollowUps={() => openPanel('followups')} onBusyChange={setBusy} onDirtyChange={setDirty} /></> : <>
       {orderHeader}
-      <fieldset disabled={busy || !lease.editable} className="min-w-0">
+      <fieldset disabled={busy || (step < 3 && !lease.editable)} className="min-w-0">
       <div id="reception-work-panel" className="scroll-mt-24" onChangeCapture={() => setDirty(true)}>
         {step === 0 ? triage && user ? <ReceptionRequestPanel embedded editingAllowed={lease.editable} request={triage} userId={user.id} canReleaseOthers={can('quotes.review')} onChange={(value) => { setDirty(false); if (value) setTriage(value); else saved(); }} onClose={() => { setDirty(false); setReference(''); }} /> : <section className="rounded-2xl border bg-white p-5"><h3 className="font-semibold">Briefing confirmado</h3><p className="mt-3 whitespace-pre-wrap text-sm">{quote.reception?.briefing?.description || quote.notes || 'Consulte os materiais e anexos.'}</p><QuoteRequestEvidence quote={quote} /></section> : null}
-        {step === 3 ? quote.order_reference ? <section className="space-y-4"><OperationalDelivery key={quote.order_reference} reference={quote.order_reference} readOnly /><Link href={`/admin/entregas?encomenda=${encodeURIComponent(quote.order_reference)}`} className="inline-block rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-brand-800">Abrir no espaço de Entregas →</Link><p className="text-xs text-slate-500">A Recepção acompanha o estado e comunica com o cliente. O agendamento e a conclusão são registados pela equipa responsável.</p></section> : quote.price_approved_at && can('orders.manage_status') ? <button type="button" disabled={busy} onClick={createOrder} className="rounded-xl bg-brand-800 px-5 py-3 text-white">Criar ordem de produção</button> : <p className="rounded-xl border bg-white p-5">A ordem de produção estará disponível após a aceitação do cliente.</p> : null}
+        {step >= 3 ? quote.order_reference ? <ReceptionOperationPanel quote={quote} step={step} canOperate={can('production.view')} /> : quote.price_approved_at && can('orders.manage_status') ? <button type="button" disabled={busy} onClick={createOrder} className="rounded-xl bg-brand-800 px-5 py-3 text-white">Criar ordem de produção</button> : <p className="rounded-xl border bg-white p-5">A ordem operacional estará disponível após a aceitação do cliente.</p> : null}
       </div></fieldset></>}</section></>}
     </section>
     {panel && quote ? <ReceptionContextPanel title={{ summary: 'Resumo', messages: 'Mensagens', history: 'Registos', followups: 'Seguimentos', proposal: 'Documento da proposta', work: 'Etapa' }[panel]} reference={quote.reference} onClose={() => openPanel(null)}>

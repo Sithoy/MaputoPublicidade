@@ -1,53 +1,24 @@
 import type { Order, OrderStatus } from './api';
 
-export const workflowStages = [
-  {
-    key: 'request',
-    shortLabel: 'Pedido',
-    label: 'Pedido recebido',
-    description: 'O cliente partilha o objectivo e os materiais disponíveis.',
-  },
-  {
-    key: 'review',
-    shortLabel: 'Análise',
-    label: 'Análise do pedido',
-    description: 'A equipa confirma quantidades, formato, prazo e necessidades.',
-  },
-  {
-    key: 'proposal',
-    shortLabel: 'Proposta',
-    label: 'Proposta e aprovação',
-    description: 'Preço, arte e condições ficam disponíveis para decisão.',
-  },
-  {
-    key: 'confirmed',
-    shortLabel: 'Confirmação',
-    label: 'Trabalho confirmado',
-    description: 'O pedido aprovado entra no plano de execução.',
-  },
-  {
-    key: 'production',
-    shortLabel: 'Produção',
-    label: 'Produção e controlo',
-    description: 'A equipa produz, acompanha e valida a qualidade.',
-  },
-  {
-    key: 'delivery',
-    shortLabel: 'Entrega',
-    label: 'Entrega e conclusão',
-    description: 'O trabalho é entregue, confirmado e guardado no histórico.',
-  },
-] as const;
+export type JobJourney = {
+  key: string; index: number; label: string; cancelled: boolean; needs_art: boolean;
+  team: string; blocker: string; next_action: string;
+  steps: { key: string; label: string; skipped: boolean }[];
+};
 
+export const workflowStages = [
+  { key: 'briefing', shortLabel: 'Briefing', description: 'Confirmar necessidades e materiais.' },
+  { key: 'proposal', shortLabel: 'Proposta', description: 'Preparar e enviar as condições.' },
+  { key: 'client', shortLabel: 'Decisão do cliente', description: 'Aceitar ou ajustar a proposta.' },
+  { key: 'art', shortLabel: 'Preparar arte', description: 'Criar ou adaptar, quando necessário.' },
+  { key: 'art_client', shortLabel: 'Aprovação da arte', description: 'Decidir sobre a versão atual.' },
+  { key: 'production', shortLabel: 'Produção', description: 'Produzir e conferir o trabalho.' },
+  { key: 'delivery', shortLabel: 'Pronto para entrega', description: 'Coordenar entrega ou levantamento.' },
+  { key: 'delivered', shortLabel: 'Entregue', description: 'Entrega registada no histórico.' },
+] as const;
 const stageByStatus: Record<OrderStatus, number> = {
-  received: 0,
-  reviewing: 1,
-  quoted: 2,
-  approved: 3,
-  in_production: 4,
-  ready: 5,
-  delivered: 5,
-  cancelled: -1,
+  received: 0, reviewing: 0, quoted: 2, approved: 5,
+  in_production: 5, ready: 6, delivered: 7, cancelled: -1,
 };
 
 export type ClientNextAction = {
@@ -57,22 +28,31 @@ export type ClientNextAction = {
   tone: 'attention' | 'progress' | 'complete' | 'muted';
 };
 
-type WorkflowOrder = Pick<Order, 'status' | 'payment_status' | 'amount_due' | 'artwork'>;
+type WorkflowOrder = Pick<Order, 'status' | 'payment_status' | 'amount_due' | 'artwork' | 'journey'>;
 
-export function getOrderStageIndex(status: OrderStatus): number {
-  return stageByStatus[status];
+export function getOrderStageIndex(status: OrderStatus, journey?: JobJourney): number {
+  return journey?.cancelled ? -1 : journey?.index ?? stageByStatus[status];
 }
 
-export function getOrderProgress(status: OrderStatus): number {
-  if (status === 'cancelled') return 0;
+export function getOrderProgress(status: OrderStatus, journey?: JobJourney): number {
+  if (status === 'cancelled' || journey?.cancelled) return 0;
   if (status === 'delivered') return 100;
 
-  const current = getOrderStageIndex(status);
+  const current = getOrderStageIndex(status, journey);
   return Math.round(((current + 0.5) / workflowStages.length) * 100);
 }
 
 export function getClientNextAction(order: WorkflowOrder): ClientNextAction {
-  if (order.status === 'cancelled') {
+  if (order.journey && !order.journey.cancelled) {
+    const journey = order.journey;
+    const required = ['client', 'art_client'].includes(journey.key);
+    return {
+      label: required ? journey.next_action : journey.label,
+      description: journey.blocker || (journey.key === 'delivered' ? 'A entrega fica disponível no seu histórico.' : `Próximo passo com a equipa de ${journey.team}.`),
+      actionRequired: required, tone: required ? 'attention' : journey.key === 'delivered' ? 'complete' : 'progress',
+    };
+  }
+  if (order.status === 'cancelled' || order.journey?.cancelled) {
     return {
       label: 'Pedido cancelado',
       description: 'Este pedido deixou de estar activo.',

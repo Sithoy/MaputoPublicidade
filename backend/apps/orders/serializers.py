@@ -52,11 +52,15 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OperationalOrderMixin:
+    def get_journey(self, obj):
+        from apps.core.job_workflow import job_journey
+        return job_journey(obj.quote, obj)
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
         if request and request.user.is_staff and not has_staff_capability(request.user, StaffCapability.VIEW_QUOTES):
-            allowed = {"id", "reference", "quote_reference", "client_name", "user_name", "job_summary", "status", "status_display", "item_count", "artwork_status", "delivery_method", "delivery_method_display", "delivery_address", "scheduled_date", "installation_required", "delivery_responsible", "delivery_responsible_name", "completion_photo", "client_confirmed_at", "items", "artwork", "created_at", "updated_at"}
+            allowed = {"journey", "id", "reference", "quote_reference", "client_name", "user_name", "job_summary", "status", "status_display", "item_count", "artwork_status", "delivery_method", "delivery_method_display", "delivery_address", "scheduled_date", "installation_required", "delivery_responsible", "delivery_responsible_name", "completion_photo", "client_confirmed_at", "items", "artwork", "created_at", "updated_at"}
             data = {key: value for key, value in data.items() if key in allowed}
             for item in data.get("items", []):
                 for key in list(item):
@@ -66,6 +70,7 @@ class OperationalOrderMixin:
 
 
 class OrderListSerializer(OperationalOrderMixin, serializers.ModelSerializer):
+    journey = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     payment_status_display = serializers.CharField(
         source="get_payment_status_display", read_only=True
@@ -119,6 +124,7 @@ class OrderListSerializer(OperationalOrderMixin, serializers.ModelSerializer):
         fields = [
             "id",
             "reference",
+            "journey",
             "client_name",
             "user_email",
             "job_summary",
@@ -147,6 +153,7 @@ class OrderListSerializer(OperationalOrderMixin, serializers.ModelSerializer):
 
 
 class OrderDetailSerializer(OperationalOrderMixin, serializers.ModelSerializer):
+    journey = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     payment_status_display = serializers.CharField(
         source="get_payment_status_display", read_only=True
@@ -175,6 +182,7 @@ class OrderDetailSerializer(OperationalOrderMixin, serializers.ModelSerializer):
         fields = [
             "id",
             "reference",
+            "journey",
             "quote",
             "quote_reference",
             "invoice_reference",
@@ -208,6 +216,7 @@ class OrderDetailSerializer(OperationalOrderMixin, serializers.ModelSerializer):
         ]
         read_only_fields = [
             "reference",
+            "journey",
             "user",
             "quote",
             "amount_due",
