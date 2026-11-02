@@ -42,21 +42,36 @@ def readiness(quote):
     needs_art = any(requirement(item) != 'none' for item in quote.items.all()) or bool(latest)
     art_ready = not needs_art or bool(latest and latest.published_at and latest.client_decision == 'approved' and current_proof(quote, latest))
     authorised = bool(order and (quote.price_approved_at or (quote.proposal_stage == 'legacy' and quote.status == 'approved')))
+    missing = technical_gaps(quote)
     stage, label = ('ready', 'Pronto para produção') if art_ready else ('client_art', 'Aguardar decisão da arte') if latest and latest.published_at and latest.client_decision == 'pending' and current_proof(quote, latest) else ('studio', 'Preparar / rever arte no Studio')
     if not authorised:
         stage, label = 'awaiting_order', 'Aguardar aceitação do cliente'
+    elif missing and order.status == 'approved':
+        stage, label = 'preparation', 'Completar preparação com a Recepção'
     elif order.status in {'in_production', 'ready', 'delivered', 'cancelled'}:
         stage = {'in_production': 'production', 'ready': 'delivery', 'delivered': 'closed', 'cancelled': 'closed'}[order.status]
         label = order.get_status_display()
     return {'stage': stage, 'label': label, 'needs_art': needs_art, 'art_ready': art_ready,
-            'can_start': authorised and order.status == 'approved' and art_ready,
+            'can_start': authorised and order.status == 'approved' and art_ready and not missing,
+            'missing': missing,
             'current_art_version': latest.version if latest else None}
+
+
+def technical_gaps(quote):
+    items = list(quote.items.all())
+    if not items:
+        return ['Artigos por confirmar com a Recepção']
+    if any(not item.description.strip() or item.quantity <= 0 for item in items):
+        return ['Descrição e quantidades por confirmar com a Recepção']
+    return []
 
 
 def require_ready(quote):
     legacy_order = quote.proposal_stage == 'legacy' and quote.status == 'approved' and getattr(quote, 'order', None)
     if not quote.price_approved_at and not legacy_order:
         raise ValidationError('A operação depende da aceitação da proposta pelo cliente.')
+    if technical_gaps(quote):
+        raise ValidationError('Confirme os artigos, descrições e quantidades com a Recepção antes de iniciar a produção.')
     if not readiness(quote)['art_ready']:
         raise ValidationError('Conclua o Studio: publique a versão atual de toda a arte necessária e obtenha a aprovação do cliente antes da produção.')
 

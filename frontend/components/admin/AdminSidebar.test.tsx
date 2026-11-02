@@ -9,7 +9,7 @@ vi.mock('@/lib/auth', () => ({ logout: vi.fn() }));
 describe('Consolidated admin menu', () => {
   it('separates operational workspaces from records and correspondence', () => {
     render(<AdminSidebar user={{ is_staff: true, is_superuser: true } as User} />);
-    expect(screen.getAllByRole('link').slice(1, 5).map((link) => link.textContent)).toEqual(['Recepção', 'Studio · Artes', 'Produção', 'Entregas']);
+    expect(screen.getAllByRole('link').slice(1, 4).map((link) => link.textContent)).toEqual(['Recepção', 'Operações', 'Entregas']);
     expect(screen.getByRole('link', { name: 'Entregas' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Propostas' })).toHaveAttribute('href', '/admin/propostas');
     expect(screen.getByText('Consulta e registos')).toBeInTheDocument();
