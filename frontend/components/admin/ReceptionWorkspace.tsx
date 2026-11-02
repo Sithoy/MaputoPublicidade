@@ -107,7 +107,7 @@ export function ReceptionWorkspace() {
       if (!active) return;
       setQuote(value); setStep(receptionStage(value).index);
       setEditing(editAfterLoad.current && receptionStage(value).index === 1 && canQuoteEdit); editAfterLoad.current = false;
-      if (receptionStage(value).index === 1) enterLoadedProposal(value);
+      if (receptionStage(value).index === 1 && !['review', 'approved', 'sent'].includes(value.proposal_workflow?.stage || 'legacy')) enterLoadedProposal(value);
       if (receptionStage(value).index === 0) {
         const request: ReceptionRequest = await fetchWithAuth(`/api/reception/${encodeURIComponent(reference)}/`);
         if (active) setTriage(request);
@@ -223,7 +223,7 @@ export function ReceptionWorkspace() {
       {current.index === 0 ? <p className="rounded-xl border bg-white p-5">Conclua o briefing antes de preparar a proposta.</p> : closed || quote.price_approved_at || quote.order_reference ? <p className="rounded-xl border bg-white p-5">Esta proposta já não pode ser alterada. Consulte a versão no pedido.</p> : editing ? <fieldset disabled={!lease.editable || lease.pending} className="min-w-0"><RequestForm key={reference} focused embedded initialQuote={quote} reference={reference} onBusyChange={setBusy} onDirtyChange={setDirty} onSaved={proposalSaved} onClose={() => navigate(() => { setEditing(false); void lease.release(); })} /></fieldset> : busy || lease.pending ? <p role="status">A abrir a proposta…</p> : <>
         <p role="status" className="rounded-xl border bg-[#f5f7ee] p-4 text-sm">{lease.session ? `Em edição por ${lease.session.editor_name}. Pode consultar a proposta sem alterar o trabalho em curso.` : !canQuoteEdit ? 'A sua função permite apenas consultar esta proposta.' : 'A proposta está em modo de consulta.'}</p>
         <ProposalReadView quote={quote} />
-        {!lease.session && canQuoteEdit ? <button type="button" onClick={() => void enterProposal(quote)} className="rounded-xl border px-4 py-3 text-sm font-semibold">Tentar novamente</button> : null}
+        {!lease.session && canQuoteEdit ? <button type="button" onClick={() => void enterProposal(quote)} className="rounded-xl border px-4 py-3 text-sm font-semibold">Editar proposta</button> : null}
       </>}
     </section> : focusedClient ? <>{orderHeader}<ClientProposalWorkspace key={`${reference}:${quote.proposal_workflow?.stage}:${quote.proposal_workflow?.version}:${quote.price_approved_at}`} embedded quote={quote} editable={lease.editable && canQuoteEdit} onAcquire={() => void beginEditing()} onChanged={clientChanged} onBack={() => navigate(() => { void enterProposal(quote); })} onMessages={() => openPanel('messages')} onFollowUps={() => openPanel('followups')} onBusyChange={setBusy} onDirtyChange={setDirty} /></> : <>
       {orderHeader}
