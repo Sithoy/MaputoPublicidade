@@ -37,7 +37,7 @@ describe('staff RBAC helpers', () => {
   it('selects a useful landing page for specialised roles', () => {
     expect(
       getDefaultAdminPath(user({ role: 'production', capabilities: ['production.view', 'orders.view'] }))
-    ).toBe('/admin/producao');
+    ).toBe('/admin/operacoes');
     expect(
       getDefaultAdminPath(user({ role: 'content', capabilities: ['catalog.manage'] }))
     ).toBe('/admin/produtos');
@@ -60,6 +60,7 @@ describe('staff RBAC helpers', () => {
     expect(getRequiredCapability('/admin/atendimento/novo')).toBe('intake.create');
     expect(getRequiredCapability('/admin/recepcao')).toBe('reception.manage');
     expect(getRequiredCapability('/admin/studio')).toBe('quotes.artwork');
+    expect(getRequiredCapability('/admin/operacoes')).toBe('production.view');
     expect(getRequiredCapability('/admin/entregas')).toBe('orders.view');
     expect(getRequiredCapability('/admin/propostas')).toBe('quotes.view');
     expect(getRequiredCapability('/admin/definicoes')).toBe('integrations.manage');

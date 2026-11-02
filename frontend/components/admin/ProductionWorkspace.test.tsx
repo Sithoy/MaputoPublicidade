@@ -9,6 +9,18 @@ vi.mock('@/hooks/useAdminAuth', () => ({ useAdminAuth: () => ({ loading: false, 
 const job = { reference: 'MP-0001-2026', client_name: 'Empresa ABC', status: 'approved', order_reference: 'ORD-0001', production_notes: 'Confirmar cores', scheduled_date: null, items: [{ id: 1, description: 'Cartões de visita', quantity: 200, size: '85x55', material: 'Papel mate', colors: 'Verde' }], versions: [] };
 beforeEach(() => { allowed = true; vi.resetAllMocks(); vi.mocked(fetchWithAuth).mockImplementation(async (path) => path === '/api/production/' ? { results: [job], next: null } : job); });
 describe('Production workspace', () => {
+  it('keeps art and production steps in one operational job without financial requests', async () => {
+    const technical = { ...job, operation: { stage: 'studio', label: 'Preparar arte', needs_art: true, art_ready: false, can_start: false }, versions: [] };
+    vi.mocked(fetchWithAuth).mockResolvedValue(technical);
+    render(<ProductionWorkspace workspace="operations" initialReference={job.reference} onClose={vi.fn()} />);
+    expect(await screen.findByLabelText('Mensagem sobre a arte')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Produzir e conferir/ }));
+    expect(screen.getByRole('button', { name: 'Iniciar produção' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar arte e versões →' }));
+    expect(screen.getByLabelText('Mensagem sobre a arte')).toBeInTheDocument();
+    expect(vi.mocked(fetchWithAuth).mock.calls.every(([path]) => path.startsWith('/api/production/'))).toBe(true);
+    expect(screen.getByText('Ficha técnica · Dados financeiros reservados')).toBeInTheDocument();
+  });
   it('keeps artwork editing in Studio and delivery completion in Entregas', async () => {
     const ready = { ...job, status: 'ready', versions: [], operation: { stage: 'delivery', label: 'Pronto', needs_art: true, art_ready: true, can_start: false } };
     vi.mocked(fetchWithAuth).mockImplementation(async (path) => path === '/api/production/' ? { results: [ready], next: null } : ready);

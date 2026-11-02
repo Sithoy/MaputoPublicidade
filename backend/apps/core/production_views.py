@@ -170,6 +170,28 @@ class ProductionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         return Response(job_data(self.get_object()))
 
     @action(detail=False, methods=['get'])
+    def operations(self, request):
+        from .operations_queue import operations_agenda
+
+        rows, counts, updated = operations_agenda(self.get_queryset().filter(
+            order__status__in=['approved', 'in_production', 'ready']))
+        task = request.query_params.get('task', 'all')
+        if task not in counts:
+            raise ValidationError('Filtro de operações inválido.')
+        if task != 'all':
+            rows = [row for row in rows if row['followup']] if task == 'followup' else [row for row in rows if row['task'] == task]
+        search = request.query_params.get('search', '').strip().casefold()[:160]
+        if search:
+            rows = [row for row in rows if search in f"{row['reference']} {row['client_name']} {row['description']}".casefold()]
+        paginator = PageNumberPagination()
+        paginator.page_size = 10
+        page = paginator.paginate_queryset(rows, request, view=self)
+        response = paginator.get_paginated_response(page)
+        response.data.update(overview=counts, updated_at=updated)
+        response['Cache-Control'] = 'private, no-store'
+        return response
+
+    @action(detail=False, methods=['get'])
     def studio(self, request):
         from .studio_queue import studio_agenda
 

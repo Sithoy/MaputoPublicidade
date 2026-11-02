@@ -31,8 +31,7 @@ const navGroups = [
     label: 'Operações',
     items: [
       { href: '/admin/recepcao', label: 'Recepção', icon: Headphones, capability: 'reception.manage' },
-      { href: '/admin/studio', label: 'Studio · Artes', icon: ImageIcon, capability: 'quotes.artwork' },
-      { href: '/admin/producao', label: 'Produção', icon: Factory, capability: 'production.view' },
+      { href: '/admin/operacoes', label: 'Operações', icon: Factory, capability: 'production.view' },
       { href: '/admin/entregas', label: 'Entregas', icon: Truck, capability: 'orders.manage_delivery' },
     ],
   },
@@ -81,6 +80,7 @@ const navGroups = [
 ];
 
 function isActiveRoute(pathname: string, href: string) {
+  if (href === '/admin/operacoes' && ['/admin/studio', '/admin/producao'].some((path) => pathname.startsWith(path))) return true;
   return href === '/admin'
     ? pathname === href
     : pathname === href || pathname.startsWith(`${href}/`);

@@ -6,7 +6,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { getOrder } from '@/lib/admin-api';
 import { orderWorkspaceHref } from '@/lib/admin-workspaces';
 import { hasCapability } from '@/lib/rbac';
-import { ProductionWorkspace } from './ProductionWorkspace';
+import { OperationsHome } from './OperationsHome';
 
 export function ProductionBoundary({ children }: { children: ReactNode }) {
   const { user, loading } = useAdminAuth();
@@ -26,5 +26,5 @@ export function ProductionBoundary({ children }: { children: ReactNode }) {
   }, [loading, user, reference, pathname, router]);
   if (loading) return <p>A carregar…</p>;
   if (user?.role === 'production' && reference) return error ? <p role="alert">{error}</p> : <p>A abrir o trabalho no espaço responsável…</p>;
-  return user?.role === 'production' ? <ProductionWorkspace /> : children;
+  return user?.role === 'production' ? <OperationsHome /> : children;
 }

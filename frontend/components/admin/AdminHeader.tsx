@@ -9,11 +9,10 @@ import { getRoleLabel } from '@/lib/rbac';
 import { PortalNotifications } from '@/components/PortalNotifications';
 
 function getPageTitle(pathname: string) {
+  if (['/admin/operacoes', '/admin/studio', '/admin/producao'].some((path) => pathname.startsWith(path))) return 'Operações';
   if (pathname.startsWith('/admin/monitorizacao')) return 'Monitorização';
   if (pathname.startsWith('/admin/trafego')) return 'Tráfego do website';
   if (pathname.startsWith('/admin/recepcao')) return 'Recepção';
-  if (pathname.startsWith('/admin/studio')) return 'Studio Artes';
-  if (pathname.startsWith('/admin/producao')) return 'Produção';
   if (pathname.startsWith('/admin/entregas')) return 'Entregas';
   if (pathname.startsWith('/admin/propostas')) return 'Propostas';
   if (pathname.startsWith('/admin/definicoes')) return 'Definições';
