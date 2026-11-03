@@ -86,6 +86,7 @@ def test_board_deduplicates_and_keeps_finance_private(staff_client, authenticate
     assert data['counts']['production'] == 1
     assert_no_finance(data)
     assert staff_client.get('/api/workflow/board/?stage=unknown').status_code == 400
+    assert staff_client.get('/api/workflow/board/?column=unknown').status_code == 400
     assert staff_client.get('/api/workflow/board/?page=bad').status_code == 400
     assert authenticated_client.get('/api/workflow/board/').status_code == 403
     assert APIClient().get('/api/workflow/board/').status_code in (401, 403)
@@ -118,3 +119,24 @@ def test_board_counts_are_not_limited_to_first_page_and_standalone_orders_surviv
     assert staff_client.get('/api/workflow/board/?search=Empresa+81').data['count'] == 1
     data = staff_client.get('/api/workflow/board/?stage=production').data
     assert data['results'][0]['order_reference'] == standalone.reference
+
+
+@pytest.mark.django_db
+def test_board_groups_detailed_stages_before_pagination_and_keeps_history_separate(staff_client):
+    QuoteRequest.objects.create(client_name='Briefing')
+    QuoteRequest.objects.create(client_name='Preparação', reception_completed_at=timezone.now())
+    QuoteRequest.objects.create(client_name='Decisão', proposal_stage='sent')
+    Order.objects.create(status='ready', delivery_method='delivery')
+    Order.objects.create(status='delivered')
+    active = staff_client.get('/api/workflow/board/?column=active').data
+    assert active['count'] == 4
+    assert active['column_counts']['proposals'] == 2
+    assert active['column_counts']['ready'] == 1
+    proposals = staff_client.get('/api/workflow/board/?column=proposals').data
+    assert {row['journey']['key'] for row in proposals['results']} == {'proposal', 'client'}
+    assert proposals['count'] == 2
+    ready = staff_client.get('/api/workflow/board/?column=ready').data
+    assert ready['results'][0]['delivery_method'] == 'delivery'
+    history = staff_client.get('/api/workflow/board/?column=completed').data
+    assert history['count'] == 1
+    assert history['results'][0]['journey']['key'] == 'delivered'

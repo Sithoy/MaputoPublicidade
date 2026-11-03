@@ -19,7 +19,7 @@ function getPageTitle(pathname: string) {
   if (pathname.startsWith('/admin/apoio')) return 'Caixa de entrada';
   if (pathname === '/admin') return 'Visão geral';
   if (pathname.startsWith('/admin/atendimento')) return 'Novo pedido';
-  if (pathname.startsWith('/admin/quadro')) return 'Mapa de acompanhamento';
+  if (pathname.startsWith('/admin/quadro')) return 'Quadro de trabalhos';
   if (pathname.startsWith('/admin/encomendas/')) return 'Acompanhamento da produção';
   if (pathname === '/admin/encomendas') return 'Registo de encomendas';
   if (pathname === '/admin/orcamentos/novo') return 'Novo pedido';

@@ -17,8 +17,8 @@ for (const size of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mob
       if (url.pathname.includes('/notifications/unread_count')) return route.fulfill({ json: { count: 0 } });
       if (url.pathname.includes('/notifications/')) return route.fulfill({ json: { results: [] } });
       if (url.pathname.includes('/workflow/board/')) return route.fulfill({ json: { results: [
-        { reference: 'MP-0002-2026', quote_reference: 'MP-0002-2026', client_name: 'Empresa Exemplo', summary: 'Identificação de escritório', journey: { ...journey, key: 'briefing', index: 0, team: 'Recepção', blocker: '', next_action: 'Completar briefing' } },
-        { reference: 'MP-0003-2026', quote_reference: 'MP-0003-2026', client_name: 'Campanha Exemplo', summary: '500 cadernos personalizados', journey: { ...journey, key: 'proposal', index: 1, team: 'Recepção', blocker: '', next_action: 'Preparar e enviar proposta' } },
+        { reference: 'MP-0002-2026', quote_reference: 'MP-0002-2026', client_name: 'Empresa Exemplo', summary: 'Identificação de escritório', journey: { ...journey, key: 'briefing', label: 'Briefing', index: 0, team: 'Recepção', blocker: '', next_action: 'Completar briefing' } },
+        { reference: 'MP-0003-2026', quote_reference: 'MP-0003-2026', client_name: 'Campanha Exemplo', summary: '500 cadernos personalizados', journey: { ...journey, key: 'proposal', label: 'Proposta', index: 1, team: 'Recepção', blocker: '', next_action: 'Preparar e enviar proposta' } },
         { reference: quote.reference, quote_reference: quote.reference, order_reference: quote.order_reference, client_name: quote.client_name, summary: '200 polos', journey },
       ], counts: { briefing: 1, proposal: 1, art_client: 1 }, count: 3, page: 1, page_size: 80, generated_at: '2026-11-02T10:00:00Z' } });
       if (url.pathname.includes('/edit-session/')) return route.fulfill({ json: { session: null } });
@@ -30,8 +30,10 @@ for (const size of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mob
     await expect(page.getByRole('link', { name: /Empresa Horizonte/ })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`workflow-board-${size.name}.png`), fullPage: true });
-    await page.getByLabel('Etapas').selectOption('art_client');
-    await expect(page).toHaveURL(/stage=art_client/);
+    await expect(page.getByRole('region')).toHaveCount(5);
+    await expect(page.getByText('Aguarda aprovação da arte', { exact: true })).toBeVisible();
+    await page.getByLabel('Fase').selectOption('art');
+    await expect(page).toHaveURL(/column=art/);
     await page.getByRole('link', { name: /Empresa Horizonte/ }).click();
     await expect(page.getByRole('button', { name: '5 Aprovação da arte' })).toHaveAttribute('aria-current', 'step');
     await expect(page.getByRole('heading', { name: 'Artes partilhadas com o cliente' })).toBeVisible();
