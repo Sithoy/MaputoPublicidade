@@ -200,7 +200,7 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         return [HasStaffCapability(StaffCapability.MANAGE_RECEPTION)]
 
     def get_queryset(self):
-        if self.action in {"follow_up", "edit_session"}:
+        if self.action in {"follow_up", "edit_session", "resolve_attention"}:
             return open_work(QuoteRequest.objects.all()).select_related("reception_owner")
         queryset = (
             active_requests().select_related("reception_owner").prefetch_related("items__product")
@@ -237,6 +237,18 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         return Response({"scope": scope, "counts": counts, "unassigned_team": unassigned,
                          "updated_at": timezone.now()})
 
+    @action(detail=True, methods=['post'], url_path='resolve-attention')
+    @transaction.atomic
+    def resolve_attention(self, request, reference=None):
+        from .reception_resolution import ResolutionSerializer, resolve
+
+        target = self.get_object()
+        quote = QuoteRequest.objects.select_for_update().get(pk=target.pk)
+        require_edit(quote, request)
+        data = ResolutionSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        return Response(resolve(quote, request.user, data.validated_data))
+
     @action(detail=True, methods=["post"], url_path="follow-up")
     @transaction.atomic
     def follow_up(self, request, reference=None):
@@ -248,12 +260,16 @@ class ReceptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
             raise ValidationError("O pedido já foi encerrado.")
         data = ReceptionFollowUpSerializer(data=request.data)
         data.is_valid(raise_exception=True)
+        previous = f"Seguimento anterior: {quote.reception_follow_up_date or 'não agendado'}; nota: {quote.reception_follow_up_note or '—'}."
+        if quote.reception_follow_up_date and quote.reception_follow_up_date < timezone.localdate():
+            raise ValidationError('Use Resolver pendências para registar o resultado ou motivo de reagendamento deste seguimento em atraso.')
         quote.reception_follow_up_date = data.validated_data["date"]
         quote.reception_follow_up_note = data.validated_data["note"]
         quote.save(update_fields=["reception_follow_up_date", "reception_follow_up_note", "updated_at"])
         record_activity(action="reception_follow_up", actor=request.user, quote=quote, is_internal=True,
-                        comment=f"Seguimento agendado: {quote.reception_follow_up_date}. {quote.reception_follow_up_note}" if quote.reception_follow_up_date else "Seguimento concluído / removido da agenda.")
-        return Response({"date": quote.reception_follow_up_date, "note": quote.reception_follow_up_note})
+                        comment=(f"Seguimento agendado: {quote.reception_follow_up_date}. {quote.reception_follow_up_note}" if quote.reception_follow_up_date else "Seguimento concluído / removido da agenda.") + f" {previous}")
+        from .reception_deadlines import deadline_issues
+        return Response({"date": quote.reception_follow_up_date, "note": quote.reception_follow_up_note, "issues": deadline_issues(quote)})
 
     @action(detail=True, methods=["get", "post"], url_path="edit-session")
     @transaction.atomic

@@ -269,9 +269,11 @@ class OrderViewSet(
 
             quote = QuoteRequest.objects.select_for_update().get(pk=order.quote_id)
             protect_staff_write(quote, request)
+        order = Order.objects.select_for_update().get(pk=order.pk)
         serializer = OrderDeliverySerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        previous_date = order.scheduled_date
 
         update_fields = ["updated_at"]
         for field in [
@@ -295,7 +297,7 @@ class OrderViewSet(
                 f"Entrega agendada para {timezone.localtime(order.scheduled_date):%d/%m/%Y %H:%M}"
                 if order.scheduled_date
                 else "Detalhes de entrega actualizados"
-            ),
+            ) + (f". Compromisso anterior preservado: {previous_date.isoformat() if previous_date else 'não confirmado'}." if previous_date != order.scheduled_date else ''),
         )
         return Response(OrderDetailSerializer(order, context={"request": request}).data)
 

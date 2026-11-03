@@ -7,9 +7,11 @@ import { RefreshCw, Search, ArrowRight } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { fetchWithAuth } from '@/lib/auth';
 import { workflowStages, type JobJourney } from '@/lib/workflow';
+import { AttentionBadges } from './ReceptionAttention';
+import type { AttentionIssue } from '@/lib/reception-workdesk';
 import { requestWorkspaceHref } from '@/lib/admin-workspaces';
 
-type Card = { reference: string; quote_reference: string | null; order_reference: string | null; client_name: string; summary: string; journey: JobJourney; scheduled_date: string | null; follow_up_date: string | null };
+type Card = { issues?: AttentionIssue[]; reference: string; quote_reference: string | null; order_reference: string | null; client_name: string; summary: string; journey: JobJourney; scheduled_date: string | null; follow_up_date: string | null };
 type Snapshot = { results: Card[]; counts: Record<string, number>; count: number; page: number; page_size: number; generated_at: string };
 
 export function WorkflowBoard() {
@@ -70,7 +72,7 @@ export function WorkflowBoard() {
         <header className="flex items-center justify-between gap-3 border-b p-4"><h2 className="text-sm font-semibold text-brand-900">{column.shortLabel}</h2><span className="text-xs tabular-nums text-slate-500">{cards.length} / {data.counts[column.key] || 0}</span></header>
         <div className="space-y-3 p-3">{cards.length ? cards.map((card) => <Link key={card.reference} href={href(card)} className="block rounded-xl border bg-white p-4 shadow-sm hover:border-brand-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700">
           <p className="text-[10px] font-semibold tracking-wide text-brand-700">{card.reference}</p><h3 className="mt-2 break-words font-semibold text-brand-900">{card.client_name}</h3><p className="mt-1 line-clamp-2 text-xs text-slate-500">{card.summary}</p>
-          <p className="mt-3 text-xs font-medium text-brand-800">{card.journey.team} · {card.journey.next_action}</p>{card.journey.blocker ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{card.journey.blocker}</p> : null}
+          <AttentionBadges issues={card.issues} /><p className="mt-3 text-xs font-medium text-brand-800">{card.journey.team} · {card.journey.next_action}</p>{card.journey.blocker ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{card.journey.blocker}</p> : null}
           {card.scheduled_date ? <p className="mt-3 text-xs text-slate-500">Entrega: {new Date(card.scheduled_date).toLocaleDateString('pt-MZ', { timeZone: 'Africa/Maputo' })}</p> : null}{card.follow_up_date ? <p className="mt-1 text-xs text-slate-500">Seguimento: {card.follow_up_date}</p> : null}<span className="mt-3 flex items-center justify-end gap-1 text-xs font-semibold text-brand-800">Abrir trabalho<ArrowRight aria-hidden="true" className="h-3 w-3" /></span>
         </Link>) : <p className="rounded-xl border border-dashed p-5 text-center text-xs text-slate-500">{data.counts[column.key] ? 'Trabalhos noutra página. Filtre esta etapa.' : 'Sem trabalhos nesta etapa'}</p>}</div>
       </section>;

@@ -7,7 +7,7 @@ import { receptionStage } from '@/lib/operational-workflow';
 import { ReceptionProgress } from './ReceptionProgress';
 import { maputoToday } from '@/lib/reception-workdesk';
 
-export type ReceptionTab = 'summary' | 'work' | 'proposal' | 'messages' | 'history' | 'followups';
+export type ReceptionTab = 'summary' | 'work' | 'proposal' | 'messages' | 'history' | 'followups' | 'attention';
 export function ReceptionOrderHeader({ quote, step, tab, busy, onStep, onTab, onAction, children, editControls, focused = false }: {
   quote: AdminQuote; step: number; tab: ReceptionTab; busy: boolean;
   onStep: (value: number) => void; onTab: (value: ReceptionTab) => void; onAction: () => void;

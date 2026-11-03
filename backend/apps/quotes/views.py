@@ -584,9 +584,15 @@ class QuoteRequestViewSet(
                 quote.save(update_fields=['proposal_history', 'updated_at'])
             elif command == 'follow_up':
                 from .proposal_workflow import event
-                quote.reception_follow_up_date = serializers.DateField(allow_null=True).run_validation(request.data.get('date'))
+                previous = f"Seguimento anterior: {quote.reception_follow_up_date or 'não agendado'}; nota: {quote.reception_follow_up_note or '—'}."
+                if quote.reception_follow_up_date and quote.reception_follow_up_date < timezone.localdate():
+                    raise ValidationError('Use Resolver pendências para registar o resultado ou reagendamento deste seguimento em atraso.')
+                next_date = serializers.DateField(allow_null=True).run_validation(request.data.get('date'))
+                if next_date and next_date < timezone.localdate():
+                    raise ValidationError('Escolha hoje ou uma data futura.')
+                quote.reception_follow_up_date = next_date
                 quote.reception_follow_up_note = serializers.CharField(max_length=500, allow_blank=True).run_validation(request.data.get('comment', ''))
-                event(quote, request.user, 'Seguimento do cliente agendado', f'{quote.reception_follow_up_date or "Sem data"}: {quote.reception_follow_up_note}')
+                event(quote, request.user, 'Seguimento do cliente agendado', f'{quote.reception_follow_up_date or "Sem data"}: {quote.reception_follow_up_note}. {previous}')
                 quote.save(update_fields=['reception_follow_up_date', 'reception_follow_up_note', 'proposal_history', 'updated_at'])
             elif command == 'phone':
                 values = DecisionInput(data={**request.data, 'action': request.data.get('decision')})

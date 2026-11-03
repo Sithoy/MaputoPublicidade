@@ -1,10 +1,14 @@
 export type ReceptionWorkdesk = {
+  issues?: AttentionIssue[];
+  risk_window_hours?: number;
   edit_session?: import('@/hooks/useReceptionEdit').EditSession | null;
   stage_label: string; next_action: string; blocker: string; waiting_since: string | null;
   owner_id: number | null; owner_name: string;
   requested_date: string | null; confirmed_date: string | null;
   follow_up_date: string | null; follow_up_note: string; last_contact_at: string | null;
 };
+
+export type AttentionIssue = { code: string; kind: 'expired' | 'overdue' | 'risk'; label: string; due: string };
 
 export function maputoToday(now = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Maputo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);

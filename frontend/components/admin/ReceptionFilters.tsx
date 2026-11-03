@@ -4,7 +4,7 @@ import { RefreshCw, Search } from 'lucide-react';
 import { taskLabels } from './ReceptionOverview';
 
 const stages = ['all', 'new', 'briefing', 'proposal', 'send', 'client', 'handover', 'production', 'delivery', 'urgent', 'followup', 'delivery_today'];
-const shortcuts = [['all', 'Todos'], ['today', 'Hoje'], ['overdue', 'Por resolver'], ['messages', 'Por responder']];
+const shortcuts = [['all', 'Todos'], ['today', 'Hoje'], ['expired', 'Propostas expiradas'], ['overdue', 'Em atraso'], ['at_risk', 'Em risco'], ['messages', 'Por responder']];
 export function ReceptionFilters({ search, state, task, busy, dirty, onSearch, onState, onTask, onRefresh }: {
   search: string; state: string; task: string; busy: boolean; dirty: boolean;
   onSearch: (value: string) => void; onState: (value: string) => void; onTask: (value: string) => void; onRefresh: () => void;
