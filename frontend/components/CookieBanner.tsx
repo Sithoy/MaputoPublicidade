@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { OPEN_PRIVACY_PREFERENCES } from '@/components/PrivacyPreferencesButton';
 import { disableAllMeasurement, setAnalyticsConsent, TRAFFIC_AGGREGATE, TRAFFIC_CONSENT } from '@/lib/website-traffic';
 
 export function CookieBanner() {
@@ -11,6 +12,8 @@ export function CookieBanner() {
   const [choice, setChoice] = useState<'all' | 'basic' | 'none'>('basic');
 
   useEffect(() => {
+    const openPreferences = () => { setCustomizing(true); setVisible(true); };
+    window.addEventListener(OPEN_PRIVACY_PREFERENCES, openPreferences);
     try {
       const consent = localStorage.getItem(TRAFFIC_CONSENT);
       const aggregate = localStorage.getItem(TRAFFIC_AGGREGATE);
@@ -21,6 +24,7 @@ export function CookieBanner() {
     } catch {
       setVisible(true);
     }
+    return () => window.removeEventListener(OPEN_PRIVACY_PREFERENCES, openPreferences);
   }, []);
 
   const choose = (selected: typeof choice) => {
@@ -31,7 +35,7 @@ export function CookieBanner() {
     setVisible(false);
   };
 
-  if (!visible) return <div className="bg-brand-950 py-3 text-center"><button type="button" onClick={() => { setCustomizing(true); setVisible(true); }} className="text-xs text-white/80 underline">Preferências de privacidade</button></div>;
+  if (!visible) return null;
 
   return (
     <>

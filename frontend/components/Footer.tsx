@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { Facebook, Instagram, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { mainServices } from '@/lib/service-catalog';
 import { companyProfile, mailtoHref, whatsappHref as buildWhatsappHref } from '@/lib/company';
+import { PrivacyPreferencesButton } from '@/components/PrivacyPreferencesButton';
 
 const WHATSAPP_MESSAGE = 'Olá! Vi o site da Maputo Publicidade e gostaria de falar sobre um projeto.';
 
@@ -106,10 +107,11 @@ export function Footer() {
 
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 text-xs text-gray-400 md:flex-row">
           <p>© {new Date().getFullYear()} Maputo Publicidade e Serviços Lda. Todos os direitos reservados.</p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-3 md:justify-end">
             <Link href="/termos" className="hover:text-white">Termos de Uso</Link>
             <Link href="/privacidade" className="hover:text-white">Privacidade</Link>
             <Link href="/politica-cookies" className="hover:text-white">Cookies</Link>
+            <PrivacyPreferencesButton />
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from apps.assets.artwork_library import SaveApprovedArtwork
 
 from .email_connection import EmailSettingsView, EmailTestView
+from .management_overview import ManagementOverview
 from .notification_views import PortalNotificationViewSet
 from .observability import MonitoringReport
 from .production_views import AuthenticatedArtFile, ProductionViewSet, PublicArtReview
@@ -37,6 +38,7 @@ router.register(
 router.register("reception", ReceptionViewSet, basename="reception")
 router.register("production", ProductionViewSet, basename="production")
 urlpatterns = [
+    path('management/overview/', ManagementOverview.as_view(), name='management-overview'),
     path('workflow/board/', WorkflowBoard.as_view(), name='workflow-board'),
     path('observability/report/', MonitoringReport.as_view(), name='observability-report'),
     path('website-traffic/events/', CollectTraffic.as_view(), name='traffic-collect'),

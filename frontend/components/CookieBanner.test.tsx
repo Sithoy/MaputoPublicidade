@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CookieBanner } from './CookieBanner';
+import { Footer } from './Footer';
 import { aggregateAllowed, analyticsAllowed, setAnalyticsConsent, TRAFFIC_AGGREGATE, TRAFFIC_CONSENT } from '@/lib/website-traffic';
 
 beforeEach(() => { setAnalyticsConsent(false); localStorage.clear(); sessionStorage.clear(); });
@@ -33,7 +34,7 @@ it('allows an existing analytics consent to be withdrawn', () => {
   localStorage.setItem(TRAFFIC_AGGREGATE, 'enabled');
   localStorage.setItem('mp_analytics_visitor_v1', 'fixture');
   sessionStorage.setItem('mp_analytics_session_v1', 'fixture');
-  render(<CookieBanner />);
+  render(<><Footer /><CookieBanner /></>);
   fireEvent.click(screen.getByRole('button', { name: 'Preferências de privacidade' }));
   fireEvent.click(screen.getByRole('button', { name: /^Rejeitar$/ }));
   expect(localStorage.getItem('mp_analytics_visitor_v1')).toBeNull();
@@ -66,9 +67,14 @@ it.each([
 
 it('keeps saved choices on later visits and opens them directly from the footer', () => {
   setAnalyticsConsent(false);
-  render(<CookieBanner />);
+  render(<><Footer /><CookieBanner /></>);
   expect(screen.queryByRole('heading', { name: 'Cookies e privacidade' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Preferências de privacidade' }));
+  const footer = screen.getByRole('contentinfo');
+  const preferences = within(footer).getByRole('button', { name: 'Preferências de privacidade' });
+  expect(screen.getAllByRole('button', { name: 'Preferências de privacidade' })).toHaveLength(1);
+  expect(within(footer).getByRole('link', { name: 'Cookies' }).parentElement).toBe(preferences.parentElement);
+  expect(preferences).toHaveClass('text-gray-300');
+  fireEvent.click(preferences);
   expect(screen.getByRole('radio', { name: /Só estatísticas anónimas/ })).toBeChecked();
   fireEvent.click(screen.getByRole('radio', { name: /Permitir todas/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Saiba mais' }));
