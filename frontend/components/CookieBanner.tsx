@@ -40,17 +40,18 @@ export function CookieBanner() {
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-8">
           <div className="min-w-0 flex-1">
             <h2 id="cookie-banner-title" className="text-base font-semibold text-brand-950">Cookies e privacidade</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Usamos cookies e tecnologias semelhantes para o site funcionar. Com a sua autorização, recolhemos também estatísticas detalhadas para melhorar a sua experiência.{' '}<Link href="/politica-cookies" className="font-medium text-brand-800 underline underline-offset-2">Saiba mais</Link>.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Usamos cookies essenciais para o site funcionar e, com a sua autorização, estatísticas para melhorar a sua experiência.</p>
+            <button type="button" onClick={() => setCustomizing((value) => !value)} aria-expanded={customizing} aria-controls={customizing ? 'cookie-preferences' : undefined} className="mt-1 min-h-11 text-sm font-medium text-brand-800 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-800">Saiba mais</button>
           </div>
           <div className="w-full shrink-0 space-y-3 md:w-80">
             <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
-              <Button variant="outline" onClick={() => choose('all')} className="min-h-11 border-brand-800 text-sm text-brand-950">Aceitar todos</Button>
-              <Button variant="outline" onClick={() => choose('none')} className="min-h-11 border-brand-800 text-sm text-brand-950">Rejeitar opcionais</Button>
+              <Button variant="outline" onClick={() => choose('all')} className="min-h-11 border-brand-800 text-sm text-brand-950">Aceitar</Button>
+              <Button variant="outline" onClick={() => choose('none')} className="min-h-11 border-brand-800 text-sm text-brand-950">Rejeitar</Button>
             </div>
-            <button type="button" onClick={() => setCustomizing((value) => !value)} aria-expanded={customizing} aria-controls={customizing ? 'cookie-preferences' : undefined} className="min-h-11 w-full text-sm font-medium text-brand-800 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-800">{customizing ? 'Fechar preferências' : 'Personalizar'}</button>
           </div>
         </div>
         {customizing ? <div id="cookie-preferences" className="mt-5 border-t border-[#ecebe2] pt-5">
+          <h3 className="mb-2 text-sm font-semibold text-brand-950">Personalizar preferências</h3>
           <p className="text-sm text-slate-600">Essenciais: sempre ativos para permitir a navegação e guardar a sua escolha. Os serviços continuam disponíveis com qualquer opção.</p>
           <fieldset className="mt-4 space-y-2">
             <legend className="mb-3 text-sm font-semibold text-brand-950">Estatísticas do website</legend>
@@ -66,6 +67,7 @@ export function CookieBanner() {
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button onClick={() => choose(choice)} className="min-h-11 text-sm">Guardar preferências</Button>
             <Link href="/privacidade" className="text-sm text-brand-800 underline underline-offset-2">Política de Privacidade</Link>
+            <Link href="/politica-cookies" className="text-sm text-brand-800 underline underline-offset-2">Política de Cookies</Link>
           </div>
         </div> : null}
       </section>
