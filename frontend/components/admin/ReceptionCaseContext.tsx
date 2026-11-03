@@ -3,12 +3,12 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import type { AdminQuote } from '@/lib/admin-api';
 import { fetchWithAuth } from '@/lib/auth';
-import { deskDate, maputoToday, waitingTime } from '@/lib/reception-workdesk';
+import { deskDate, maputoToday, waitingTime, type AttentionIssue } from '@/lib/reception-workdesk';
 import { receptionStage } from '@/lib/operational-workflow';
 
 export function ReceptionCaseContext({ quote, canSchedule, busy, onBusy, onSaved, onDirty, nextAction, compact = false, followUpsOnly = false }: {
   quote: AdminQuote; canSchedule: boolean; busy: boolean;
-  onBusy: (value: boolean) => void; onSaved: (value: { date: string | null; note: string }) => void; onDirty: (value: boolean) => void;
+  onBusy: (value: boolean) => void; onSaved: (value: { date: string | null; note: string; issues?: AttentionIssue[] }) => void; onDirty: (value: boolean) => void;
   nextAction?: ReactNode; compact?: boolean; followUpsOnly?: boolean;
 }) {
   const context = quote.workdesk;
@@ -21,7 +21,7 @@ export function ReceptionCaseContext({ quote, canSchedule, busy, onBusy, onSaved
     if (busy || !canSchedule) return;
     onBusy(true); setError(''); setNotice('');
     try {
-      const value: { date: string | null; note: string } = await fetchWithAuth(`/api/reception/${encodeURIComponent(quote.reference)}/follow-up/`, {
+      const value: { date: string | null; note: string; issues?: AttentionIssue[] } = await fetchWithAuth(`/api/reception/${encodeURIComponent(quote.reference)}/follow-up/`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date: clear ? null : date || null, note: clear ? '' : note }),
       });

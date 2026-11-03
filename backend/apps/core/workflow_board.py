@@ -10,6 +10,7 @@ from apps.quotes.models import ArtworkProofVersion, QuoteRequest
 
 from .job_workflow import STAGES, job_journey
 from .permissions import HasStaffCapability
+from .reception_deadlines import deadline_issues
 
 
 class WorkflowBoard(APIView):
@@ -35,6 +36,7 @@ class WorkflowBoard(APIView):
                 'client_name': quote.client_company or quote.client_name,
                 'summary': items[0].description if items else 'Necessidade por confirmar',
                 'journey': journey, 'scheduled_date': order.scheduled_date if order else None,
+                'issues': deadline_issues(quote, order, include_followup=commercial),
                 'follow_up_date': quote.reception_follow_up_date if commercial else None,
                 'updated_at': quote.updated_at})
         for order in Order.objects.filter(quote__isnull=True).exclude(status='cancelled').prefetch_related('items').select_related('user').order_by('-updated_at', '-pk'):
@@ -44,6 +46,7 @@ class WorkflowBoard(APIView):
             rows.append({'reference': order.reference, 'quote_reference': None,
                 'order_reference': order.reference, 'client_name': order.client_name_display,
                 'summary': items[0].description if items else 'Encomenda', 'journey': job_journey(order=order),
+                'issues': deadline_issues(order=order, include_followup=False),
                 'scheduled_date': order.scheduled_date, 'follow_up_date': None, 'updated_at': order.updated_at})
         search = request.query_params.get('search', '').strip().casefold()[:160]
         if search:

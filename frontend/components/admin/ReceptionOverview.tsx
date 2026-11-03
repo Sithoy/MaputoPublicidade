@@ -7,13 +7,14 @@ export const taskLabels: Record<string, string> = {
   all: 'Todos os trabalhos', new: 'Novos pedidos', briefing: 'Completar briefing', proposal: 'Preparar / corrigir proposta',
   send: 'Prontas para enviar', delivery: 'Coordenar entrega', review: 'Propostas guardadas (fluxo anterior)', client: 'Com o cliente',
   production: 'Com Operações · Arte e produção', handover: 'Confirmar ordem de produção', messages: 'Conversas por responder',
-  urgent: 'Pedidos urgentes', overdue: 'Compromissos de dias anteriores', today: 'Agenda de hoje',
+  urgent: 'Pedidos urgentes', overdue: 'Compromissos em atraso', today: 'Agenda de hoje',
+  expired: 'Propostas expiradas', at_risk: 'Pedidos em risco',
   followup: 'Seguimentos para hoje ou em atraso', delivery_today: 'Entregas / levantamentos de hoje',
 };
 
 const sections = [
   { title: 'Agora', question: 'O que precisa da minha atenção?', icon: Zap,
-    tasks: [ ['new', 'Novos pedidos'], ['overdue', 'Compromissos por resolver'], ['messages', 'Conversas por responder'],
+    tasks: [ ['new', 'Novos pedidos'], ['expired', 'Propostas expiradas'], ['overdue', 'Compromissos por resolver'], ['at_risk', 'Pedidos em risco'], ['messages', 'Conversas por responder'],
       ['briefing', 'Briefings por completar'], ['proposal', 'Propostas por preparar / corrigir'], ['send', 'Propostas prontas para enviar'] ] },
   { title: 'Dia da recepção', question: 'O que temos marcado para hoje?', icon: CalendarDays,
     tasks: [ ['today', 'Pedidos com compromisso hoje'], ['followup', 'Seguimentos a fazer'], ['delivery_today', 'Entregas / levantamentos hoje'] ] },

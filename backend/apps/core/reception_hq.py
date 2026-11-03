@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .models import SupportMessage
 from .reception_briefing import reception_briefing
+from .reception_deadlines import deadline_filters, deadline_issues, risk_hours
 from .reception_lease import lease_state
 
 
@@ -20,11 +21,11 @@ def task_filters():
     triage = Q(reception_completed_at__isnull=True, proposal_prepared_by__isnull=True,
                status__in=["received", "reviewing"], proposal_stage__in=["legacy", "draft"])
     return {
+        **deadline_filters(),
         "urgent": Q(urgency="urgent"),
         "today": Q(order__scheduled_date__date=today) | Q(reception_follow_up_date=today),
         "followup": Q(reception_follow_up_date__lte=today),
         "delivery_today": Q(order__scheduled_date__date=today),
-        "overdue": Q(order__scheduled_date__date__lt=today) | Q(reception_follow_up_date__lt=today),
         "unassigned": Q(reception_owner__isnull=True),
         "new": before_order & triage & Q(status="received"),
         "briefing": before_order & triage,
@@ -41,6 +42,8 @@ def task_filters():
 def prioritize(queryset):
     return queryset.annotate(_hq_priority=Case(
         When(task_filters()["overdue"], then=Value(-1)),
+        When(task_filters()["expired"], then=Value(-1)),
+        When(task_filters()["at_risk"], then=Value(0)),
         When(urgency="urgent", then=Value(0)),
         When(proposal_stage="returned", then=Value(1)),
         When(order__status="ready", then=Value(2)),
@@ -86,9 +89,15 @@ def workdesk_context(quote):
     else:
         label = "Novo pedido" if quote.status == "received" else "Em triagem"
         action = "Completar briefing"
+    issues = deadline_issues(quote, order)
+    if any(issue['kind'] == 'expired' for issue in issues):
+        action = 'Rever proposta expirada'
+    elif any(issue['kind'] == 'overdue' for issue in issues):
+        action = 'Resolver compromisso em atraso'
     contacts = [value for value in [getattr(quote, "hq_last_message_at", None), quote.proposal_sent_at] if value]
     return {
         "edit_session": lease_state(quote),
+        "issues": issues, "risk_window_hours": risk_hours(),
         "stage_label": label, "next_action": action, "blocker": blocker,
         "waiting_since": waiting_since,
         "owner_id": quote.reception_owner_id,

@@ -44,14 +44,14 @@ class TestReception:
         follow = QuoteRequest.objects.create(client_name="Follow up", reception_owner=staff_user, reception_follow_up_date=today)
         late = QuoteRequest.objects.create(client_name="Late", reception_owner=staff_user, reception_follow_up_date=today - timedelta(days=1))
         scheduled = QuoteRequest.objects.create(client_name="Delivery", reception_owner=staff_user)
-        Order.objects.create(user=client_user, quote=scheduled, status="ready", scheduled_date=timezone.now())
+        Order.objects.create(user=client_user, quote=scheduled, status="ready", scheduled_date=timezone.now() - timedelta(minutes=1))
         QuoteRequest.objects.create(client_name="Wish", reception_owner=staff_user, reception_briefing={"deadline": (today - timedelta(days=2)).isoformat()})
         QuoteRequest.objects.create(client_name="Other owner", reception_follow_up_date=today)
         closed = QuoteRequest.objects.create(client_name="Closed", reception_owner=staff_user, reception_follow_up_date=today, status="delivered")
         summary = reception_api.get(BASE + "hq/", {"scope": "mine"}).data["counts"]
         assert summary["today"] == 2
         assert summary["followup"] == 2
-        assert summary["overdue"] == 1
+        assert summary["overdue"] == 2  # confirmed times earlier today are overdue too
         assert summary["delivery_today"] == 1
         for task in ["today", "followup", "overdue", "delivery_today"]:
             page = reception_api.get("/api/quotes/", {"hq": "1", "proposal_queue": "mine", "task": task}).data

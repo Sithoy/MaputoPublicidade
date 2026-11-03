@@ -8,6 +8,8 @@ import { fetchWithAuth } from '@/lib/auth';
 import { getQuote, convertQuoteToOrder, type AdminQuote } from '@/lib/admin-api';
 import type { ReceptionRequest } from '@/lib/reception-api';
 import { receptionStage } from '@/lib/operational-workflow';
+import { ReceptionAttention, AttentionBadges } from './ReceptionAttention';
+import type { AttentionIssue } from '@/lib/reception-workdesk';
 import { ReceptionQueue, type QueueQuote } from './ReceptionQueue';
 import { ReceptionFilters } from './ReceptionFilters';
 import { ReceptionPagination } from './ReceptionPagination';
@@ -58,7 +60,7 @@ export function ReceptionWorkspace() {
   const [step, setStep] = useState(0);
   const [panel, setPanel] = useState<ReceptionTab | null>(null);
   const [panelDirty, setPanelDirty] = useState(false);
-  const [followUpOverride, setFollowUpOverride] = useState<{ reference: string; date: string | null; note: string } | null>(null);
+  const [followUpOverride, setFollowUpOverride] = useState<{ reference: string; date: string | null; note: string; issues?: AttentionIssue[] } | null>(null);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
   const [followUpDirty, setFollowUpDirty] = useState(false);
@@ -149,7 +151,7 @@ export function ReceptionWorkspace() {
   const closed = quote?.status === 'cancelled' || quote?.status === 'delivered' || ['cancelled', 'delivered'].includes(quote?.operational_order_status || '');
   const focusedProposal = Boolean(quote && step === 1);
   const focusedClient = Boolean(quote && step === 2);
-  const contextQuote = quote && followUpOverride?.reference === quote.reference && quote.workdesk ? { ...quote, workdesk: { ...quote.workdesk, follow_up_date: followUpOverride.date, follow_up_note: followUpOverride.note } } : quote;
+  const contextQuote = quote && followUpOverride?.reference === quote.reference && quote.workdesk ? { ...quote, workdesk: { ...quote.workdesk, follow_up_date: followUpOverride.date, follow_up_note: followUpOverride.note, issues: followUpOverride.issues ?? quote.workdesk.issues } } : quote;
   async function enterProposal(value: AdminQuote, resumeOwn = false) {
     setStep(1); setEditing(false);
     if (!canQuoteEdit || value.price_approved_at || value.order_reference || ['cancelled', 'delivered'].includes(value.status) || receptionStage(value).index === 0) return;
@@ -203,6 +205,7 @@ export function ReceptionWorkspace() {
     onStep={(index) => navigate(() => { if (index === 1) { void enterProposal(quote); return; } if (index >= 3) void lease.release(); setStep(index); })}
     onTab={openPanel}
     onAction={() => { if (closed) openPanel('history'); else navigate(() => setStep(current.index)); }}>
+    {() => (contextQuote || quote).workdesk?.issues?.length ? <section aria-label="Pendências deste pedido" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3"><div><AttentionBadges issues={(contextQuote || quote).workdesk?.issues} /><p className="mt-2 text-xs text-slate-600">{(contextQuote || quote).workdesk?.issues?.[0]?.label}</p></div><button type="button" disabled={busy || lease.pending} onClick={() => navigate(() => setPanel('attention'))} className="min-h-11 rounded-xl bg-brand-900 px-4 text-xs font-semibold text-white disabled:opacity-50">Resolver pendências</button></section> : null}
   </ReceptionOrderHeader> : null;
   return <div className="desk-hq space-y-6">{!detailOpen ? <header className="desk-toolbar flex flex-wrap items-center justify-between gap-3 border-b pb-4"><div><p className="text-xs uppercase tracking-widest text-brand-700">Recepção · Caixa partilhada</p><p className="mt-1 text-xs text-slate-500">Uma fila para toda a equipa. Cada ação fica registada por quem a realizou.</p></div><div className="flex gap-2">{!detailOpen ? <button type="button" onClick={() => setShowOverview(!showOverview)} aria-expanded={showOverview} className="flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm"><LayoutDashboard className="h-4 w-4" />Agenda do dia</button> : null}<button disabled={busy || lease.pending} type="button" onClick={() => navigate(() => { setInbox(false); setNewRequest(true); setReference(''); })} className="desk-primary flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" />Novo atendimento</button></div></header> : null}
     {hqError ? <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{hqError}</p> : null}
@@ -233,14 +236,14 @@ export function ReceptionWorkspace() {
         {step >= 3 ? quote.order_reference ? <ReceptionOperationPanel quote={quote} step={step} canOperate={can('production.view')} /> : quote.price_approved_at && can('orders.manage_status') ? <button type="button" disabled={busy} onClick={createOrder} className="rounded-xl bg-brand-800 px-5 py-3 text-white">Criar ordem de produção</button> : <p className="rounded-xl border bg-white p-5">A ordem operacional estará disponível após a aceitação do cliente.</p> : null}
       </div></fieldset></>}</section></>}
     </section>
-    {panel && quote ? <ReceptionContextPanel title={{ summary: 'Resumo', messages: 'Mensagens', history: 'Registos', followups: 'Seguimentos', proposal: 'Documento da proposta', work: 'Etapa' }[panel]} reference={quote.reference} onClose={() => openPanel(null)}>
+    {panel && quote ? <ReceptionContextPanel title={{ summary: 'Resumo', messages: 'Mensagens', history: 'Registos', followups: 'Seguimentos', proposal: 'Documento da proposta', work: 'Etapa', attention: 'Resolver pendências' }[panel]} reference={quote.reference} onClose={() => openPanel(null)}>
       {panel === 'summary' ? <>
         <ReceptionCaseContext quote={contextQuote || quote} compact canSchedule={false} busy={busy} onBusy={setBusy} onSaved={() => {}} onDirty={() => {}} />
         <ReceptionOrderSummary quote={quote} />
         <ClientProposalWorkspace quote={quote} summary editable={false} onAcquire={() => {}} onChanged={() => {}} onBack={() => {}} onMessages={() => openPanel('messages')} />
         <button type="button" onClick={() => openPanel('proposal')} className="desk-primary rounded-xl px-4 py-3 text-sm font-semibold text-white">Ver documento da proposta</button>
         <QuoteRequestEvidence quote={quote} />
-      </> : panel === 'proposal' ? <><button type="button" onClick={() => openPanel('summary')} className="text-sm font-semibold text-brand-800">Voltar ao resumo</button><ProposalReadView quote={quote} /></> : panel === 'messages' ? can('support.manage') ? <Suspense fallback={<p>A carregar mensagens…</p>}><CommunicationWorkspace key={reference} quoteReference={reference} onDirtyChange={setPanelDirty} onBusyChange={setBusy} /></Suspense> : <p>Sem permissão para consultar mensagens.</p> : panel === 'history' ? <ActivityTimeline events={quote.activity || []} /> : panel === 'followups' ? <ReceptionCaseContext key={`${reference}:${followUpReset}`} quote={contextQuote || quote} followUpsOnly canSchedule={!closed && lease.editable} busy={busy || lease.pending} onBusy={setBusy} onDirty={setFollowUpDirty} onSaved={(value) => {
+      </> : panel === 'proposal' ? <><button type="button" onClick={() => openPanel('summary')} className="text-sm font-semibold text-brand-800">Voltar ao resumo</button><ProposalReadView quote={quote} /></> : panel === 'messages' ? can('support.manage') ? <Suspense fallback={<p>A carregar mensagens…</p>}><CommunicationWorkspace key={reference} quoteReference={reference} onDirtyChange={setPanelDirty} onBusyChange={setBusy} /></Suspense> : <p>Sem permissão para consultar mensagens.</p> : panel === 'history' ? <ActivityTimeline events={quote.activity || []} /> : panel === 'attention' ? <ReceptionAttention key={reference} quote={contextQuote || quote} editable={lease.editable} canRevise={canQuoteEdit} reservationError={lease.error} busy={busy || lease.pending} onAcquire={() => void lease.acquire()} onBusy={setBusy} onDirty={setPanelDirty} onResolved={() => { setPanelDirty(false); setFollowUpOverride(null); setPanel(null); clientChanged(); }} /> : panel === 'followups' ? <ReceptionCaseContext key={`${reference}:${followUpReset}`} quote={contextQuote || quote} followUpsOnly canSchedule={!closed && lease.editable} busy={busy || lease.pending} onBusy={setBusy} onDirty={setFollowUpDirty} onSaved={(value) => {
         setFollowUpDirty(false);
         setFollowUpOverride({ reference: quote.reference, ...value });
         setAgendaTick((previous) => previous + 1);

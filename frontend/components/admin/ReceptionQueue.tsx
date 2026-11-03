@@ -4,6 +4,7 @@ import { ChevronRight, LockKeyhole } from 'lucide-react';
 import type { AdminQuote } from '@/lib/admin-api';
 import { deskDate } from '@/lib/reception-workdesk';
 import { receptionStage, receptionSteps } from '@/lib/operational-workflow';
+import { AttentionBadges } from './ReceptionAttention';
 import { taskLabels } from './ReceptionOverview';
 
 export type QueueQuote = AdminQuote & { owner_name?: string; job_summary?: string; reception_completed_at?: string | null };
@@ -47,7 +48,7 @@ export function ReceptionQueue({ rows, count, loading, busy, task, onOpen }: {
                 {row.urgency === 'urgent' ? <span aria-hidden="true" className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-amber-500" /> : null}
                 <p className="line-clamp-1 text-sm font-semibold text-brand-900" title={client}>{client}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
-                  <span className="tabular-nums">{row.reference}</span>
+                  <span className="tabular-nums">{row.reference}</span><AttentionBadges issues={desk?.issues} />
                   {row.urgency === 'urgent' ? <span className="font-semibold text-amber-800">Urgente</span> : null}
                 </div>
               </td>
