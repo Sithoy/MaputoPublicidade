@@ -23,6 +23,20 @@ beforeEach(() => {
   vi.mocked(getQuote).mockResolvedValue(quote as never);
 });
 describe('Reception workspace', () => {
+  it('opens completed briefings as stage records without reserving an edit', async () => {
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    await screen.findByRole('region', { name: 'Consulta da proposta' });
+    auth.acquire.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /1 Atendimento e briefing/ }));
+    expect(await screen.findByRole('region', { name: 'Registo da etapa' })).toHaveTextContent('Briefing encaminhado');
+    expect(screen.queryByRole('button', { name: 'Concluir triagem' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Editar briefing' })).not.toBeInTheDocument();
+    expect(auth.acquire).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar à etapa atual →' }));
+    expect(await screen.findByRole('region', { name: 'Consulta da proposta' })).toBeInTheDocument();
+  });
+
   it('automatically enables client work without resetting a saved proposal to its previous stage', async () => {
     auth.editable = false;
     auth.acquire.mockImplementation(async () => { auth.editable = true; return true; });
