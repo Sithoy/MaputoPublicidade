@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchSession, getToken, removeToken, SessionError } from '@/lib/auth';
 import type { User } from '@/lib/api';
+import { brandDeskLoginPath } from '@/lib/branddesk-review';
 
 type UseClientAuthOptions = {
   enabled?: boolean;
@@ -16,6 +17,7 @@ export function useClientAuth({ enabled = true }: UseClientAuthOptions = {}) {
   const [error, setError] = useState('');
 
   const checkSession = useCallback(() => {
+    const loginPath = () => brandDeskLoginPath(window.location.pathname + window.location.hash);
     if (!enabled) {
       setUser(null);
       setLoading(false);
@@ -27,7 +29,7 @@ export function useClientAuth({ enabled = true }: UseClientAuthOptions = {}) {
 
     if (!getToken()) {
       removeToken();
-      router.replace('/area-cliente/login');
+      router.replace(loginPath());
       return;
     }
 
@@ -36,7 +38,7 @@ export function useClientAuth({ enabled = true }: UseClientAuthOptions = {}) {
         const sessionUser = data.data?.user;
         if (!sessionUser) {
           removeToken();
-          router.replace('/area-cliente/login');
+          router.replace(loginPath());
           return;
         }
         if (sessionUser.is_staff) {
@@ -51,7 +53,7 @@ export function useClientAuth({ enabled = true }: UseClientAuthOptions = {}) {
         // network/server problems offer a retry instead of a forced logout.
         if (err instanceof SessionError && err.code === 'expired') {
           removeToken();
-          router.replace('/area-cliente/login');
+          router.replace(loginPath());
           return;
         }
         setError('Não foi possível validar a sessão. Verifique a sua ligação.');

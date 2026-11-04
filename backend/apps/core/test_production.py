@@ -60,6 +60,27 @@ def assert_no_finance(data):
 
 @pytest.mark.django_db
 class TestProduction:
+    @pytest.mark.parametrize('first_channel', ['shared_link', 'branddesk'])
+    def test_art_link_and_account_share_the_same_version_and_block_second_decisions(self, production_api, quoted_quote, authenticated_client, first_channel):
+        upload(production_api, quoted_quote)
+        version = quoted_quote.proof_versions.first()
+        token = publish(production_api, quoted_quote, version).data['review_path'].rsplit('/', 1)[-1]
+        public = APIClient()
+        public_url = f'/api/art-review/{token}/'
+        account_url = f'/api/quotes/{quoted_quote.reference}/approve/'
+        result = public.post(public_url, {'decision': 'approved', 'name': 'Director'}, format='json') if first_channel == 'shared_link' else authenticated_client.post(account_url, {'version_id': version.pk}, format='json')
+        assert result.status_code == 200, result.data
+        assert public.get(public_url).data['client_decision'] == 'approved'
+        account = authenticated_client.get(f'/api/quotes/{quoted_quote.reference}/')
+        assert account.status_code == 200
+        assert account.data['proof_versions'][0]['client_decision'] == 'approved'
+        version.refresh_from_db()
+        assert version.decision_source == first_channel
+        duplicate = authenticated_client.post(account_url, {'version_id': version.pk}, format='json') if first_channel == 'shared_link' else public.post(public_url, {'decision': 'approved', 'name': 'Director'}, format='json')
+        assert duplicate.status_code == 400
+        quoted_quote.refresh_from_db()
+        assert quoted_quote.price_approved_at is None
+
     def test_production_cannot_access_commercial_or_financial_routes(
         self, production_api, quote, order
     ):

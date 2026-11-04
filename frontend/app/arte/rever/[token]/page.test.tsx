@@ -28,6 +28,7 @@ it('normalizes escaped route tokens for loading and decisions', async () => {
   const endpoint = `/api/art-review/${routeToken}/`;
   render(<ArtReviewPage />);
   await screen.findByTitle('Arte v1');
+  expect(screen.getByRole('link', { name: 'Continuar no BrandDesk →' })).toHaveAttribute('href', '/area-cliente/orcamentos/MP-0001-2026#arte');
   expect(fetch).toHaveBeenCalledWith(endpoint, expect.objectContaining({ cache: 'no-store' }));
   fireEvent.change(screen.getByLabelText('O seu nome'), { target: { value: 'Cliente' } });
   fireEvent.click(screen.getByRole('checkbox'));
@@ -64,6 +65,7 @@ it('shows a renewal request instead of artwork for an expired link', async () =>
   render(<ArtReviewPage />);
   const button = await screen.findByRole('button', { name: 'Pedir novo link' });
   expect(screen.queryByTitle('Arte v1')).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Continuar no BrandDesk →' })).not.toBeInTheDocument();
   expect(fetch).toHaveBeenCalledTimes(1);
   vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ detail: 'Pedido enviado.' }) } as Response);
   fireEvent.click(button);

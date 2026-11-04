@@ -32,7 +32,8 @@ describe('Client proposal review', () => {
   });
   it.each(['accept', 'changes', 'decline'] as const)('uses the same explicit %s decision in BrandDesk with the viewed snapshot', async (action) => {
     vi.mocked(fetchWithAuth).mockResolvedValue({ ...proposal, snapshot: 'synthetic-commercial-snapshot' });
-    render(<ClientProposalReview reference={proposal.reference} />);
+    const changed = vi.fn();
+    render(<ClientProposalReview reference={proposal.reference} onChanged={changed} />);
     await screen.findByText('Empresa Horizonte');
     expect(screen.queryByRole('link', { name: 'Criar a minha conta' })).not.toBeInTheDocument();
     expect(proposalRequest).not.toHaveBeenCalled();
@@ -46,12 +47,16 @@ describe('Client proposal review', () => {
     expect(JSON.parse(String(vi.mocked(fetchWithAuth).mock.calls.at(-1)?.[1]?.body))).toMatchObject({
       action, version: 2, snapshot: 'synthetic-commercial-snapshot', contact_name: 'Director', confirmed: true,
     });
+    expect(changed).toHaveBeenCalledOnce();
   });
 
   it('opens only for reading and offers optional registration without accepting', async () => {
     render(<ClientProposalReview />);
     expect(await screen.findByText('Empresa Horizonte')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Criar a minha conta' })).toHaveAttribute('href', '/area-cliente/registo');
+    expect(screen.getByRole('link', { name: 'Continuar no BrandDesk →' })).toHaveAttribute('href', '/area-cliente/orcamentos/MP-0001-2026#proposta');
+    expect(screen.getByRole('link', { name: 'Já tenho conta' })).toHaveAttribute('href', '/area-cliente/orcamentos/MP-0001-2026#proposta');
+    expect([...document.querySelectorAll('a')].every((link) => !link.href.includes('synthetic-review-link'))).toBe(true);
     expect(proposalRequest).toHaveBeenCalledTimes(1);
     expect(proposalRequest).toHaveBeenCalledWith('synthetic-review-link', { action: 'view' }, expect.any(AbortSignal));
     expect(screen.getByRole('button', { name: 'Confirmar decisão' })).toBeDisabled();

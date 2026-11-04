@@ -17,6 +17,7 @@ import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { ProofVersionHistory } from '@/components/ProofVersionHistory';
 import { PrivateArtPreview } from '@/components/PrivateArtPreview';
 import { ClientProposalReview } from '@/components/ClientProposalReview';
+import { ClientArtReview } from '@/components/ClientArtReview';
 import {
   approveArtwork,
   approveQuotePrice,
@@ -51,7 +52,16 @@ export default function ClientQuoteDetailPage() {
 
   useEffect(() => {
     void loadQuote();
+    const refresh = () => { if (document.visibilityState === 'visible') void loadQuote(); };
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
   }, [loadQuote]);
+
+  useEffect(() => {
+    if (quote?.reference && ['#arte', '#proposta'].includes(window.location.hash)) {
+      document.getElementById(window.location.hash.slice(1))?.scrollIntoView?.({ block: 'start' });
+    }
+  }, [quote?.reference]);
 
   async function runAction(action: () => Promise<unknown>) {
     setActionLoading(true);
@@ -78,13 +88,16 @@ export default function ClientQuoteDetailPage() {
   if (!quote) {
     return (
       <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
-        {error || 'Orçamento não encontrado.'}
+        <p>{error || 'Orçamento não encontrado.'}</p>
+        <p className="mt-2">Se recebeu um link por email ou WhatsApp, utilize a conta associada a esse pedido. A Recepção pode confirmar a ligação à sua empresa.</p>
+        <Link href="/area-cliente/apoio" className="mt-3 inline-block font-semibold underline">Pedir ajuda à Recepção</Link>
       </div>
     );
   }
 
   const awaitingPriceApproval = quote.status === 'quoted' && !quote.client_review_available;
   const artworkPending = quote.artwork?.status === 'pending';
+  const currentProof = quote.proof_versions?.filter((proof) => proof.published_at).toSorted((a, b) => b.version - a.version)[0];
 
   return (
     <div className="space-y-6">
@@ -131,7 +144,7 @@ export default function ClientQuoteDetailPage() {
       </Card>
 
       <QuoteRequestEvidence quote={quote} />
-      {quote.client_review_available ? <ClientProposalReview reference={quote.reference} /> : <Card>
+      {quote.client_review_available ? <ClientProposalReview reference={quote.reference} onChanged={() => void loadQuote()} /> : <Card>
         <CardContent className="p-5">
           <h2 className="mb-4 text-lg font-semibold text-dark">Itens do pedido</h2>
           {!quote.items.length ? <p className="mb-4 text-sm text-gray-500">A equipa MP ajudará a definir os materiais e quantidades a partir do briefing.</p> : null}
@@ -242,7 +255,7 @@ export default function ClientQuoteDetailPage() {
         </Card>
       )}
 
-      {quote.artwork ? (
+      {currentProof ? <ClientArtReview key={`${quote.reference}:${currentProof.id}:${currentProof.client_decision}`} quote={quote} proof={currentProof} onChanged={loadQuote} /> : quote.artwork ? (
         <Card>
           <CardContent className="space-y-3 p-5">
             <h2 className="text-lg font-semibold text-dark">Prova de arte</h2>
