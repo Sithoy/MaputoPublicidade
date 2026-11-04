@@ -75,6 +75,21 @@ export function ReceptionWorkspace() {
   const backButton = useRef<HTMLButtonElement>(null);
   const openedReference = useRef(reference); openedReference.current = reference;
   const enterLoadedProposal = useEffectEvent((value: AdminQuote) => { void enterProposal(value); });
+  const automaticEdit = useRef('');
+  const startStageEditing = useEffectEvent(() => { void beginEditing(); });
+  useEffect(() => {
+    if (loading || !allowed || !canQuoteEdit || !quote || quote.reference !== reference || busy || lease.pending || panel || panelDirty || dirty || followUpDirty) return;
+    const currentIndex = receptionStage(quote).index;
+    const closedJob = ['cancelled', 'delivered'].includes(quote.status) || ['cancelled', 'delivered'].includes(quote.operational_order_status || '');
+    const active = !closedJob && ((step === 0 && currentIndex === 0) ||
+      (step === 2 && currentIndex <= 2 && !quote.price_approved_at && !quote.order_reference && quote.proposal_workflow?.stage !== 'returned'));
+    if (!active) return;
+    const key = `${reference}:${step}:${quote.proposal_workflow?.version}:${quote.proposal_workflow?.stage}`;
+    if (lease.editable) { automaticEdit.current = key; return; }
+    if (lease.session || automaticEdit.current === key) return;
+    automaticEdit.current = key;
+    startStageEditing();
+  }, [loading, allowed, canQuoteEdit, quote, reference, busy, step, lease.pending, lease.editable, lease.session, panel, panelDirty, dirty, followUpDirty]);
   const detailOpen = Boolean(reference || inbox || newRequest);
   useEffect(() => { if (detailOpen) backButton.current?.focus(); }, [detailOpen]);
   useEffect(() => {
@@ -186,7 +201,11 @@ export function ReceptionWorkspace() {
   }); }
   async function beginEditing(reason = '', resumeOwn = false) {
     if (busy || lease.pending || ((dirty || followUpDirty) && !window.confirm('A edição será retomada com os dados atuais. Descartar este rascunho?'))) return;
-    if (await (resumeOwn ? lease.acquire('', true) : lease.acquire(reason))) { editAfterLoad.current = current?.index === 1; setDirty(false); setFollowUpDirty(false); setFollowUpReset((value) => value + 1); setPanel(null); setRevision((value) => value + 1); }
+    if (await (resumeOwn ? lease.acquire('', true) : lease.acquire(reason))) {
+      setDirty(false); setFollowUpDirty(false); setFollowUpReset((value) => value + 1); setPanel(null);
+      // A reservation must not navigate away from the stage the receptionist opened.
+      if (step !== 2) { editAfterLoad.current = current?.index === 1; setRevision((value) => value + 1); }
+    }
   }
   const ownReservation = Boolean(lease.session && lease.session.editor_id === user?.id && !lease.editable);
   const resumeOwnControl = !closed && ownReservation ? <button type="button" disabled={busy || lease.pending} onClick={() => {

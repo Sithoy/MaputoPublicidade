@@ -1,4 +1,4 @@
-export type ProposalDecision = { client_decision: 'accept' | 'changes' | 'decline'; at: string; contact_name?: string; channel: string; comment?: string };
+export type ProposalDecision = { client_decision: 'accept' | 'changes' | 'decline'; at: string; contact_name?: string; channel: string; comment?: string; actor?: string };
 export type ClientProposal = {
   snapshot?: string;
   reference: string; version: number; client_name: string; valid_until: string | null;

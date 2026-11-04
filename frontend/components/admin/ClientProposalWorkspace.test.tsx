@@ -12,6 +12,14 @@ const data = { version: 2, published: true, registered: true, email: 'cliente@ex
 const props = { quote, editable: true, onAcquire: vi.fn(), onChanged: vi.fn(), onBack: vi.fn(), onMessages: vi.fn() };
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(fetchWithAuth).mockResolvedValue(data); });
 describe('Client proposal workspace', () => {
+  it('shows the completed decision and requested changes in the stage, without locked forms', async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValue({ ...data, state: 'changes', decision: { client_decision: 'changes', contact_name: 'Dário', actor: 'Recepção MP', channel: 'phone', at: '2026-11-04T10:00:00Z', comment: 'Alterar a cor para verde.' } });
+    render(<ClientProposalWorkspace {...props} editable={false} />);
+    expect(await screen.findByText('Alterar a cor para verde.')).toBeVisible();
+    expect(screen.getByText(/Registado por Recepção MP/)).toBeVisible();
+    expect(screen.getByText(/Contacto: Dário/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Preparar email com PDF' })).not.toBeInTheDocument();
+  });
   it('keeps its contextual action but does not repeat the shared identity header when embedded', async () => {
     render(<ClientProposalWorkspace {...props} embedded />);
     await screen.findByText('cliente@example.com');

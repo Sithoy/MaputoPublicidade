@@ -247,7 +247,8 @@ def prepare_email(quote, user):
     from apps.core.models import EmailDraft, SupportConversation, SupportFile
     from apps.core.support_files import validate_file
 
-    if not has_staff_capability(user, 'support.manage') or not has_staff_capability(user, 'quotes.export'):
+    reception_sender = has_staff_capability(user, 'reception.manage') and has_staff_capability(user, 'quotes.manage')
+    if not has_staff_capability(user, 'support.manage') or not (has_staff_capability(user, 'quotes.export') or reception_sender):
         raise PermissionDenied()
     if not quote.client_email:
         raise ValidationError('Confirme o email do cliente no pedido.')
