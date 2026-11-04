@@ -12,6 +12,34 @@ const quote = { reference: 'MP-0001-2026', order_reference: 'ENC-0001', items: [
 beforeEach(() => { vi.clearAllMocks(); auth.allowed = true; });
 
 describe('Stage completion summary', () => {
+  it('shows briefing details immediately without collapsible sections or stage logs', () => {
+    const { container } = render(<StageCompletionSummary quote={{ ...quote, notes: '200 polos para a campanha de verão', activity: [
+      { id: 1, action: 'reception_handoff', actor_name: 'Editor anterior', created_at: '2026-11-01T10:00:00Z', comment: 'Registo antigo apenas para os logs' },
+      { id: 2, action: 'reception_handoff', actor_name: 'Ana', created_at: '2026-11-04T10:00:00Z' },
+    ] }} step={0} onCurrent={() => {}} />);
+    expect(screen.getByRole('region', { name: 'Resumo do briefing' })).toHaveTextContent('200 polos para a campanha de verão');
+    expect(screen.getByText('Materiais do briefing')).toBeVisible();
+    expect(screen.getByText('Ana')).toBeVisible();
+    expect(screen.queryByText('Editor anterior')).not.toBeInTheDocument();
+    expect(screen.queryByText('Registo antigo apenas para os logs')).not.toBeInTheDocument();
+    expect(container.querySelector('details')).toBeNull();
+  });
+  it('shows proposal items and conditions directly, attributed only to the final recorded action', () => {
+    const { container } = render(<StageCompletionSummary quote={{ ...quote, final_price: 20000, estimated_delivery_days: 7, payment_option: 'deposit_50', terms: 'Entrega nas instalações do cliente.', items: [{ id: 1, description: 'Polos personalizados', quantity: 200, notes: 'Cor verde; logótipo no peito.' }] as AdminQuote['items'], proposal_workflow: { version: 2, history: [
+      { action: 'Proposta guardada', version: 1, actor: 'Editor anterior', at: '2026-11-01T10:00:00Z', comment: 'Histórico detalhado' },
+      { action: 'Proposta guardada', version: 2, actor: 'Ana', at: '2026-11-04T10:00:00Z', comment: '' },
+    ] } as AdminQuote['proposal_workflow'] }} step={1} onCurrent={() => {}} />);
+    const summary = screen.getByRole('region', { name: 'Resumo da proposta' });
+    expect(summary).toHaveTextContent('200 ×');
+    expect(summary).toHaveTextContent('Polos personalizados');
+    expect(summary).toHaveTextContent('Cor verde; logótipo no peito.');
+    expect(summary).toHaveTextContent('7 dias úteis');
+    expect(summary).toHaveTextContent('50% adiantado + 50% na entrega');
+    expect(summary).toHaveTextContent('Entrega nas instalações do cliente.');
+    expect(screen.getByText('Ana')).toBeVisible();
+    expect(screen.queryByText('Editor anterior')).not.toBeInTheDocument();
+    expect(container.querySelector('details')).toBeNull();
+  });
   it('shows missing attribution explicitly and returns to the active stage without editing', () => {
     const onCurrent = vi.fn();
     render(<StageCompletionSummary quote={quote} step={0} onCurrent={onCurrent} />);
