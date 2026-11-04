@@ -331,6 +331,24 @@ class TestClientProposal:
         staff_user.profile.save()
         assert staff_client.get(url).status_code == 403
 
+    def test_reception_can_prepare_email_and_whatsapp_without_bulk_export(self, sent_proposal, staff_client, staff_user, mailoutbox):
+        from apps.accounts.roles import has_staff_capability
+        staff_user.profile.staff_role = StaffRole.RECEPTIONIST
+        staff_user.profile.save()
+        url = f'/api/quotes/{sent_proposal.reference}/client-workspace/'
+        assert not has_staff_capability(staff_user, 'quotes.export')
+        assert staff_client.post(url, {'action': 'email', 'version': 1}, format='json').status_code == 409
+        lease = staff_client.post(f'/api/reception/{sent_proposal.reference}/edit-session/', {'action': 'acquire'}, format='json')
+        assert lease.status_code == 200, lease.data
+        staff_client.credentials(HTTP_X_RECEPTION_EDIT_TOKEN=lease.data['token'])
+        result = staff_client.post(url, {'action': 'email', 'version': 1}, format='json')
+        assert result.status_code == 200, result.data
+        draft = EmailDraft.objects.get(conversation_id=result.data['conversation_id'])
+        assert draft.attachment_ids and '/proposta#token=' in draft.body
+        assert staff_client.post(url, {'action': 'prepare_share', 'version': 1}, format='json').status_code == 200
+        assert staff_client.get('/api/quotes/export/').status_code == 403
+        assert not mailoutbox
+
     def test_question_arrives_in_linked_inbox_without_approving(self, sent_proposal):
         result = respond(guest(sent_proposal), action='question', body='Podemos alterar a cor?')
         assert result.status_code == 200

@@ -23,6 +23,30 @@ beforeEach(() => {
   vi.mocked(getQuote).mockResolvedValue(quote as never);
 });
 describe('Reception workspace', () => {
+  it('automatically enables client work without resetting a saved proposal to its previous stage', async () => {
+    auth.editable = false;
+    auth.acquire.mockImplementation(async () => { auth.editable = true; return true; });
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    await screen.findByRole('region', { name: 'Consulta da proposta' });
+    fireEvent.click(screen.getByRole('button', { name: /3 Decisão do cliente/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeEnabled());
+    expect(auth.acquire).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: /3 Decisão do cliente/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(getQuote).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a failed automatic client reservation in a loop', async () => {
+    auth.editable = false;
+    auth.acquire.mockResolvedValue(false);
+    render(<ReceptionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /MP-0001-2026 Empresa ABC/ }));
+    await screen.findByRole('region', { name: 'Consulta da proposta' });
+    fireEvent.click(screen.getByRole('button', { name: /3 Decisão do cliente/ }));
+    await waitFor(() => expect(auth.acquire).toHaveBeenCalledOnce());
+    expect(screen.getByRole('button', { name: 'Preparar email com PDF' })).toBeDisabled();
+  });
+
   it('opens and closes context without replacing the stage or discarding a proposal draft', async () => {
     vi.mocked(getQuote).mockResolvedValue({ ...quote, proposal_workflow: { ...quote.proposal_workflow, stage: 'draft' } } as never);
     render(<ReceptionPage />);
