@@ -14,10 +14,12 @@ for (const size of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mob
     let resolved = false;
     let attempts = 0;
     const mutations: string[] = [];
+    const reservations: string[] = [];
     await page.route('**/auth-api/**', route => route.fulfill({ json: { status: 200, data: { user: { id: 99, email: 'reception@example.test', is_staff: true, role: 'receptionist', capabilities: ['orders.view', 'quotes.view', 'quotes.manage', 'reception.manage'] } } } }));
     await page.route('**/api/**', route => {
       const url = new URL(route.request().url());
       if (route.request().method() === 'POST') mutations.push(url.pathname);
+      if (url.pathname.includes('/edit-session/') && route.request().method() === 'POST') reservations.push(route.request().postDataJSON().action);
       if (url.pathname.includes('/notifications/unread_count')) return route.fulfill({ json: { count: 0 } });
       if (url.pathname.includes('/notifications/')) return route.fulfill({ json: { results: [] } });
       if (url.pathname.includes('/edit-session/')) return route.fulfill({ json: route.request().method() === 'POST' ? { token: randomUUID(), session: { editor_id: 99, editor_name: 'Recepção', expires_at: new Date(Date.now() + 300000).toISOString() } } : { session: null } });
@@ -36,9 +38,8 @@ for (const size of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 'mob
     await page.getByRole('button', { name: 'Resolver pendências', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Resolver pendências' });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Registar resolução' })).toBeDisabled();
-    await dialog.getByRole('button', { name: 'Reservar atendimento' }).click();
     await expect(dialog.getByRole('button', { name: 'Registar resolução' })).toBeEnabled();
+    expect(reservations).toContain('acquire');
     await dialog.getByLabel('Resultado / motivo').fill('Rever condições e confirmar disponibilidade com o cliente');
     await dialog.getByRole('button', { name: 'Registar resolução' }).click();
     await expect(dialog.getByRole('alert')).toContainText('Tente novamente');
