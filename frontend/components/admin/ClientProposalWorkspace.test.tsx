@@ -35,11 +35,13 @@ describe('Client proposal workspace', () => {
     expect(screen.queryByRole('button', { name: 'Preparar email com PDF' })).not.toBeInTheDocument();
   });
 
-  it('prioritises contact after sending and opens follow-ups on demand', async () => {
+  it('keeps sending channels visible after sending and opens follow-ups on demand', async () => {
     const onFollowUps = vi.fn();
     vi.mocked(fetchWithAuth).mockResolvedValue({ ...data, state: 'awaiting_response' });
     render(<ClientProposalWorkspace {...props} onFollowUps={onFollowUps} />);
     expect(await screen.findByRole('heading', { name: 'Obter a decisão do cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Enviar por email/ })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Contactar cliente/ }));
     expect(screen.getByRole('link', { name: /Ligar/ })).toHaveAttribute('href', 'tel:+258841234567');
     fireEvent.click(screen.getByRole('button', { name: 'Agendar próximo contacto' }));
     expect(onFollowUps).toHaveBeenCalledOnce();
@@ -83,7 +85,7 @@ describe('Client proposal workspace', () => {
     render(<ClientProposalWorkspace {...props} />);
     await screen.findByText('cliente@example.com');
     vi.mocked(fetchWithAuth).mockResolvedValueOnce({ conversation_id: 9 });
-    fireEvent.click(screen.getByRole('button', { name: 'Preparar email com PDF' }));
+    fireEvent.click(screen.getByRole('button', { name: /Enviar por email PDF/ }));
     expect(await screen.findByText('Email preparado para revisão')).toBeInTheDocument();
     expect(fetchWithAuth).toHaveBeenCalledWith('/api/quotes/MP-0001-2026/client-workspace/', expect.objectContaining({ method: 'POST' }));
     expect(vi.mocked(fetchWithAuth).mock.calls.some(([path]) => path.includes('email-send'))).toBe(false);
@@ -91,7 +93,7 @@ describe('Client proposal workspace', () => {
   it('requires phone context and explicit confirmation before recording', async () => {
     render(<ClientProposalWorkspace {...props} />);
     await screen.findByText('cliente@example.com');
-    fireEvent.click(screen.getByRole('button', { name: /Registar decisão Confirmação por telefone/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Registar decisão por telefone/ }));
     expect(screen.getByRole('button', { name: 'Registar decisão do cliente' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Nome do contacto'), { target: { value: 'Dário' } });
     fireEvent.change(screen.getByLabelText('Contexto e confirmação obtida'), { target: { value: 'Confirmou por telefone às 10h' } });
@@ -108,13 +110,27 @@ describe('Client proposal workspace', () => {
     const onDirtyChange = vi.fn();
     render(<ClientProposalWorkspace {...props} onDirtyChange={onDirtyChange} />);
     await screen.findByText('cliente@example.com');
-    fireEvent.click(screen.getByRole('button', { name: /Registar decisão Confirmação/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Registar decisão por telefone/ }));
     fireEvent.change(screen.getByLabelText('Nome do contacto'), { target: { value: 'Contacto por confirmar' } });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    fireEvent.click(screen.getByRole('button', { name: /Enviar proposta PDF/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Enviar por email PDF/ }));
     expect(confirm).toHaveBeenCalled();
     expect(screen.getByLabelText('Nome do contacto')).toHaveValue('Contacto por confirmar');
     expect(onDirtyChange).toHaveBeenLastCalledWith(true);
     confirm.mockRestore();
   });
+});
+it('offers channels before publication and retains the selected prerequisite context', async () => {
+  vi.mocked(fetchWithAuth).mockResolvedValue({ ...data, published: false, state: 'draft' });
+  const onActionChange = vi.fn();
+  render(<ClientProposalWorkspace {...props} onActionChange={onActionChange} />);
+  fireEvent.click(await screen.findByRole('button', { name: /Enviar por email/ }));
+  expect(screen.getByRole('heading', { name: /Email · disponibilizar/ })).toBeInTheDocument();
+  expect(onActionChange).toHaveBeenCalledWith('email');
+  expect(vi.mocked(fetchWithAuth).mock.calls.some(([, options]) => options?.method === 'POST')).toBe(false);
+});
+it('opens the selected WhatsApp tools without a collapsed disclosure', async () => {
+  render(<ClientProposalWorkspace {...props} initialAction="whatsapp" />);
+  expect(await screen.findByRole('button', { name: 'Abrir WhatsApp' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Preparar email com PDF' })).not.toBeInTheDocument();
 });

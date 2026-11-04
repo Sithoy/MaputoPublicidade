@@ -36,6 +36,7 @@ export function ReceptionWorkspace() {
   const { user, loading, can } = useAdminAuth();
   const allowed = can('reception.manage');
   const canQuoteEdit = can('quotes.manage');
+  const [clientAction, setClientAction] = useState<{ reference: string; action: import('./ClientProposalWorkspace').ClientAction } | null>(null);
   const [rows, setRows] = useState<QueueQuote[]>([]);
   const [count, setCount] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
@@ -228,7 +229,7 @@ export function ReceptionWorkspace() {
         <ProposalReadView quote={quote} />
         {!lease.session && canQuoteEdit ? <button type="button" onClick={() => void enterProposal(quote)} className="rounded-xl border px-4 py-3 text-sm font-semibold">Editar proposta</button> : null}
       </>}
-    </section> : focusedClient ? <>{orderHeader}<ClientProposalWorkspace key={`${reference}:${quote.proposal_workflow?.stage}:${quote.proposal_workflow?.version}:${quote.price_approved_at}`} embedded quote={quote} editable={lease.editable && canQuoteEdit} onAcquire={() => void beginEditing()} onChanged={clientChanged} onBack={() => navigate(() => { void enterProposal(quote); })} onMessages={() => openPanel('messages')} onFollowUps={() => openPanel('followups')} onBusyChange={setBusy} onDirtyChange={setDirty} /></> : <>
+    </section> : focusedClient ? <>{orderHeader}<ClientProposalWorkspace key={`${reference}:${quote.proposal_workflow?.stage}:${quote.proposal_workflow?.version}:${quote.price_approved_at}`} embedded initialAction={clientAction?.reference === reference ? clientAction.action : 'send'} onActionChange={(action) => setClientAction({ reference, action })} quote={quote} editable={lease.editable && canQuoteEdit} onAcquire={() => void beginEditing()} onChanged={clientChanged} onBack={() => navigate(() => { void enterProposal(quote); })} onMessages={() => openPanel('messages')} onFollowUps={() => openPanel('followups')} onBusyChange={setBusy} onDirtyChange={setDirty} /></> : <>
       {orderHeader}
       <fieldset disabled={busy || (step < 3 && !lease.editable)} className="min-w-0">
       <div id="reception-work-panel" className="scroll-mt-24" onChangeCapture={() => setDirty(true)}>

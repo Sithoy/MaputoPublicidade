@@ -9,13 +9,14 @@ import { decisionLabels, type ProposalDecision } from '@/lib/proposal-review';
 import { ReviewShareActions } from './ReviewShareActions';
 
 const EmailDesk = dynamic(() => import('./EmailDesk').then((m) => m.EmailDesk));
+export type ClientAction = 'send' | 'email' | 'whatsapp' | 'contact' | 'decision';
 type Channel = { state: string; at?: string | null; actor?: string | null; conversation_id?: number | null };
 type Workspace = { reference?: string; version: number; published: boolean; registered: boolean; email: string; phone: string; whatsapp_number?: string; link: string | null; decision: ProposalDecision | null;
   state?: string; expired?: boolean; published_at?: string; order_reference?: string | null; channels?: { branddesk: Channel; email: Channel; whatsapp: Channel };
   follow_up?: { date: string | null; note: string }; history?: { action: string; version: number; at: string; actor: string; comment?: string }[] };
 const channelLabels: Record<string, string> = { available: 'Disponível no BrandDesk', not_available: 'Não disponível no BrandDesk', not_prepared: 'Email por preparar', draft: 'Rascunho — ainda não enviado', accepted: 'Email aceite pelo Zoho', unconfirmed: 'Envio por confirmar — verificar no Zoho', failed: 'Envio falhou', confirmed: 'Envio confirmado pela Recepção', not_sent: 'Ainda sem envio registado' };
 const nextActions: Record<string, [string, string]> = {
-  draft: ['Disponibilizar a versão atual', 'Reveja a proposta e disponibilize-a antes de escolher o canal de envio.'],
+  draft: ['Enviar e obter decisão', 'Escolha o canal. Disponibilize a versão antes de preparar a mensagem.'],
   not_sent: ['Enviar a proposta', 'O link está disponível, mas ainda não há um envio registado. Prepare o email ou partilhe por WhatsApp.'],
   awaiting_response: ['Obter a decisão do cliente', 'Contacte o cliente, esclareça dúvidas e registe a decisão. Envio não confirma leitura nem aceitação.'],
   accepted: ['Operação autorizada', 'A aceitação criou a ordem de trabalho. A equipa pode avançar com as aprovações técnicas necessárias; o pagamento continua separado.'],
@@ -25,21 +26,25 @@ const nextActions: Record<string, [string, string]> = {
 };
 const dateTime = (value: string) => new Date(value).toLocaleString('pt-MZ', { timeZone: 'Africa/Maputo', dateStyle: 'short', timeStyle: 'short' });
 
-function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged, onBack, onMessages, onFollowUps, onBusyChange, onDirtyChange: notifyDirtyParent, embedded = false, summary = false }: {
+function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged, onBack, onMessages, onFollowUps, initialAction = 'send', onActionChange, onBusyChange, onDirtyChange: notifyDirtyParent, embedded = false, summary = false }: {
   quote: AdminQuote; editable: boolean; onAcquire: () => void; onChanged: () => void; onBack: () => void; onMessages: () => void;
   onBusyChange?: (value: boolean) => void; onDirtyChange?: (value: boolean) => void; embedded?: boolean; summary?: boolean; onFollowUps?: () => void;
+  initialAction?: ClientAction; onActionChange?: (action: ClientAction) => void;
 }) {
   const [data, setData] = useState<Workspace | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [emailId, setEmailId] = useState<number | null>(null);
+  useEffect(() => {
+    if (emailId) document.getElementById('proposal-email-compose')?.focus();
+  }, [emailId]);
   const [contact, setContact] = useState('');
   const [comment, setComment] = useState('');
   const [phoneDecision, setPhoneDecision] = useState('accept');
   const [confirmed, setConfirmed] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const [tool, setTool] = useState<'send' | 'contact' | 'decision' | null>(null);
+  const [tool, setTool] = useState<ClientAction>(initialAction);
   const [dirtyFields, setDirtyFields] = useState({ phone: false, whatsapp: false, follow_up: false, email: false });
   const dirty = Object.values(dirtyFields).some(Boolean);
   useEffect(() => { notifyDirtyParent?.(dirty); }, [dirty, notifyDirtyParent]);
@@ -73,13 +78,14 @@ function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged,
     finally { setBusy(false); onBusyChange?.(false); }
   }
   const next = nextActions[data?.state || (data?.published ? 'awaiting_response' : 'draft')] || nextActions.draft;
-  const activeTool = tool || (data?.state === 'awaiting_response' ? 'contact' : 'send');
+  const activeTool = tool;
   const actionable = data?.published && !data.decision && !data.expired;
-  function chooseTool(value: 'send' | 'contact' | 'decision') {
+  function chooseTool(value: ClientAction) {
     if (value === activeTool) return;
     if (busy || (dirty && !window.confirm('Existem alterações por guardar. Mudar de ação sem guardar?'))) return;
     setDirtyFields({ phone: false, whatsapp: false, follow_up: false, email: false });
-    setContact(''); setComment(''); setConfirmed(false); setEmailId(null); setTool(value);
+    setContact(''); setComment(''); setConfirmed(false); setEmailId(null); setTool(value); onActionChange?.(value);
+    if (value === 'email' && data?.published && !data.expired && !data.decision && editable && data.email) void act('email');
   }
   if (summary) return <section aria-label="Resumo da decisão" className="space-y-4 rounded-2xl border bg-white p-5">
     <h3 className="font-semibold">Proposta e decisão do cliente</h3>
@@ -103,12 +109,14 @@ function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged,
       </section>
       {data.decision || data.expired ? <section className="rounded-2xl border bg-white p-5"><h3 className="font-semibold">{data.decision ? decisionLabels[data.decision.client_decision] : 'Proposta expirada'}</h3><p className="mt-2 text-sm text-slate-500">Os detalhes ficam no Resumo e nos Registos do pedido.</p>{data.decision?.client_decision !== 'accept' ? <button type="button" disabled={busy} onClick={onBack} className="desk-primary mt-4 rounded-xl px-4 py-3 text-sm font-semibold text-white">Rever proposta<ArrowRight aria-hidden="true" className="ml-2 inline h-4 w-4" /></button> : <p className="mt-4 text-sm font-semibold">{data.order_reference ? `Ordem ${data.order_reference} autorizada.` : 'Atualize o pedido para consultar a operação.'}</p>}</section> : <>
         {!editable ? <button type="button" disabled={busy} onClick={onAcquire} className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold">Reservar edição para enviar / registar</button> : null}
-        {!data.published ? <section className="rounded-2xl border bg-white p-6"><h3 className="font-semibold">Disponibilizar a proposta</h3><p className="mt-2 text-sm text-slate-500">{data.registered ? 'A versão ficará disponível no BrandDesk.' : 'O cliente poderá decidir por link privado, sem criar conta.'} Não envia mensagens automaticamente.</p><button type="button" disabled={!editable || busy || quote.final_price == null} onClick={() => act('publish')} className="desk-primary mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"><Send aria-hidden="true" className="h-4 w-4" />Disponibilizar proposta</button></section> : <>
-          <nav aria-label="Ações para obter a decisão" className="grid gap-2 sm:grid-cols-3">{([{ value: 'send', label: 'Enviar proposta', detail: 'PDF e link de aprovação', Icon: Send }, { value: 'contact', label: 'Contactar cliente', detail: 'Ligar ou preparar lembrete', Icon: Phone }, { value: 'decision', label: 'Registar decisão', detail: 'Confirmação por telefone', Icon: ArrowRight }] as const).map(({ value, label, detail, Icon }) => <button key={value} type="button" disabled={busy} aria-pressed={activeTool === value} onClick={() => chooseTool(value)} className="rounded-xl border bg-white p-4 text-left text-[#173f30] disabled:opacity-50 aria-pressed:border-[#b79950] aria-pressed:bg-[#f5f1e5]"><Icon aria-hidden="true" className="mb-3 h-4 w-4" /><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs text-slate-500">{detail}</span></button>)}</nav>
-          {activeTool === 'send' ? <section aria-label="Enviar proposta ao cliente" className="space-y-5 rounded-2xl border bg-white p-5 sm:p-6"><div><h3 className="font-semibold">Envie a versão atual para decisão</h3><p className="mt-2 text-xs text-slate-500">{data.registered ? 'Também disponível no BrandDesk. ' : ''}Preparar ou abrir uma mensagem não confirma o envio nem a leitura.</p></div>
-            <div className="grid items-start gap-4 lg:grid-cols-2"><div className="space-y-4 rounded-xl bg-[#f5f7ef] p-4"><h4 className="text-sm font-semibold">Email · atendimento</h4><p className="break-all text-sm">{data.email || 'Confirme o email no briefing.'}</p><button type="button" disabled={!editable || busy || !data.email} onClick={() => act('email')} className="desk-primary inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Mail aria-hidden="true" className="h-4 w-4" />Preparar email com PDF</button><p className="text-xs text-slate-500">Reveja o modelo, a assinatura e o anexo antes de enviar.</p></div><div><p className="mb-3 text-xs text-slate-500">WhatsApp · {data.phone || 'Confirme o contacto no briefing.'}</p>
-              <details className="rounded-xl border p-4">
-                <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold"><MessageCircle className="h-4 w-4" />Preparar WhatsApp</summary>
+          <nav aria-label="Ações para obter a decisão" className="grid gap-2 sm:grid-cols-4">{([{ value: 'email', label: 'Enviar por email', detail: 'PDF e link de aprovação', Icon: Mail }, { value: 'whatsapp', label: 'Enviar por WhatsApp', detail: 'Mensagem, PDF e link', Icon: MessageCircle }, { value: 'contact', label: 'Contactar cliente', detail: 'Ligar ou preparar lembrete', Icon: Phone }, { value: 'decision', label: 'Registar decisão por telefone', detail: 'Confirmação e contexto', Icon: ArrowRight }] as const).map(({ value, label, detail, Icon }) => <button key={value} type="button" disabled={busy} aria-pressed={activeTool === value} onClick={() => chooseTool(value)} className="rounded-xl border bg-white p-4 text-left text-[#173f30] disabled:opacity-50 aria-pressed:border-[#b79950] aria-pressed:bg-[#f5f1e5]"><Icon aria-hidden="true" className="mb-3 h-4 w-4" /><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs text-slate-500">{detail}</span></button>)}</nav>
+        {onFollowUps ? <button type="button" disabled={busy} onClick={onFollowUps} className="min-h-11 rounded-xl border px-4 text-sm font-semibold">Agendar seguimento</button> : null}
+        {!data.published ? <section className="rounded-2xl border bg-white p-6"><h3 className="font-semibold">{activeTool === 'email' ? 'Email · disponibilizar antes de preparar o rascunho' : activeTool === 'whatsapp' ? 'WhatsApp · disponibilizar antes de preparar a mensagem' : 'Disponibilizar a versão para decisão'}</h3><p className="mt-2 text-sm text-slate-500">{data.registered ? 'A versão ficará disponível no BrandDesk.' : 'O cliente poderá decidir por link privado, sem criar conta.'} Não envia mensagens automaticamente.</p><button type="button" disabled={!editable || busy || quote.final_price == null} onClick={() => act('publish')} className="desk-primary mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"><Send aria-hidden="true" className="h-4 w-4" />Disponibilizar proposta</button></section> : <>
+
+          {['send', 'email', 'whatsapp'].includes(activeTool) ? <section aria-label="Enviar proposta ao cliente" className="space-y-5 rounded-2xl border bg-white p-5 sm:p-6"><div><h3 className="font-semibold">Envie a versão atual para decisão</h3><p className="mt-2 text-xs text-slate-500">{data.registered ? 'Também disponível no BrandDesk. ' : ''}Preparar ou abrir uma mensagem não confirma o envio nem a leitura.</p></div>
+            <div className="grid items-start gap-4 lg:grid-cols-2"><div hidden={activeTool === 'whatsapp'} className="space-y-4 rounded-xl bg-[#f5f7ef] p-4"><h4 className="text-sm font-semibold">Email · atendimento</h4><p className="break-all text-sm">{data.email || 'Confirme o email no briefing.'}</p><button type="button" disabled={!editable || busy || !data.email} onClick={() => act('email')} className="desk-primary inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Mail aria-hidden="true" className="h-4 w-4" />Preparar email com PDF</button><p className="text-xs text-slate-500">Reveja o modelo, a assinatura e o anexo antes de enviar.</p></div><div hidden={activeTool === 'email'}><p className="mb-3 text-xs text-slate-500">WhatsApp · {data.phone || 'Confirme o contacto no briefing.'}</p>
+              <div className="rounded-xl border p-4">
+                <h4 className="flex items-center gap-2 text-sm font-semibold"><MessageCircle className="h-4 w-4" />Preparar WhatsApp</h4>
                 <p className="mt-3 text-xs leading-5 text-slate-500">Confirme o número com o cliente. Descarregue o PDF e anexe-o na conversa; abrir WhatsApp não envia nem anexa o documento automaticamente.</p>
                 <ReviewShareActions key={`send:${data.version}`} endpoint={`/api/quotes/${quote.reference}/client-workspace/`} version={data.version} proposal disabled={!editable || busy} />
                 <form onSubmit={(event) => { event.preventDefault(); const fields = new FormData(event.currentTarget); void act('whatsapp', { confirmed: fields.get('sent') === 'on', comment: fields.get('context') }); }} onChange={() => setDirtyFields((previous) => ({ ...previous, whatsapp: true }))} className="mt-4 space-y-3 border-t pt-3">
@@ -118,7 +126,7 @@ function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged,
                     <button className="rounded-lg border px-3 py-2 text-xs font-semibold">Registar envio por WhatsApp</button>
                   </fieldset>
                 </form>
-              </details>
+              </div>
 
             </div></div>
             <button type="button" disabled={busy} onClick={() => downloadQuotePdf(quote.reference).catch(() => setError('PDF indisponível.'))} className="inline-flex items-center gap-2 text-xs font-semibold"><Download aria-hidden="true" className="h-4 w-4" />Descarregar PDF para anexar</button>
@@ -128,7 +136,7 @@ function ClientProposalWorkspaceContent({ quote, editable, onAcquire, onChanged,
           </section> : null}
     {activeTool === 'decision' && actionable ? <form onSubmit={(e) => { e.preventDefault(); void act('phone'); }} onChange={() => onDirtyChange?.(true)} className="space-y-4 rounded-2xl border bg-white p-5"><h3 className="font-semibold">Decisão comunicada por telefone</h3><fieldset disabled={!editable || busy} className="space-y-4"><label className="block text-sm">Nome do contacto<input required value={contact} onChange={(e) => setContact(e.target.value)} maxLength={160} className="mt-2 block w-full rounded-xl border p-3" /></label><label className="block text-sm">Decisão<select value={phoneDecision} onChange={(e) => setPhoneDecision(e.target.value)} className="ml-3 rounded-lg border p-2"><option value="accept">Aceitar</option><option value="changes">Pedir alterações</option><option value="decline">Recusar</option></select></label><label className="block text-sm">Contexto e confirmação obtida<textarea required value={comment} onChange={(e) => setComment(e.target.value)} rows={3} maxLength={3000} className="mt-2 block w-full rounded-xl border p-3" /></label><label className="flex gap-3 text-sm"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />Confirmo que este contacto comunicou esta decisão para a versão atual.</label><button disabled={!confirmed} className="rounded-xl bg-[#173f30] px-4 py-3 text-sm text-white disabled:opacity-50">Registar decisão do cliente</button></fieldset></form> : null}
 
-          {emailId && activeTool === 'send' ? <section className="space-y-4 rounded-2xl border bg-white p-5"><h3 className="font-semibold">Email preparado · atendimento</h3><EmailDesk initialConversation={emailId} quoteReference={quote.reference} onDirtyChange={emailDirtyChange} onBusyChange={(value) => { setBusy(value); onBusyChange?.(value); }} onChanged={refreshChannels} /></section> : null}
+          {emailId && ['send', 'email'].includes(activeTool) ? <section id="proposal-email-compose" tabIndex={-1} className="space-y-4 rounded-2xl border bg-white p-5"><h3 className="font-semibold">Email preparado · atendimento</h3><EmailDesk initialConversation={emailId} quoteReference={quote.reference} onDirtyChange={emailDirtyChange} onBusyChange={(value) => { setBusy(value); onBusyChange?.(value); }} onChanged={refreshChannels} /></section> : null}
         </>}
       </>}
     </>}
