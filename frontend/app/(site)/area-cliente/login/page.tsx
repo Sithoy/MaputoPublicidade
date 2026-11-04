@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { TestCredentialsButton } from '@/components/TestCredentialsButton';
 import { login } from '@/lib/auth';
+import { brandDeskReturnPath } from '@/lib/branddesk-review';
 
 const WHATSAPP_URL =
   'https://wa.me/25882555736?text=Ol%C3%A1%21%20Preciso%20de%20ajuda%20com%20o%20BrandDesk.';
@@ -59,7 +60,8 @@ function ClientLoginForm() {
     try {
       const data = await login(formData.get('email') as string, formData.get('password') as string);
       const user = data.data?.user;
-      router.push(user?.is_staff ? '/admin' : '/area-cliente');
+      const destination = brandDeskReturnPath(new URLSearchParams(window.location.search).get('next'));
+      router.push(user?.is_staff ? '/admin' : destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível iniciar sessão.');
     } finally {

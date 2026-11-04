@@ -4,6 +4,7 @@ import { createContext, useEffect, useState } from "react";
 import { getClientQuotes } from "@/lib/client-api";
 import { fetchWithAuth } from "@/lib/auth";
 import { countPendingDecisions } from "@/lib/branddesk-navigation";
+import { APPROVAL_CHANGED } from "@/lib/branddesk-review";
 export const BrandDeskActivityContext = createContext<{
   approvals: number | null;
   messages: number | null;
@@ -67,9 +68,11 @@ export function useBrandDeskActivity(
       if (document.visibilityState === "visible") void load();
     };
     window.addEventListener("focus", refresh);
+    window.addEventListener(APPROVAL_CHANGED, refresh);
     return () => {
       controller.abort();
       window.removeEventListener("focus", refresh);
+      window.removeEventListener(APPROVAL_CHANGED, refresh);
     };
   }, [userId, pathname]);
   return counts;

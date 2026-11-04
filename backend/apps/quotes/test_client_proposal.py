@@ -50,6 +50,22 @@ def respond(client, **values):
 
 @pytest.mark.django_db
 class TestClientProposal:
+    @pytest.mark.parametrize('first_channel', ['link', 'branddesk'])
+    def test_link_and_branddesk_share_one_decision_and_one_operational_order(self, sent_proposal, authenticated_client, first_channel):
+        public = guest(sent_proposal)
+        url = f'/api/quotes/{sent_proposal.reference}/client-review/'
+        reviewed = authenticated_client.get(url).data
+        payload = {'action': 'accept', 'version': 1, 'snapshot': reviewed['snapshot'],
+                   'contact_name': 'Director', 'confirmed': True}
+        result = respond(public) if first_channel == 'link' else authenticated_client.post(url, payload, format='json')
+        assert result.status_code == 200, result.data
+        for data in [authenticated_client.get(url).data, respond(public, action='view').data]:
+            assert data['decision']['client_decision'] == 'accept'
+            assert data['decision']['channel'] == first_channel
+        duplicate = authenticated_client.post(url, payload, format='json') if first_channel == 'link' else respond(public)
+        assert duplicate.status_code == 400
+        assert Order.objects.filter(quote=sent_proposal).count() == 1
+
     @pytest.mark.django_db(transaction=True)
     def test_concurrent_acceptance_creates_exactly_one_order(self, sent_proposal):
         from concurrent.futures import ThreadPoolExecutor

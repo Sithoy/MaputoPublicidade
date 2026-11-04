@@ -13,6 +13,7 @@ import {
 import { getClientQuotes } from '@/lib/client-api';
 import type { Quote } from '@/lib/api';
 import { formatMZN } from '@/lib/utils';
+import { APPROVAL_CHANGED, brandDeskReviewPath } from '@/lib/branddesk-review';
 
 type ApprovalItem = {
   key: string;
@@ -37,7 +38,7 @@ function buildApprovalItems(quotes: Quote[]): ApprovalItem[] {
           ? `${label} · ${formatMZN(quote.final_price)}`
           : `${label} · proposta pronta para revisão`,
         type: 'price',
-        href: `/area-cliente/orcamentos/${quote.reference}`,
+        href: brandDeskReviewPath(quote.reference, 'proposal'),
         date: quote.updated_at || quote.created_at,
       });
     }
@@ -48,7 +49,7 @@ function buildApprovalItems(quotes: Quote[]): ApprovalItem[] {
         title: 'Rever prova de arte',
         description: `${label} · confirme os detalhes antes da produção`,
         type: 'artwork',
-        href: `/area-cliente/orcamentos/${quote.reference}`,
+        href: brandDeskReviewPath(quote.reference, 'art'),
         date: quote.artwork.updated_at || quote.updated_at || quote.created_at,
       });
     }
@@ -72,6 +73,10 @@ export default function ClientApprovalsPage() {
 
   useEffect(() => {
     loadApprovals();
+    const refresh = () => { if (document.visibilityState === 'visible') loadApprovals(); };
+    window.addEventListener('focus', refresh);
+    window.addEventListener(APPROVAL_CHANGED, refresh);
+    return () => { window.removeEventListener('focus', refresh); window.removeEventListener(APPROVAL_CHANGED, refresh); };
   }, []);
 
   const approvals = useMemo(() => buildApprovalItems(quotes), [quotes]);

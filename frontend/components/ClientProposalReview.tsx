@@ -7,10 +7,12 @@ import { formatMZN as formatMoney } from '@/lib/utils';
 import { type ClientProposal, decisionLabels, proposalRequest, ReviewLinkError } from '@/lib/proposal-review';
 import { RequestReviewLink } from './RequestReviewLink';
 import { fetchBlobWithAuth, fetchWithAuth } from '@/lib/auth';
+import { ApprovalAccountAccess } from './ApprovalAccountAccess';
+import { APPROVAL_CHANGED, brandDeskReviewPath } from '@/lib/branddesk-review';
 
 const formatMZN = (value: string | number) => formatMoney(Number(value));
 
-export function ClientProposalReview({ reference }: { reference?: string } = {}) {
+export function ClientProposalReview({ reference, onChanged }: { reference?: string; onChanged?: () => void } = {}) {
   const [token, setToken] = useState('');
   const [proposal, setProposal] = useState<ClientProposal | null>(null);
   const [error, setError] = useState('');
@@ -47,6 +49,8 @@ export function ClientProposalReview({ reference }: { reference?: string } = {})
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values),
       }));
       else setProposal(await (await proposalRequest(token, values)).json());
+      window.dispatchEvent(new Event(APPROVAL_CHANGED));
+      onChanged?.();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível registar a decisão.'); }
     finally { setBusy(false); }
   }
@@ -73,14 +77,15 @@ export function ClientProposalReview({ reference }: { reference?: string } = {})
     finally { setBusy(false); }
   }
   const Root = reference ? 'section' : 'main';
-  return <Root className={reference ? 'text-[#173f30]' : 'min-h-screen bg-[#f3f4ed] text-[#173f30]'}>
+  return <Root id={reference ? 'proposta' : undefined} className={reference ? 'scroll-mt-24 text-[#173f30]' : 'min-h-screen bg-[#f3f4ed] text-[#173f30]'}>
     {!reference ? <header className="border-b border-[#dce2d5] bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5"><Link href="/" className="font-serif text-2xl font-bold">Maputo Publicidade<span className="mt-1 block font-sans text-[10px] font-medium uppercase tracking-[.22em] text-[#7c896f]">Propostas · Relações de confiança</span></Link><span className="flex items-center gap-2 text-xs text-slate-500"><LockKeyhole className="h-4 w-4" />Acesso privado</span></div></header> : null}
     <div className={reference ? 'space-y-6' : 'mx-auto max-w-6xl space-y-6 px-5 py-8 md:py-12'}>
-      <div><p className="text-xs uppercase tracking-[.2em] text-[#96773a]">Uma proposta para a sua marca</p><h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">O próximo passo começa consigo.</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Reveja o que preparámos, esclareça as condições e partilhe a sua decisão. Não precisa de criar uma conta para responder.</p></div>
+      <div><p className="text-xs uppercase tracking-[.2em] text-[#96773a]">Uma proposta para a sua marca</p><h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">O próximo passo começa consigo.</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">{reference ? 'Reveja a proposta e comunique a sua decisão através da sua conta BrandDesk. A Recepção acompanha o mesmo pedido, independentemente do canal.' : 'Reveja o que preparámos, esclareça as condições e partilhe a sua decisão. Não precisa de criar uma conta para responder.'}</p></div>
       {error ? <p role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">{error}</p> : null}
       {busy && !proposal ? <p role="status">A abrir a sua proposta…</p> : null}
       {!reference && token && (expiredLink || (proposal?.expired && !proposal.decision)) ? <RequestReviewLink key={token} request={async () => (await proposalRequest(token, { action: 'request_link' })).json()} /> : null}
       {proposal ? <>
+        {!reference ? <ApprovalAccountAccess reference={proposal.reference} kind="proposal" /> : null}
         <section className="overflow-hidden rounded-2xl border border-[#dce2d5] bg-white shadow-sm">
           <header className="flex flex-wrap items-end justify-between gap-5 bg-[#173f30] p-6 text-white md:p-8"><div><p className="text-xs tracking-wider text-[#dac68b]">{proposal.reference} · VERSÃO {proposal.version}</p><h2 className="mt-3 text-2xl font-semibold">{proposal.client_name}</h2><p className="mt-2 text-sm text-white/70">{proposal.valid_until ? `Válida até ${new Date(`${proposal.valid_until}T00:00:00`).toLocaleDateString('pt-MZ')}` : 'Validade conforme condições da proposta'}</p></div><button onClick={pdf} disabled={busy} className="flex items-center gap-2 rounded-xl border border-white/30 px-4 py-3 text-sm disabled:opacity-50"><Download className="h-4 w-4" />Descarregar PDF</button></header>
           <div className="p-5 md:p-8"><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><caption className="mb-5 text-left text-xs font-semibold uppercase tracking-widest text-slate-500">O que está incluído</caption><thead className="border-b text-xs text-slate-500"><tr><th className="pb-3">Artigo e especificações</th><th className="pb-3 text-right">Qtd.</th><th className="pb-3 text-right">Preço unit.</th><th className="pb-3 text-right">Total</th></tr></thead><tbody>{proposal.items.map((item, i) => <tr key={i} className="border-b border-slate-100 align-top"><td className="max-w-lg py-4 pr-5"><p className="font-semibold">{item.description}</p><p className="mt-1 text-xs text-slate-500">{item.specifications}</p>{item.configuration?.selections?.map((entry, j) => <p key={j} className="mt-1 text-xs text-slate-500">{entry.label}: {entry.value}</p>)}{item.notes ? <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-500">{item.notes}</p> : null}{item.apparel?.rows?.length ? <details className="mt-3 text-xs"><summary className="cursor-pointer font-semibold">Distribuição por modelo, cor e tamanho</summary><ul className="mt-2 space-y-1">{item.apparel.rows.map((row, j) => <li key={j}>{row.model} · {row.color} · {row.size}: {row.quantity}</li>)}</ul></details> : item.apparel?.pending ? <p className="mt-2 text-xs">Distribuição de vestuário por confirmar.</p> : null}</td><td className="py-4 text-right tabular-nums">{item.quantity}</td><td className="py-4 pl-4 text-right whitespace-nowrap">{item.unit_price == null ? 'A definir' : formatMZN(item.unit_price)}</td><td className="py-4 pl-4 text-right whitespace-nowrap">{item.unit_price == null ? 'A definir' : formatMZN(Number(item.unit_price) * item.quantity)}</td></tr>)}</tbody></table></div>
@@ -92,6 +97,6 @@ export function ClientProposalReview({ reference }: { reference?: string } = {})
         </section>
         {!reference ? <details className="rounded-2xl border border-[#dce2d5] bg-white p-6"><summary className="cursor-pointer text-sm font-semibold">Tem alguma dúvida? Fale com a Recepção sobre esta proposta.</summary><form onSubmit={ask} className="mt-4"><label className="block text-sm">A sua pergunta<textarea required rows={3} maxLength={4000} value={question} onChange={(e) => setQuestion(e.target.value)} className="mt-2 block w-full rounded-xl border p-3" /></label><button disabled={busy || !question.trim()} className="mt-3 rounded-xl bg-[#173f30] px-4 py-3 text-sm text-white disabled:opacity-50">Enviar pergunta</button>{notice ? <p role="status" className="mt-3 text-sm">{notice}</p> : null}<p className="mt-3 text-xs text-slate-500">A proposta fica associada à mensagem. As respostas da Recepção não são instantâneas.</p></form></details> : null}
       </> : null}
-      {!reference ? <aside className="flex flex-wrap items-center justify-between gap-5 rounded-2xl border border-[#d8c58e] bg-[#faf7ec] p-6"><div><p className="text-xs uppercase tracking-[.15em] text-[#92763f]">BrandDesk by ETIOS</p><h2 className="mt-2 text-lg font-semibold">A sua marca, sempre acompanhada.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Centralize pedidos, aprovações, documentos e o histórico da sua empresa. Criar conta é opcional e não altera a sua decisão.</p></div><div className="flex flex-wrap gap-4 text-sm font-semibold"><Link href="/area-cliente/registo" className="rounded-xl bg-[#173f30] px-4 py-3 text-white">Criar a minha conta</Link><Link href="/area-cliente" className="px-2 py-3 underline">Já tenho conta</Link></div></aside> : null}
+      {!reference ? <aside className="flex flex-wrap items-center justify-between gap-5 rounded-2xl border border-[#d8c58e] bg-[#faf7ec] p-6"><div><p className="text-xs uppercase tracking-[.15em] text-[#92763f]">BrandDesk by ETIOS</p><h2 className="mt-2 text-lg font-semibold">A sua marca, sempre acompanhada.</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Centralize pedidos, aprovações, documentos e o histórico da sua empresa. Criar conta é opcional e não associa pedidos automaticamente: peça à Recepção para confirmar a ligação.</p></div><div className="flex flex-wrap gap-4 text-sm font-semibold"><Link href="/area-cliente/registo" className="rounded-xl bg-[#173f30] px-4 py-3 text-white">Criar a minha conta</Link><Link href={proposal ? brandDeskReviewPath(proposal.reference, 'proposal') : '/area-cliente'} className="px-2 py-3 underline">Já tenho conta</Link></div></aside> : null}
     </div></Root>;
 }

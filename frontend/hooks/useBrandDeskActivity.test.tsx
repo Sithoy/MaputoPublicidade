@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBrandDeskActivity } from './useBrandDeskActivity';
 import { getClientQuotes } from '@/lib/client-api';
 import { fetchWithAuth } from '@/lib/auth';
+import { APPROVAL_CHANGED } from '@/lib/branddesk-review';
 vi.mock('@/lib/client-api', () => ({ getClientQuotes: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ fetchWithAuth: vi.fn() }));
 
@@ -12,6 +13,15 @@ describe('BrandDesk activity badges', () => {
     renderHook(() => useBrandDeskActivity(undefined, '/area-cliente/login'));
     expect(getClientQuotes).not.toHaveBeenCalled();
     expect(fetchWithAuth).not.toHaveBeenCalled();
+  });
+  it('refreshes approval counts after a decision in the same BrandDesk session', async () => {
+    vi.mocked(getClientQuotes).mockResolvedValue([{ status: 'quoted' }] as never);
+    vi.mocked(fetchWithAuth).mockResolvedValue({ results: [], next: null });
+    const { result } = renderHook(() => useBrandDeskActivity(12, '/area-cliente'));
+    await waitFor(() => expect(result.current.approvals).toBe(1));
+    vi.mocked(getClientQuotes).mockResolvedValue([]);
+    window.dispatchEvent(new Event(APPROVAL_CHANGED));
+    await waitFor(() => expect(result.current.approvals).toBe(0));
   });
   it('counts all inbox pages and both kinds of approvals', async () => {
     vi.mocked(getClientQuotes).mockResolvedValue([{ status: 'quoted', artwork: { status: 'pending' } }] as never);
