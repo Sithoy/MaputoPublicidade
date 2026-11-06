@@ -13,3 +13,9 @@ staticfiles/
 .env.*
 .git/
 .gitignore
+*.pem
+*.key
+*service-account*.json
+credentials*.json
+tmp/
+output/

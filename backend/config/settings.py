@@ -6,6 +6,8 @@ from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
 
+from .media_storage import media_storage_config
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -202,13 +204,7 @@ AWS_DEFAULT_ACL = "public-read"
 AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=86400"}
 
 STORAGES = {
-    "default": {
-        "BACKEND": (
-            "storages.backends.s3boto3.S3Boto3Storage"
-            if AWS_STORAGE_BUCKET_NAME
-            else "django.core.files.storage.FileSystemStorage"
-        ),
-    },
+    "default": media_storage_config(os.environ),
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },

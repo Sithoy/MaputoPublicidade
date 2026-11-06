@@ -1,0 +1,24 @@
+# Only the backend directory is a build context. Never upload local secrets/data.
+.gcloudignore
+.git
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+*service-account*.json
+credentials*.json
+.venv
+.venv314
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+*.sqlite3
+media
+staticfiles
+tmp
+output
