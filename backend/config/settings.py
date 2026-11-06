@@ -13,6 +13,11 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
+# Old signing keys must not remain valid for authentication after compromise.
+SECRET_KEY_FALLBACKS = []
+# Dedicated root enables signing-key rotation without losing stored integrations.
+INTEGRATION_ENCRYPTION_KEY = os.getenv('INTEGRATION_ENCRYPTION_KEY', '')
+INTEGRATION_ENCRYPTION_KEY_FALLBACK = os.getenv('INTEGRATION_ENCRYPTION_KEY_FALLBACK', '')
 
 DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes")
 
@@ -255,6 +260,10 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("1", "true", "yes
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "info@maputopublicidade.com")
+ZOHO_OAUTH_CALLBACK_URL = os.getenv(
+    'ZOHO_OAUTH_CALLBACK_URL',
+    'https://maputo-publicidade-backend-4ppp.onrender.com/api/integrations/email/oauth/callback/',
+)
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", DEFAULT_FROM_EMAIL)
 
 # SMS (optional)
