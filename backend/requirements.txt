@@ -1,6 +1,6 @@
 Django==5.2.18
 dj-database-url==2.3.0
-django-allauth[headless]==65.19.4
+django-allauth[headless]==65.20.0
 djangorestframework==3.18.3
 django-cors-headers==4.7.0
 gunicorn==23.0.0
