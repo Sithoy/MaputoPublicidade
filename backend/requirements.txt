@@ -3,7 +3,7 @@ dj-database-url==2.3.0
 django-allauth[headless]==65.19.4
 djangorestframework==3.18.3
 django-cors-headers==4.7.0
-gunicorn==23.0.0
+gunicorn==26.2.0
 Pillow==13.0.0
 psycopg2-binary==2.9.10
 python-dotenv==1.2.2
