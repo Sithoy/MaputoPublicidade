@@ -76,7 +76,7 @@ def test_audit_distinguishes_database_files_missing_files_and_errors(client_user
     for private in ['private bytes', 'sensitive provider error', 'categories/', 'private/not-on-disk']:
         assert private not in output.getvalue()
     assert ServiceCategory.objects.count() == 4
-    assert BrandAsset.objects.get().private_content == b'private bytes'
+    assert bytes(BrandAsset.objects.get().private_content) == b'private bytes'
 
 
 @pytest.mark.django_db
