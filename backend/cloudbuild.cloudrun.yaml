@@ -1,0 +1,15 @@
+# Submit only a clean backend source archive for the tested commit.
+# Both substitutions are required; neither may contain a credential.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file=Dockerfile.cloudrun
+      - --build-arg=APP_REVISION=${_REVISION}
+      - --tag=${_IMAGE}
+      - .
+images:
+  - ${_IMAGE}
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 900s

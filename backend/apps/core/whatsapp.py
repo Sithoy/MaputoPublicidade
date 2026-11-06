@@ -1,16 +1,14 @@
 """Meta Cloud API connection, encrypted credentials and inbox transport."""
 
-import base64
-import hashlib
 import json
 from datetime import timedelta
 
 import requests
-from cryptography.fernet import Fernet, InvalidToken
-from django.conf import settings
+from cryptography.fernet import InvalidToken
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from .integration_crypto import integration_cipher
 from .models import SupportMessage, WhatsAppConnection
 
 SECRET_FIELDS = ("access_token", "app_secret", "verify_token")
@@ -21,9 +19,7 @@ def connection():
 
 
 def cipher():
-    # Domain-separated key. SECRET_KEY must be strong and stable across deploys.
-    key = hashlib.sha256(("mp-whatsapp-credentials-v1:" + settings.SECRET_KEY).encode()).digest()
-    return Fernet(base64.urlsafe_b64encode(key))
+    return integration_cipher('whatsapp')
 
 
 def credentials(config):

@@ -1,0 +1,117 @@
+MP backend: Cloud Run migration (not yet cut over)
+================================================
+Target project: maputo-publicidade-gcp (654913531299), ACTIVE.
+Created using sitoeosvaldo@gmail.com. The older maputo-publicidade-prod project is untouched.
+Keep the Vercel frontend and the existing Render backend during validation.
+No database or media deletion is part of this migration.
+
+Current blockers
+----------------
+- Billing is enabled on maputo-publicidade-gcp (verified after owner linkage).
+- Cloud Run, Cloud Build, Artifact Registry and Secret Manager APIs are enabled.
+- Existing database, media storage and production secrets must be confirmed before deployment.
+- Browser automation reports local browser access disabled; CLI access works.
+
+Storage preparation (2026-11-06)
+-------------------------------
+- Owner confirmed live DATABASE_URL uses Neon, AWS us-east-1. Keep that database.
+- Initial Cloud Run and bucket region: us-east4 (Northern Virginia).
+- Owner confirmed no AWS_STORAGE_BUCKET_NAME and no Render persistent disk.
+  This means default filesystem storage is ephemeral; it does NOT mean all
+  uploads are lost. PersistentImageField/data URLs and private binary attachment
+  fields already retain many modern uploads in Neon.
+- Private bucket created: gs://maputo-publicidade-gcp-media-654913531299.
+  Uniform access and public access prevention are enforced. Default seven-day
+  soft delete is enabled. No allUsers/allAuthenticatedUsers grant was added.
+- Runtime identity: mp-backend-runtime@maputo-publicidade-gcp.iam.gserviceaccount.com.
+  Object User access is scoped to this bucket; Token Creator is scoped to itself
+  for keyless URL signing. No service-account key was created.
+- Empty secret resources created: mp-database-url and mp-django-secret-key.
+  Owner must add versions directly in Secret Manager with exact live DATABASE_URL
+  and SECRET_KEY respectively. No secret values were read/transferred by the agent.
+  Do not generate a replacement key or restart/redeploy Render to retrieve it.
+- GS_BUCKET_NAME selects the new backend; leave it UNSET on Render until recovery
+  is complete, so existing local files remain accessible. S3/local development
+  behavior stays unchanged when GS_BUCKET_NAME is absent.
+- Cloud Run must set GS_BUCKET_NAME, GS_PROJECT_ID and GS_SA_EMAIL. Private URLs
+  expire after 15 minutes; no public object ACLs or overwrites. Frontend image
+  optimization permits only this bucket's public catalogue/portfolio folders,
+  not uploads/private folders. Existing authenticated attachment APIs stay intact.
+- Run `python manage.py audit_media_storage --fail-on-missing` on the existing
+  backend BEFORE any redeploy/restart; it only prints aggregate counts, not names,
+  contents or links. This command is prepared locally, not installed on Render.
+  Do NOT redeploy Render merely to install it: that can erase recoverable media.
+  With no shell/browser access, require a secure live-backend inventory/export
+  path before claiming recovery. Missing files require recovery from client/local
+  originals or verified backups; they cannot be recreated by changing storage.
+- Reconcile file hashes, object names and DB row counts before cutover. No client
+  file has been copied yet, and this preparation has not changed live uploads.
+
+Container preparation
+---------------------
+- Build backend/Dockerfile.cloudrun with backend/ as context, never the repo root.
+- Supply APP_REVISION as the exact full tested Git commit; release builds must use clean source.
+- Cloud Build uses backend/cloudbuild.cloudrun.yaml with required _REVISION and
+  _IMAGE substitutions; it deliberately does not deploy or switch traffic.
+- Gunicorn binds 0.0.0.0:$PORT; the app runs as UID 10001.
+- Static files are collected at build time without production credentials.
+- Runtime .env loading is disabled. The startup guard reports only variable names.
+- Gunicorn request access logging is not enabled: private approval URLs must not
+  be copied into application logs. Configure Cloud Logging handling for sensitive
+  request URLs before cutover; retain sanitized security/operational telemetry.
+- Startup does NOT migrate, seed data, create accounts or reset passwords.
+- Health must return 200, db=true and X-MP-Release matching the release SHA.
+- Django keeps HTTPS redirects enabled. A local HTTP smoke check must send
+  X-Forwarded-Proto: https and a Host accepted by ALLOWED_HOSTS.
+
+Data and secrets: mandatory cutover gates
+---------------------------------------
+- Preserve the exact existing SECRET_KEY. Zoho and WhatsApp credentials in the
+  database are encrypted using keys derived from it; changing it is not a migration.
+- Have the owner enter existing secrets directly in Secret Manager. Never paste
+  them in chat, commit them, use secret-bearing CLI flags or put them in build arguments.
+- Runtime identity gets access only to the named secret versions it needs; do not
+  create downloadable service-account keys or use a project-wide Owner role.
+- Owner selected retaining the existing database/storage initially and a USD 10
+  monthly budget alert (not a spending cap).
+- Created project-only budget "MP - monthly USD 10", monthly USD 10, with
+  actual-spend thresholds at 50%, 90% and 100%. Default billing IAM recipients
+  remain enabled. Existing billing-account-wide budget was left unchanged.
+- Keep the existing PostgreSQL database in phase one only if its TLS endpoint is
+  externally reachable and its provider/network rules permit Cloud Run access.
+  Otherwise back up, restore and reconcile to Cloud SQL before switching traffic.
+- Keep existing object storage if configured. Local media cannot be assumed to
+  survive on Cloud Run. Inventory catalogue/partner images, legacy proof files and
+  logos; copy/verify their bytes to durable object storage before enabling uploads
+  or switching production. Private database-backed attachments remain private.
+- Confirm Redis/shared cache requirements before increasing replicas. Begin with
+  one instance and bounded concurrency/connection usage; never assume local cache
+  rate limits coordinate across instances.
+- Agree the region after checking database location; Johannesburg is available,
+  but moving compute away from an existing database may increase latency/cost.
+- Agree a budget alert. An alert is NOT a hard spending cap.
+
+Validation and cutover
+----------------------
+1. Link billing, confirm data locations, approve cost bounds and provisioning.
+2. Enable required APIs; create least-privilege runtime identity and image repository.
+3. Preserve existing production secret values and configure named secret versions.
+4. Pass CI, build/tag the tested source and deploy an isolated Cloud Run candidate.
+5. Validate health, anonymous denials, authentication, RBAC, PDF generation and file
+   access. Do not send real mail/WhatsApp or create production business records merely
+   as a smoke check; get approval for any real test transaction.
+6. Reconcile database counts, uploaded-file inventory and decryptability of existing
+   integration credentials without printing their values. Test backup/restore.
+7. Update only the Vercel backend-origin settings for the intended environment and
+   publish the tested frontend build. Verify public pages and the exact API release.
+8. Repoint any provider callbacks, scheduled polling and webhook endpoints; check
+   duplicate processing/idempotency while both backends exist.
+9. Monitor health/errors, then obtain sign-off before retiring Render.
+
+Rollback
+--------
+Keep the previous Vercel production build and Render service available. Restore
+the previous backend origin and promote its tested frontend deployment if needed.
+Do not run two writable database copies; if data was moved, establish write freeze,
+reconciliation and a recovery decision BEFORE cutover. Do not roll back schemas
+destructively. Nothing here authorizes deleting the old database, files or service.

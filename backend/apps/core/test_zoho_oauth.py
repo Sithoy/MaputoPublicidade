@@ -5,12 +5,14 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 from django.core.cache import cache
+from django.core.exceptions import ImproperlyConfigured
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.roles import StaffRole
 from apps.core.models import EmailConnection
-from apps.core.zoho_oauth import CALLBACK, decrypt
+from apps.core.zoho_oauth import CALLBACK, callback_url, decrypt
 
 BASE = '/api/integrations/email/oauth/'
 VALUES = {'client_id': '1000.example', 'client_secret': 'private-client-secret'}
@@ -36,6 +38,28 @@ def responses(mailbox='atendimento@maputopublicidade.com'):
     ]
 
 
+@pytest.mark.parametrize('value', [
+    'http://maputopublicidade.com/api/integrations/email/oauth/callback/',
+    'https://example.com/api/integrations/email/oauth/callback/',
+    'https://maputopublicidade.com/api/integrations/email/oauth/callback/?next=external',
+    'https://maputopublicidade.com/api/integrations/email/oauth/callback/#fragment',
+    'https://user@maputopublicidade.com/api/integrations/email/oauth/callback/',
+    'https://maputopublicidade.com:invalid/api/integrations/email/oauth/callback/',
+])
+def test_callback_configuration_rejects_unapproved_urls(value):
+    with override_settings(ZOHO_OAUTH_CALLBACK_URL=value):
+        with pytest.raises(ImproperlyConfigured):
+            callback_url()
+
+
+def test_callback_configuration_preserves_legacy_and_supports_stable_public_route():
+    with override_settings(ZOHO_OAUTH_CALLBACK_URL=CALLBACK):
+        assert callback_url() == CALLBACK
+    public = 'https://maputopublicidade.com/api/integrations/email/oauth/callback/'
+    with override_settings(ZOHO_OAUTH_CALLBACK_URL=public):
+        assert callback_url() == public
+
+
 def test_email_credentials_and_callback_excluded_from_telemetry():
     from apps.core.email_telemetry import filter_email_event
     assert filter_email_event({'request': {'url': 'https://mp.test/api/integrations/email/oauth/callback/?code=private'}}, {}) is None
@@ -46,6 +70,18 @@ def test_email_credentials_and_callback_excluded_from_telemetry():
 
 @pytest.mark.django_db
 class TestZohoOAuth:
+    def test_stable_callback_is_used_consistently_for_authorization_and_exchange(self, staff_client):
+        public = 'https://maputopublicidade.com/api/integrations/email/oauth/callback/'
+        staff_client.patch(BASE, VALUES, format='json')
+        with override_settings(ZOHO_OAUTH_CALLBACK_URL=public):
+            started = staff_client.post(BASE + 'start/', {}, format='json')
+            params = parse_qs(urlparse(started.data['url']).query)
+            assert params['redirect_uri'] == [public]
+            with patch('apps.core.zoho_oauth.provider', side_effect=responses()) as api:
+                response = APIClient().get(BASE + 'callback/', {'state': params['state'][0], 'code': 'synthetic-code'})
+            assert '?zoho=connected#email' in response['Location']
+            assert api.call_args_list[0].kwargs['data']['redirect_uri'] == public
+
     def test_secrets_encrypted_write_only_and_blank_preserves(self, staff_client):
         response = staff_client.patch(BASE, VALUES, format='json')
         assert response.status_code == 200

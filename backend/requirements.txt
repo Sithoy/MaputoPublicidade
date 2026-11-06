@@ -8,7 +8,7 @@ Pillow==13.0.0
 psycopg2-binary==2.9.10
 python-dotenv==1.2.2
 whitenoise==6.9.0
-django-storages[boto3]==1.14.4
+django-storages[boto3,google]==1.14.6
 boto3==1.35.95
 openpyxl==3.1.5
 africastalking==1.2.9

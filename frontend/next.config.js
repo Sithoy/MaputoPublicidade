@@ -49,6 +49,12 @@ const nextConfig = {
   images: {
     qualities: [75, 85, 92],
     remotePatterns: [
+      // Only public catalogue/portfolio folders, never private job attachments.
+      ...['categories', 'products', 'variants', 'packages', 'portfolio', 'partners'].map((folder) => ({
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        pathname: `/maputo-publicidade-gcp-media-654913531299/${folder}/**`,
+      })),
       {
         protocol: 'http',
         hostname: 'localhost',

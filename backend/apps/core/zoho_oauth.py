@@ -2,10 +2,12 @@
 import hashlib
 import secrets
 from datetime import timedelta
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import requests
 from cryptography.fernet import InvalidToken
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.utils import timezone
@@ -20,6 +22,21 @@ from .models import EmailConnection
 CALLBACK = 'https://maputo-publicidade-backend-4ppp.onrender.com/api/integrations/email/oauth/callback/'
 RETURN = 'https://maputopublicidade.com/admin/definicoes'
 SCOPES = 'ZohoMail.accounts.READ,ZohoMail.messages.READ,ZohoMail.messages.CREATE'
+
+
+def callback_url():
+    value = settings.ZOHO_OAUTH_CALLBACK_URL
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        raise ImproperlyConfigured('ZOHO_OAUTH_CALLBACK_URL is not a valid approved MP callback.') from None
+    allowed = {'maputopublicidade.com', 'www.maputopublicidade.com', 'maputo-publicidade-backend-4ppp.onrender.com'}
+    if (parsed.scheme != 'https' or parsed.hostname not in allowed or parsed.username or parsed.password
+            or parsed.query or parsed.fragment or port not in {None, 443}
+            or parsed.path != '/api/integrations/email/oauth/callback/'):
+        raise ImproperlyConfigured('ZOHO_OAUTH_CALLBACK_URL must use an approved MP HTTPS callback.')
+    return value
 
 
 def decrypt(value):
@@ -57,7 +74,7 @@ def oauth_data(config):
             'connected': bool(config.oauth_refresh and config.oauth_account_id), 'tested_at': config.tested_at,
             'sending_active': config.sending_enabled, 'receiving_active': config.receiving_enabled,
             'last_synced_at': config.last_synced_at, 'receiving_since': config.receiving_since,
-            'sync_mode': 'inbox_open', 'callback_url': CALLBACK}
+            'sync_mode': 'inbox_open', 'callback_url': callback_url()}
 
 
 class OAuthInput(serializers.Serializer):
@@ -110,7 +127,7 @@ class ZohoOAuthStart(EmailSettingsView):
         config.oauth_actor = request.user
         config.save()
         return Response({'url': 'https://accounts.zoho.com/oauth/v2/auth?' + urlencode({
-            'client_id': config.oauth_client_id, 'response_type': 'code', 'redirect_uri': CALLBACK,
+            'client_id': config.oauth_client_id, 'response_type': 'code', 'redirect_uri': callback_url(),
             'scope': SCOPES, 'access_type': 'offline', 'prompt': 'consent', 'state': state,
         })})
 
@@ -147,7 +164,7 @@ class ZohoOAuthCallback(EmailSettingsView):
                 raise ValidationError('Autorize na conta Zoho US.')
             token = provider('POST', 'https://accounts.zoho.com/oauth/v2/token', data={
                 'grant_type': 'authorization_code', 'code': code, 'client_id': config.oauth_client_id,
-                'client_secret': decrypt(config.oauth_secret), 'redirect_uri': CALLBACK,
+                'client_secret': decrypt(config.oauth_secret), 'redirect_uri': callback_url(),
             })
             if not token.get('refresh_token') or not token.get('access_token'):
                 raise ValidationError('Autorize acesso offline.')

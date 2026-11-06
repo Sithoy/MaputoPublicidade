@@ -1,13 +1,10 @@
 """Configuration and bounded, non-sending authentication checks for Zoho."""
 
-import base64
-import hashlib
 import imaplib
 import smtplib
 import ssl
 
-from cryptography.fernet import Fernet, InvalidToken
-from django.conf import settings
+from cryptography.fernet import InvalidToken
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
@@ -18,13 +15,13 @@ from rest_framework.views import APIView
 
 from apps.accounts.roles import StaffCapability
 
+from .integration_crypto import integration_cipher
 from .models import EmailConnection
 from .permissions import HasStaffCapability
 
 
 def cipher():
-    key = hashlib.sha256(("mp-email-credentials-v1:" + settings.SECRET_KEY).encode()).digest()
-    return Fernet(base64.urlsafe_b64encode(key))
+    return integration_cipher('email')
 
 
 def password(config):

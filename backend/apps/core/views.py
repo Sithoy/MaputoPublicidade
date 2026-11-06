@@ -31,7 +31,7 @@ class HealthCheckView(APIView):
         status_code = 200 if db_ok else 503
         response = Response({"status": "ok" if db_ok else "error", "db": db_ok}, status=status_code)
         response['Cache-Control'] = 'no-store'
-        revision = os.environ.get('RENDER_GIT_COMMIT', '')
+        revision = os.environ.get('MP_RELEASE_SHA') or os.environ.get('RENDER_GIT_COMMIT', '')
         if re.fullmatch(r'[a-fA-F0-9]{40}', revision):
             response['X-MP-Release'] = revision.lower()
         return response
