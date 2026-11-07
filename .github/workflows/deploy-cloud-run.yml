@@ -1,0 +1,101 @@
+name: Cloud Run production
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-run-production
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Verify tested production source
+    if: >-
+      github.repository == 'Sithoy/MaputoPublicidade' &&
+      ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository) ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Require successful CI for the exact current main commit
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/ci/cloud_run_gate.py
+
+  deploy:
+    name: Build, validate and release backend
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: cloud-run-production
+      url: https://maputopublicidade.com
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      RELEASE_SHA: ${{ needs.gate.outputs.sha }}
+      PROJECT: maputo-publicidade-gcp
+      REGION: us-east4
+      IMAGE_REPOSITORY: us-east4-docker.pkg.dev/maputo-publicidade-gcp/mp-backend/api
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+          persist-credentials: false
+      - name: Export clean backend source before authentication
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          mkdir "$RUNNER_TEMP/mp-backend-source"
+          git archive "$RELEASE_SHA:backend" | tar -x -C "$RUNNER_TEMP/mp-backend-source"
+      - id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: maputo-publicidade-gcp
+          workload_identity_provider: projects/654913531299/locations/global/workloadIdentityPools/mp-github/providers/github
+          service_account: mp-github-deployer@maputo-publicidade-gcp.iam.gserviceaccount.com
+          cleanup_credentials: true
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          version: '590.0.0'
+      - name: Build and push exact tested source (no production secrets)
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker us-east4-docker.pkg.dev --quiet
+          docker build --file "$RUNNER_TEMP/mp-backend-source/Dockerfile.cloudrun" \
+            --build-arg "APP_REVISION=$RELEASE_SHA" --tag "$IMAGE_REPOSITORY:$RELEASE_SHA" \
+            "$RUNNER_TEMP/mp-backend-source"
+          docker push "$IMAGE_REPOSITORY:$RELEASE_SHA"
+          digest="$(gcloud artifacts docker images describe "$IMAGE_REPOSITORY:$RELEASE_SHA" --project="$PROJECT" --format='value(image_summary.digest)')"
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          printf 'RELEASE_IMAGE=%s@%s\n' "$IMAGE_REPOSITORY" "$digest" >> "$GITHUB_ENV"
+      - name: Read-only database, migration, media and credential preflight
+        run: |
+          set -euo pipefail
+          gcloud run jobs update mp-backend-preflight --image="$RELEASE_IMAGE" --project="$PROJECT" --region="$REGION" --quiet
+          gcloud run jobs execute mp-backend-preflight --wait --project="$PROJECT" --region="$REGION" --quiet
+      - name: Stage, health-check and promote; roll back on failed live checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/ci/deploy_cloud_run.py
