@@ -14,6 +14,15 @@ function Example({ initial = [line] }: { initial?: EditableDocumentLine[] }) {
 const savedLine = () => JSON.parse(screen.getByTestId('lines').textContent!)[0] as EditableDocumentLine;
 
 describe('Custom document item configurations', () => {
+  it('allows a 510-character description without truncating the saved line', () => {
+    render(<Example />);
+    const description = 'Á'.repeat(510);
+    const input = screen.getByLabelText('Descrição');
+    expect(input).toHaveAttribute('maxlength', '510');
+    fireEvent.change(input, { target: { value: description } });
+    expect(savedLine().description).toBe(description);
+  });
+
   it('opens the full apparel flow for a custom item and stores 200 polos without a catalogue product', () => {
     render(<Example />);
     expect(screen.queryByRole('region', { name: 'Distribuição de vestuário' })).not.toBeInTheDocument();

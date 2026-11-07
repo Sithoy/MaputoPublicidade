@@ -163,7 +163,7 @@ class InvoiceItem(models.Model):
         related_name="items",
         verbose_name="fatura",
     )
-    description = models.CharField("descrição", max_length=255)
+    description = models.CharField("descrição", max_length=510)
     quantity = models.DecimalField(
         "quantidade", max_digits=10, decimal_places=2, default=Decimal("1")
     )
