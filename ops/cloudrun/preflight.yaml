@@ -1,0 +1,32 @@
+# Bootstrap this existing job once. CI only updates its immutable image.
+--image: us-east4-docker.pkg.dev/maputo-publicidade-gcp/mp-backend/api@sha256:76d8ea50eeba2f0ac1d622e04f42524e4fffd128d4a5282d7e1ad288176331fa
+--service-account: mp-backend-runtime@maputo-publicidade-gcp.iam.gserviceaccount.com
+--memory: 512Mi
+--cpu: '1'
+--max-retries: '0'
+--task-timeout: 600s
+--tasks: '1'
+--parallelism: '1'
+--set-secrets: DATABASE_URL=mp-db-runtime-damp-hill:1,SECRET_KEY=mp-django-signing-rotated:1,INTEGRATION_ENCRYPTION_KEY=mp-integration-root:1
+--set-env-vars: DEBUG=False,DATABASE_SSL_REQUIRE=True,PGOPTIONS=-c default_transaction_read_only=on,OBSERVABILITY_ENABLED=false,EMAIL_BACKEND=django.core.mail.backends.dummy.EmailBackend,SMS_BACKEND=none,PAYMENT_PROVIDER=mock,ALLOWED_HOSTS=localhost,GS_BUCKET_NAME=maputo-publicidade-gcp-media-654913531299,GS_PROJECT_ID=maputo-publicidade-gcp,GS_SA_EMAIL=mp-backend-runtime@maputo-publicidade-gcp.iam.gserviceaccount.com
+--command: python
+--args:
+  - -c
+  - |
+      import os,json
+      os.environ['DJANGO_SETTINGS_MODULE']='config.settings'
+      import django
+      django.setup()
+      from django.core.management import call_command
+      from django.db import connection
+      from django.db.migrations.executor import MigrationExecutor
+      with connection.cursor() as cursor:
+          cursor.execute("SELECT current_user,current_setting('transaction_read_only')")
+          assert cursor.fetchone()==('mp_runtime','on')
+      executor=MigrationExecutor(connection)
+      if executor.migration_plan(executor.loader.graph.leaf_nodes()):
+          raise SystemExit('Deployment blocked: review and apply pending database migrations separately.')
+      call_command('check',deploy=True,fail_level='ERROR')
+      call_command('rotate_integration_credentials',verify_current_only=True)
+      call_command('audit_media_storage',fail_on_missing=True)
+      print(json.dumps({'release_preflight_passed':True,'database_read_only':True,'pending_migrations':0}))

@@ -1,5 +1,6 @@
 # Environment
 .env
+gha-creds-*.json
 
 # Local source assets already copied into frontend/public
 /*.png
