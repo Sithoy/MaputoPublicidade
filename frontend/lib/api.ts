@@ -1,34 +1,20 @@
 import { receptionEditHeaders } from './reception-edit-session';
+import { resolveBackendOrigin } from './backend-origin';
 
-const LOCAL_SERVER_API_ORIGIN = 'http://backend:8000';
 const PUBLIC_API_ORIGIN = 'https://www.maputopublicidade.com';
-
-function isLocalOnlyOrigin(origin: string): boolean {
-  try {
-    const hostname = new URL(origin).hostname;
-    return hostname === 'backend' || hostname === 'localhost' || hostname === '127.0.0.1';
-  } catch {
-    return false;
-  }
-}
 
 type ApiEnvironment = Record<string, string | undefined>;
 
 export function resolveServerApiOrigin(env: ApiEnvironment = process.env): string {
-  const configuredOrigin = env.INTERNAL_API_URL?.replace(/\/$/, '');
-  const isVercel = env.VERCEL === '1' || Boolean(env.VERCEL_ENV);
-
-  if (isVercel && (!configuredOrigin || isLocalOnlyOrigin(configuredOrigin))) {
-    return (env.PUBLIC_CONTENT_API_ORIGIN || PUBLIC_API_ORIGIN).replace(/\/$/, '');
-  }
-
-  return configuredOrigin || LOCAL_SERVER_API_ORIGIN;
+  return resolveBackendOrigin(env);
 }
 
 export function resolveServerGetFallbackUrl(
   path: string,
   env: ApiEnvironment = process.env
 ): string | null {
+  // Never conceal a staging/local failure with live catalogue or customer data.
+  if (env.VERCEL_ENV !== 'production') return null;
   const publicOrigin = (env.PUBLIC_CONTENT_API_ORIGIN || PUBLIC_API_ORIGIN).replace(/\/$/, '');
   if (
     /^https?:\/\//i.test(path) ||

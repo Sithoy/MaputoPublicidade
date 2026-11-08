@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 from apps.accounts.roles import StaffCapability
 
 from .integration_crypto import integration_cipher
+from .integration_safety import require_live_integrations
 from .models import EmailConnection
 from .permissions import HasStaffCapability
 
@@ -95,6 +96,7 @@ class EmailSettingsView(APIView):
 
 class EmailTestView(EmailSettingsView):
     def post(self, request):
+        require_live_integrations()
         config = EmailConnection.objects.get_or_create(pk=1)[0]
         secret = password(config)
         if not secret:

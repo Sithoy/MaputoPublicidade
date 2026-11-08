@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from .integration_crypto import integration_cipher
+from .integration_safety import require_live_integrations
 from .models import SupportMessage, WhatsAppConnection
 
 SECRET_FIELDS = ("access_token", "app_secret", "verify_token")
@@ -59,6 +60,7 @@ def can_reply(conversation, config=None):
 
 
 def graph(config, method, path, **kwargs):
+    require_live_integrations()
     token = credentials(config).get("access_token", "")
     try:
         response = requests.request(
