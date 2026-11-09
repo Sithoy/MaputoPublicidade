@@ -20,9 +20,11 @@ import {
 } from '@/lib/company';
 
 export const metadata = {
-  title: 'Sobre Nós | Maputo Publicidade',
+  title: 'Sobre Nós',
   description:
     'Conheça a história da Maputo Publicidade, a nossa forma de trabalhar e os contactos da nossa equipa em Maputo.',
+  alternates: { canonical: '/sobre' },
+  openGraph: { url: '/sobre' },
 };
 
 const values = [

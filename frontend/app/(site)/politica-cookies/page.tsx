@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Política de Cookies',
   description: 'Política de cookies do site Maputo Publicidade.',
+  alternates: { canonical: '/politica-cookies' },
+  openGraph: { url: '/politica-cookies' },
 };
 
 export default function CookiesPage() {

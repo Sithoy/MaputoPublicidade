@@ -37,15 +37,17 @@ export async function generateMetadata({ params: pendingParams }: { params: Prom
   const service = getMainService(params.slug);
 
   if (!service) {
-    return { title: 'Serviço | Maputo Publicidade' };
+    return { title: 'Serviço' };
   }
 
   return {
-    title: `${service.title} | Maputo Publicidade`,
+    title: service.title,
     description: service.summary,
+    alternates: { canonical: `/servicos/${service.slug}` },
     openGraph: {
       title: `${service.title} | Maputo Publicidade`,
       description: service.summary,
+      url: `/servicos/${service.slug}`,
       images: [`${siteUrl}${service.image}`],
     },
   };

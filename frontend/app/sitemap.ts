@@ -1,7 +1,8 @@
 import type { MetadataRoute } from 'next';
+import { companyProfile } from '@/lib/company';
 import { mainServices } from '@/lib/service-catalog';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const siteUrl = companyProfile.siteUrl;
 
 async function fetchSlugs(path: string): Promise<string[]> {
   try {
@@ -23,20 +24,19 @@ async function fetchSlugs(path: string): Promise<string[]> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [products, portfolio] = await Promise.all([
-    fetchSlugs('/api/products/'),
-    fetchSlugs('/api/portfolio/'),
-  ]);
+  const products = await fetchSlugs('/api/products/');
 
   const staticRoutes = [
     '',
     '/catalogo',
     '/servicos',
     '/sobre',
-    '/contactos',
     '/portfolio',
     '/orcamento',
     '/branddesk/demo',
+    '/privacidade',
+    '/termos',
+    '/politica-cookies',
   ];
 
   const serviceSlugs = mainServices.map((service) => service.slug);
@@ -56,12 +56,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
     ...products.map((slug) => ({
       url: `${siteUrl}/catalogo/${slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
-    })),
-    ...portfolio.map((slug) => ({
-      url: `${siteUrl}/portfolio/${slug}`,
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.6,

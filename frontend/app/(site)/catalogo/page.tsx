@@ -5,9 +5,10 @@ import { getList, type Product } from '@/lib/api';
 import { companyProfile, whatsappHref } from '@/lib/company';
 
 export const metadata = {
-  title: 'Catálogo | Maputo Publicidade',
+  title: 'Catálogo',
   description: 'Encontre os materiais certos para dar presença à sua marca. Explore produtos e prepare um pedido personalizado.',
-  openGraph: { images: [`${companyProfile.siteUrl}/og-image.png`] },
+  alternates: { canonical: '/catalogo' },
+  openGraph: { url: '/catalogo', images: [`${companyProfile.siteUrl}/og-image.png`] },
 };
 export const revalidate = 60;
 

@@ -2,8 +2,10 @@ import { Suspense } from 'react';
 import { OrcamentoContent } from '@/components/OrcamentoContent';
 
 export const metadata = {
-  title: 'Pedir Orçamento | Maputo Publicidade',
+  title: 'Pedir Orçamento',
   description: 'Peça um orçamento personalizado para a sua empresa.',
+  alternates: { canonical: '/orcamento' },
+  openGraph: { url: '/orcamento' },
 };
 
 export default function QuotePage() {
