@@ -35,7 +35,7 @@ class BrandItemSerializer(serializers.Serializer):
         from apps.catalog.apparel import validate_distribution
         return validate_distribution(values)
     material_briefing = MaterialBriefingSerializer(required=False)
-    description = serializers.CharField(max_length=255)
+    description = serializers.CharField(max_length=510)
     quantity = serializers.IntegerField(min_value=1, max_value=1000000)
     specifications = serializers.CharField(max_length=2000, required=False, allow_blank=True)
 
