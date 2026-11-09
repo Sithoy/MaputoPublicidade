@@ -3,8 +3,10 @@ import { ArrowRight } from 'lucide-react';
 import { ServiceGallery } from '@/components/ServiceGallery';
 
 export const metadata = {
-  title: 'Serviços | Maputo Publicidade',
+  title: 'Serviços',
   description: 'Uniformes, impressão, branding, brindes e sinalização: soluções para uma presença de marca consistente em Maputo.',
+  alternates: { canonical: '/servicos' },
+  openGraph: { url: '/servicos' },
 };
 
 export default function ServicesPage() {

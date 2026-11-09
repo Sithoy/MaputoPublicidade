@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
+import { companyProfile } from '@/lib/company';
 import '@/styles/globals.css';
 import '@/styles/branddesk.css';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const siteUrl = companyProfile.siteUrl;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
