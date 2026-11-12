@@ -60,14 +60,14 @@ def main():
                   '--labels=environment=staging,application=maputo-publicidade')
         if name in values:
             cloud('secrets', 'versions', 'add', name, '--data-file=-', data=values[name].encode())
-    print(json.dumps({'staging_secrets_created': names,
-                      'database_host': url.hostname.replace('-pooler.', '.')}))
+    # Do not log any value derived from credential-bearing input, even a hostname
+    # or a mapping key. Resource names are documented separately.
+    print('STAGING_SECRETS_CREATED')
 
 
 if __name__ == '__main__':
     try:
         main()
     except Exception as exc:
-        print(json.dumps({'failed': True, 'error_type': type(exc).__name__,
-                          'operation': str(exc) if isinstance(exc, RuntimeError) else 'validation'}))
+        print(json.dumps({'failed': True, 'error_type': type(exc).__name__}))
         raise SystemExit(1) from None
