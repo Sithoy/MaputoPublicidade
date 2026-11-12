@@ -6,9 +6,11 @@ from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
 
+from .environment_safety import validate_staging_environment
 from .media_storage import media_storage_config
 
 load_dotenv()
+validate_staging_environment(os.environ)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,6 +22,8 @@ INTEGRATION_ENCRYPTION_KEY = os.getenv('INTEGRATION_ENCRYPTION_KEY', '')
 INTEGRATION_ENCRYPTION_KEY_FALLBACK = os.getenv('INTEGRATION_ENCRYPTION_KEY_FALLBACK', '')
 
 DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes")
+MP_ENVIRONMENT = os.getenv('MP_ENVIRONMENT', 'production')
+TRACKING_SITE_URL = os.getenv('TRACKING_SITE_URL', 'https://maputopublicidade.com')
 
 _allowed_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,backend")
 ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(",") if h.strip()]
@@ -284,6 +288,11 @@ MPESA_SERVICE_PROVIDER_CODE = os.getenv("MPESA_SERVICE_PROVIDER_CODE", "")
 MPESA_ENVIRONMENT = os.getenv("MPESA_ENVIRONMENT", "sandbox")
 MPESA_CALLBACK_URL = os.getenv("MPESA_CALLBACK_URL", "")
 MPESA_ORIGIN = os.getenv("MPESA_ORIGIN", "developer.mpesa.vm.co.mz")
+
+if MP_ENVIRONMENT == 'staging':
+    EMAIL_BACKEND = LEGACY_EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'
+    SMS_BACKEND = 'none'
+    PAYMENT_PROVIDER = 'mock'
 
 # Cache
 REDIS_URL = os.getenv("REDIS_URL", "")

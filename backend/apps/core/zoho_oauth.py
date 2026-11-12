@@ -17,6 +17,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .email_connection import EmailSettingsView, cipher
+from .integration_safety import require_live_integrations
 from .models import EmailConnection
 
 CALLBACK = 'https://maputo-publicidade-backend-4ppp.onrender.com/api/integrations/email/oauth/callback/'
@@ -47,6 +48,7 @@ def decrypt(value):
 
 
 def provider(method, url, **kwargs):
+    require_live_integrations()
     # URLs are constants, never taken from callback/query/provider responses.
     try:
         result = requests.request(method, url, timeout=10, allow_redirects=False, **kwargs)
@@ -115,8 +117,12 @@ class ZohoOAuthSettings(EmailSettingsView):
 
 
 class ZohoOAuthStart(EmailSettingsView):
-    @transaction.atomic
     def post(self, request):
+        require_live_integrations()
+        return self._start(request)
+
+    @transaction.atomic
+    def _start(self, request):
         EmailConnection.objects.get_or_create(pk=1)
         config = EmailConnection.objects.select_for_update().get(pk=1)
         if not config.oauth_client_id or not config.oauth_secret:

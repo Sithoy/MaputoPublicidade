@@ -12,14 +12,14 @@ describe('resolveAuthBackendOrigin', () => {
     ).toBe('https://backend.example.com');
   });
 
-  it('does not use a Docker-only origin on Vercel', () => {
-    expect(
+  it('fails closed rather than choosing a live backend for an invalid preview', () => {
+    expect(() =>
       resolveAuthBackendOrigin({ INTERNAL_API_URL: 'http://backend:8000', VERCEL: '1' })
-    ).toBe('https://maputo-publicidade-backend-4ppp.onrender.com');
+    ).toThrow('HTTPS backend');
   });
 
-  it('keeps the Docker backend for local development', () => {
-    expect(resolveAuthBackendOrigin({})).toBe('http://backend:8000');
+  it('uses the host-local backend unless Docker is explicitly configured', () => {
+    expect(resolveAuthBackendOrigin({})).toBe('http://localhost:8000');
   });
 });
 

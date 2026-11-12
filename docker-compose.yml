@@ -45,6 +45,10 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      INTERNAL_API_URL: http://backend:8000
+      VERCEL: "0"
+      VERCEL_ENV: ""
     command: >
       sh -c "find /app/.next -mindepth 1 -delete 2>/dev/null || true; npm run dev"
     volumes:

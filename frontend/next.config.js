@@ -1,11 +1,7 @@
 /** @type {import('next').NextConfig} */
 const isDev = process.env.NODE_ENV === 'development';
 
-const internalApiUrl =
-  process.env.INTERNAL_API_URL ||
-  (process.env.VERCEL === '1'
-    ? 'https://maputo-publicidade-backend-4ppp.onrender.com'
-    : 'http://backend:8000');
+const { resolveBackendOrigin } = require('./lib/backend-origin');
 
 // Browser API calls are same-origin (rewrites proxy the backend), so
 // connect-src 'self' is enough. Dev adds ws: for HMR and http://localhost
@@ -39,7 +35,11 @@ const nextConfig = {
   reactStrictMode: true,
   skipTrailingSlashRedirect: true,
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }, { source: '/arte/:path*', headers: [
+    const environmentHeaders = process.env.VERCEL_ENV === 'preview' ? [
+      { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+      { key: 'X-MP-Environment', value: 'staging' },
+    ] : [];
+    return [{ source: '/:path*', headers: [...securityHeaders, ...environmentHeaders] }, { source: '/arte/:path*', headers: [
       { key: 'Referrer-Policy', value: 'no-referrer' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
     ] }, { source: '/proposta', headers: [
       { key: 'Referrer-Policy', value: 'no-referrer' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
@@ -86,14 +86,10 @@ const nextConfig = {
         hostname: '*.cloudfront.net',
         pathname: '/**',
       },
-      {
-        protocol: 'https',
-        hostname: '*.onrender.com',
-        pathname: '/media/**',
-      },
     ],
   },
   async rewrites() {
+    const internalApiUrl = resolveBackendOrigin(process.env);
     return [
       {
         source: '/api/:path*',

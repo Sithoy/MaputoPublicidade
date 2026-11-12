@@ -19,13 +19,13 @@ describe('resolveServerApiOrigin', () => {
     );
   });
 
-  it('uses the public content API on Vercel when the configured address is local-only', () => {
-    expect(
+  it('rejects a local-only address on Vercel without using production', () => {
+    expect(() =>
       resolveServerApiOrigin({
         VERCEL: '1',
         INTERNAL_API_URL: 'http://backend:8000',
       })
-    ).toBe('https://www.maputopublicidade.com');
+    ).toThrow('HTTPS backend');
   });
 
   it('respects an explicitly configured public API on Vercel', () => {
@@ -37,27 +37,28 @@ describe('resolveServerApiOrigin', () => {
     ).toBe('https://api.example.com');
   });
 
-  it('allows the Vercel fallback origin to be overridden', () => {
-    expect(
+  it('requires an explicit backend instead of silently using the public content API', () => {
+    expect(() =>
       resolveServerApiOrigin({
         VERCEL: '1',
         PUBLIC_CONTENT_API_ORIGIN: 'https://content.example.com/',
       })
-    ).toBe('https://content.example.com');
+    ).toThrow('INTERNAL_API_URL');
   });
 
-  it('provides a public GET fallback for a local-only server address', () => {
+  it('never provides a production GET fallback for local development', () => {
     expect(
       resolveServerGetFallbackUrl('/api/products/', {
         INTERNAL_API_URL: 'http://backend:8000',
       })
-    ).toBe('https://www.maputopublicidade.com/api/products/');
+    ).toBeNull();
   });
 
   it('provides the content fallback when another public server is configured', () => {
     expect(
       resolveServerGetFallbackUrl('/api/products/', {
         INTERNAL_API_URL: 'https://api.example.com',
+        VERCEL_ENV: 'production',
       })
     ).toBe('https://www.maputopublicidade.com/api/products/');
   });
@@ -66,6 +67,7 @@ describe('resolveServerApiOrigin', () => {
     expect(
       resolveServerGetFallbackUrl('/api/products/', {
         INTERNAL_API_URL: 'https://www.maputopublicidade.com',
+        VERCEL_ENV: 'production',
       })
     ).toBeNull();
   });
@@ -75,6 +77,7 @@ describe('get', () => {
   it('retries a failed server GET against the public content API', async () => {
     vi.stubGlobal('window', undefined);
     vi.stubEnv('INTERNAL_API_URL', 'https://api.example.com');
+    vi.stubEnv('VERCEL_ENV', 'production');
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(null, { status: 404 }))
@@ -92,6 +95,17 @@ describe('get', () => {
       'https://www.maputopublicidade.com/api/products/',
       expect.any(Object)
     );
+  });
+
+  it('does not retry a preview failure against the production API', async () => {
+    vi.stubGlobal('window', undefined);
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('INTERNAL_API_URL', 'https://staging.example.com');
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 404 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(get('/api/products/')).rejects.toThrow('404');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith('https://staging.example.com/api/products/', expect.any(Object));
   });
 });
 
