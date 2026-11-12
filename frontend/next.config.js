@@ -35,7 +35,11 @@ const nextConfig = {
   reactStrictMode: true,
   skipTrailingSlashRedirect: true,
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }, { source: '/arte/:path*', headers: [
+    const environmentHeaders = process.env.VERCEL_ENV === 'preview' ? [
+      { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+      { key: 'X-MP-Environment', value: 'staging' },
+    ] : [];
+    return [{ source: '/:path*', headers: [...securityHeaders, ...environmentHeaders] }, { source: '/arte/:path*', headers: [
       { key: 'Referrer-Policy', value: 'no-referrer' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
     ] }, { source: '/proposta', headers: [
       { key: 'Referrer-Policy', value: 'no-referrer' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },

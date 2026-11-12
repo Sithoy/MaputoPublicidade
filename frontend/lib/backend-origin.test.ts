@@ -35,4 +35,14 @@ describe('backend environment isolation', () => {
     expect(rewrites).toHaveLength(3);
     for (const rule of rewrites) expect(rule.destination).toMatch(/^https:\/\/staging\.example\.com\//);
   });
+
+  it('marks preview responses as non-indexable without changing production', async () => {
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    const preview = (await config.headers())[0].headers;
+    expect(preview).toContainEqual({ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' });
+    expect(preview).toContainEqual({ key: 'X-MP-Environment', value: 'staging' });
+    vi.stubEnv('VERCEL_ENV', 'production');
+    const production = (await config.headers())[0].headers;
+    expect(production.some((header: { key: string }) => header.key === 'X-MP-Environment')).toBe(false);
+  });
 });
