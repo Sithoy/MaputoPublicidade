@@ -126,7 +126,7 @@ class ReceptionItemSerializer(serializers.Serializer):
         return validate_distribution(values)
     material_briefing = MaterialBriefingSerializer(required=False)
     id = serializers.IntegerField(min_value=1, required=False)
-    description = serializers.CharField(max_length=255)
+    description = serializers.CharField(max_length=510)
     quantity = serializers.IntegerField(min_value=1, max_value=1000000)
     size = serializers.CharField(max_length=100, required=False, allow_blank=True)
     material = serializers.CharField(max_length=100, required=False, allow_blank=True)
