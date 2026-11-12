@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Termos de Uso',
   description: 'Termos de uso do site Maputo Publicidade.',
+  alternates: { canonical: '/termos' },
+  openGraph: { url: '/termos' },
 };
 
 export default function TermsPage() {

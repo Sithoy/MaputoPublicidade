@@ -4,6 +4,8 @@ import { companyProfile, mailtoHref } from '@/lib/company';
 export const metadata: Metadata = {
   title: 'Política de Privacidade',
   description: 'Política de privacidade do site Maputo Publicidade.',
+  alternates: { canonical: '/privacidade' },
+  openGraph: { url: '/privacidade' },
 };
 
 export default function PrivacyPage() {

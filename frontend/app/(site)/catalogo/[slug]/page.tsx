@@ -4,8 +4,9 @@ import { ArrowLeft } from 'lucide-react';
 import { ProductVariantSelector } from '@/components/ProductVariantSelector';
 import { get, getList, type Product } from '@/lib/api';
 import { getProductImageSrc } from '@/lib/image-fallbacks';
+import { companyProfile } from '@/lib/company';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const siteUrl = companyProfile.siteUrl;
 
 export const revalidate = 60;
 
@@ -31,16 +32,18 @@ export async function generateMetadata({ params: pendingParams }: { params: Prom
   try {
     const product = await get<Product>(`/api/products/${params.slug}/`, { next: { revalidate: 60 } });
     return {
-      title: `${product.name} | Maputo Publicidade`,
+      title: product.name,
       description: product.description,
+      alternates: { canonical: `/catalogo/${product.slug}` },
       openGraph: {
         title: `${product.name} | Maputo Publicidade`,
         description: product.description,
+        url: `/catalogo/${product.slug}`,
         images: [absoluteImageUrl(getProductImageSrc(product))],
       },
     };
   } catch {
-    return { title: 'Produto | Maputo Publicidade' };
+    return { title: 'Produto' };
   }
 }
 

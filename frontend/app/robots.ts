@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
+import { companyProfile } from '@/lib/company';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const siteUrl = companyProfile.siteUrl;
 
 export default function robots(): MetadataRoute.Robots {
   return {

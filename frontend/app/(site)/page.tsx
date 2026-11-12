@@ -41,6 +41,7 @@ export const metadata = {
   title: 'Gestão e Produção de Marca em Maputo',
   description:
     'Há mais de 10 anos a ajudar empresas a gerir uma presença visual consistente, da criação à produção, instalação e entrega.',
+  alternates: { canonical: '/' },
   openGraph: {
     title: 'Maputo Publicidade | Presença de Marca em Maputo',
     description:
